@@ -4,6 +4,9 @@ name: tests
 # 为什么不是全量：集成测试要真的开 QML 窗口，本地 QT_QPA_PLATFORM=offscreen 下跑
 # 全量会崩（跑到中途访问违例），不能拿来当合并闸门。集成测试继续在本机跑。
 #
+# 依赖**只有一份来源**：environment.yml（conda 环境 chaita）。
+# 不在这里另写 pip install 清单 —— 否则你往 environment.yml 里加包，CI 不知道。
+#
 # 分支流程：feature → PR 到 dev → 这里跑 → 人 review + merge；dev 稳定后合到 main。
 
 on:
@@ -21,7 +24,7 @@ jobs:
   unit:
     name: unit tests (pytest tests/unit)
     runs-on: windows-latest          # pywin32 / win32api 只在 Windows 上装得上
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     env:
       # 单元测试不建真窗口，offscreen 最省事（本地实测 636 条全过，约 4 秒）
@@ -32,20 +35,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: 按 environment.yml 建环境
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: environment.yml
+          miniforge-version: latest
+          activate-environment: chaita
+          environment-file: environment.yml
+          # 不走 shell init（Windows 上 hook 容易出岔子），后面用 conda run 直调
+          auto-activate: false
+          auto-update-conda: false
 
-      - name: 装依赖
-        # 一行写完，不靠 shell 的续行符（windows-latest 默认 pwsh、别的 shell 是 bash）
+      - name: 装了哪些东西（排查用）
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyside6 opencv-python-headless numpy pywin32 pytest pytest-mock "agent-framework>=1.22" "agent-framework-openai>=1.17" "openai>=3.35"
+          conda run -n chaita python -c "import sys, numpy, cv2, PySide6; print(sys.version); print('numpy', numpy.__version__); print('cv2', cv2.__version__); print('PySide6', PySide6.__version__)"
 
       - name: 单元测试
-        run: python -m pytest tests/unit -q
+        shell: pwsh
+        # --no-capture-output：不攒到最后才吐，失败时能看到卡在哪一条
+        run: conda run --no-capture-output -n chaita python -m pytest tests/unit -q
 
       - name: 失败时留下现场
         if: failure()
