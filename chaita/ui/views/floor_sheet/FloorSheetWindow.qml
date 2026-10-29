@@ -850,7 +850,7 @@ Window {
                         Text {
                             id: routeName
                             objectName: "routeOpen"
-                            width: 52
+                            width: 44
                             anchors.verticalCenter: parent.verticalCenter
                             text: "路线 " + (index + 1)
                             color: routeMouse.containsMouse ? host.amber : host.ink2
@@ -869,7 +869,7 @@ Window {
                         // 按当前格子实时算（用户："计算部分不再允许修改"）
                         Text {
                             objectName: "routeComputed"
-                            width: 116
+                            width: 150
                             anchors.verticalCenter: parent.verticalCenter
                             text: host.routeStatsFor(sheetRoot.sheetName,
                                                      modelData.index)
@@ -879,7 +879,7 @@ Window {
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            width: parent.width - 52 - 116 - 12 - 16
+                            width: parent.width - 44 - 150 - 12 - 16
                             height: 22
                             radius: 5
                             anchors.verticalCenter: parent.verticalCenter
