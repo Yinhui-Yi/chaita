@@ -33,10 +33,10 @@ jobs:
       PYTHONUTF8: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 按 environment.yml 建环境
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-version: latest
           activate-environment: chaita
@@ -53,11 +53,13 @@ jobs:
       - name: 单元测试
         shell: pwsh
         # --no-capture-output：不攒到最后才吐，失败时能看到卡在哪一条
-        run: conda run --no-capture-output -n chaita python -m pytest tests/unit -q
+        # 别再在这里加 -q：pytest.ini 的 addopts 已经带了 -q，再加一个 = -qq，
+        # 连 "N passed" 汇总行都不打印，日志里就看不出跑了几条。
+        run: conda run --no-capture-output -n chaita python -m pytest tests/unit
 
       - name: 失败时留下现场
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: logs
           path: |
