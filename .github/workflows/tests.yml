@@ -1,0 +1,69 @@
+name: tests
+
+# 只跑单元测试当闸门。
+# 为什么不是全量：集成测试要真的开 QML 窗口，本地 QT_QPA_PLATFORM=offscreen 下跑
+# 全量会崩（跑到中途访问违例），不能拿来当合并闸门。集成测试继续在本机跑。
+#
+# 依赖**只有一份来源**：environment.yml（conda 环境 chaita）。
+# 不在这里另写 pip install 清单 —— 否则你往 environment.yml 里加包，CI 不知道。
+#
+# 分支流程：feature → PR 到 dev → 这里跑 → 人 review + merge；dev 稳定后合到 main。
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  # 同一个 PR 连着推两次，把前一次没跑完的取消掉，别排长队
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit tests (pytest tests/unit)
+    runs-on: windows-latest          # pywin32 / win32api 只在 Windows 上装得上
+    timeout-minutes: 30
+
+    env:
+      # 单元测试不建真窗口，offscreen 最省事（本地实测 636 条全过，约 4 秒）
+      QT_QPA_PLATFORM: offscreen
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 按 environment.yml 建环境
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          activate-environment: chaita
+          environment-file: environment.yml
+          # 不走 shell init（Windows 上 hook 容易出岔子），后面用 conda run 直调
+          auto-activate: false
+          auto-update-conda: false
+
+      - name: 装了哪些东西（排查用）
+        shell: pwsh
+        run: |
+          conda run -n chaita python -c "import sys, numpy, cv2, PySide6; print(sys.version); print('numpy', numpy.__version__); print('cv2', cv2.__version__); print('PySide6', PySide6.__version__)"
+
+      - name: 单元测试
+        shell: pwsh
+        # --no-capture-output：不攒到最后才吐，失败时能看到卡在哪一条
+        # 别再在这里加 -q：pytest.ini 的 addopts 已经带了 -q，再加一个 = -qq，
+        # 连 "N passed" 汇总行都不打印，日志里就看不出跑了几条。
+        run: conda run --no-capture-output -n chaita python -m pytest tests/unit
+
+      - name: 失败时留下现场
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logs
+          path: |
+            logs/chaita.log
+            logs/crash.log
+          if-no-files-found: ignore
+          retention-days: 7
