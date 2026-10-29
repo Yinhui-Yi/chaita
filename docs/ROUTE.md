@@ -82,6 +82,12 @@
   （`controller.clipboardCopy`）；伤害计算窗口顶栏「粘贴」（或 Ctrl+V）从
   **系统剪贴板**读回（`controller.clipboardText` + `routeParseClipboard`），
   只认那种 JSON，别的文本不起行。
+- **路线对比**（用户："入口就在伤害计算的右边；把算好的路线复制或拖进来，
+  显示每只怪的掉血，多条路线时对比每只怪在不同路线的掉血"）：导航条 ⚔ 右边
+  的 ⇄ 打开 `views/route_compare/CompareWindow.qml`。一条路线一列、一行一只怪
+  （按「怪名 + 第几只」对齐），底下是各路线总掉血 / 剩血。导入两条路：
+  「粘贴」读同一种 JSON；链窗口抬头的「拖」把手（`routeDragOut`）把同一份
+  JSON 塞进 `Drag.mimeData` 的 `application/x-route-json`，对比窗的 DropArea 收。
 - 底栏那**一大块黄底**（纸色 `paperLo` 的合计条）已经从伤害计算和路线图两个窗口删掉，
   不写"点这算那"的提示 —— 结果直接写在各行/链的右边。
 - 链上的怪用 `battleMonsters()` 那份（生命/攻击/防御/技能参数），资源用
