@@ -47,8 +47,9 @@ def test_compute_battle():
         '{"hero":{"hp":1200,"atk":60,"def":30,"mdef":20},'
         '"steps":[{"kind":"monster","name":"血蚊","hp":1200,'
         '"atk":60,"def":20,"count":1,"skills":[]}]}')
-    assert r["total_damage"] == 870
-    assert r["hp_after"] == 330
+    # 战斗本身掉 870（29 下 × 30），再减一次护盾 20 → 850
+    assert r["total_damage"] == 850
+    assert r["hp_after"] == 350
 
 
 def test_compute_battle_bad_payload():

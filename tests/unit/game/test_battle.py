@@ -13,9 +13,12 @@
 from chaita.game import battle
 
 
-HERO = {"hp": 1200, "atk": 60, "def": 30, "mdef": 20}
+# 注意：下面这些英雄的 **护盾(mdef) 一律 0** —— 护盾是"整场减一次"的规则（按教程塔），
+# 开着它会把每条公式的期望值整体挪掉 20 点，反而看不出公式本身对不对。
+# 护盾有自己的一组测试（`test_fight_shield_*`）。
+HERO = {"hp": 1200, "atk": 60, "def": 30, "mdef": 0}
 # 算多技能叠加时用血极厚的英雄，免得算到一半被血条截断
-RICH = {"hp": 10 ** 9, "atk": 60, "def": 30, "mdef": 20}
+RICH = {"hp": 10 ** 9, "atk": 60, "def": 30, "mdef": 0}
 
 
 # ---------- 数字解析 ----------
@@ -151,7 +154,7 @@ def test_magic_ignores_defense():
 
 
 def test_vampire_open_drains_before_battle():
-    tank = {"hp": 100000, "atk": 60, "def": 30, "mdef": 20}
+    tank = {"hp": 100000, "atk": 60, "def": 30, "mdef": 0}
     vamp = battle.fight(tank, {"name": "A", "hp": 1200, "atk": 60, "def": 20},
                         [{"name": "吸血", "code": "11",
                           "params": {"value": "50"}}])
@@ -185,7 +188,7 @@ def test_self_destruct():
 
 def test_lethal_does_not_cap_damage():
     # 打不过：真实要 870（29 回合 × 30），不是只截到你剩下的 100
-    weak = {"hp": 100, "atk": 60, "def": 30, "mdef": 20}
+    weak = {"hp": 100, "atk": 60, "def": 30, "mdef": 0}
     r = battle.fight(weak, {"name": "A", "hp": 1200, "atk": 60, "def": 20})
     assert r["lethal"]
     assert r["damage"] == 870
@@ -251,7 +254,7 @@ def test_stops_at_death():
         {"kind": "monster", "name": "先死", "hp": 1200, "atk": 60, "def": 20},
         {"kind": "monster", "name": "补刀", "hp": 1200, "atk": 60, "def": 20},
     ]
-    r = battle.run_plan({"hp": 120, "atk": 60, "def": 30, "mdef": 20}, steps)
+    r = battle.run_plan({"hp": 120, "atk": 60, "def": 30, "mdef": 0}, steps)
     assert r["dead_at"] == 0
     assert len(r["rows"]) == 2
     assert r["rows"][1]["damage"] == 0
@@ -316,7 +319,7 @@ def test_killed_late_monster_shows_its_real_damage():
 
 # ---------- fight 的各技能分支（traits 直接给 dict，逐条手推） ----------
 
-H = {"hp": 100, "atk": 50, "def": 20, "mdef": 20}
+H = {"hp": 100, "atk": 50, "def": 20, "mdef": 0}
 M = {"hp": 100, "atk": 30, "def": 10}
 # 基线：每回合打 40，挨 10，回合数 ceil(100/40)=3，掉血 2×10=20
 
@@ -334,7 +337,7 @@ def test_fight_no_damage_skill():
 
 
 def test_fight_cant_break_defense():
-    r = battle.fight({"hp": 100, "atk": 5, "def": 10, "mdef": 10},
+    r = battle.fight({"hp": 100, "atk": 5, "def": 10, "mdef": 0},
                      {"hp": 100, "atk": 10, "def": 50}, None)
     assert r["ok"] is False
     assert r["reason"] == "打不动"
@@ -386,7 +389,47 @@ def test_fight_mimic():
     assert r["damage"] == 90
 
 
-def test_fight_use_mdef():
-    r = battle.fight({"hp": 100, "atk": 50, "def": 20, "mdef": 40}, M,
-                     {"use_mdef": True})
-    assert r["damage"] == 0        # 怪攻 30 < 魔防 40 → 挨 0
+# ---------- 护盾（魔防）：整场减一次，按教程塔 ----------
+# xinxin/project/functions.js:1779
+#     var damage = init_damage + expectedDamage; damage -= hero_mdef;
+# 之后才加仇恨/固伤 —— 那两项不吃护盾减免。
+
+def test_fight_shield_subtracts_once_from_the_whole_battle():
+    # 一格 M：怪 100 血 30 攻 0 防，你 50 攻 → 2 回合，它倒那回合不还手 → 原本掉 20
+    # 护盾 5 只减一次 → 20 - 5 = 15（不是每回合都减）
+    hero = {"hp": 100, "atk": 50, "def": 20, "mdef": 5}
+    r = battle.fight(hero, M, {})
+    assert r["damage"] == 15
+    assert any("护盾：-5" in note for note in r["notes"])
+
+
+def test_fight_shield_never_makes_damage_negative():
+    # 护盾 40 > 这一场要掉的 20：减到 0 就停，而且把"还剩多少"说出来
+    hero = {"hp": 100, "atk": 50, "def": 20, "mdef": 40}
+    r = battle.fight(hero, M, {})
+    assert r["damage"] == 0
+    assert any("还剩 20" in note for note in r["notes"])
+    assert r["hero_hp_after"] == 100
+
+
+def test_fight_shield_does_not_reduce_fixed_damage():
+    # 固伤 7（护盾不减）+ 原本掉 20 - 护盾 5 = 15，合计 22
+    hero = {"hp": 100, "atk": 50, "def": 20, "mdef": 5}
+    r = battle.fight(hero, M, {"fixed_once": 7})
+    assert r["damage"] == 22
+
+
+def test_fight_zero_shield_changes_nothing():
+    r = battle.fight({"hp": 100, "atk": 50, "def": 20, "mdef": 0}, M, {})
+    assert r["damage"] == 20
+    assert not any("护盾" in note for note in r["notes"])
+
+
+def test_run_plan_applies_shield_per_battle():
+    # 每场各减一次护盾 5：这两只怪 0 防 → 一刀两回合，每场原本掉 10，减完 5，合计 10
+    hero = {"hp": 500, "atk": 50, "def": 20, "mdef": 5}
+    steps = [{"kind": "monster", "name": "M", "hp": 100, "atk": 30, "def": 0},
+             {"kind": "monster", "name": "M", "hp": 100, "atk": 30, "def": 0}]
+    r = battle.run_plan(hero, steps)
+    assert [row["damage"] for row in r["rows"]] == [5, 5]
+    assert r["total_damage"] == 10

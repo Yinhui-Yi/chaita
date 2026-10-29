@@ -14,7 +14,15 @@
     打不动     = 攻击 < 怪防御                            ← 只有真低才打不动
     每回合挨打 = max(1, 怪攻击 - 防御)（低过防御才是 0）× 连击次数
     回合数     = ceil(怪血量 / 每回合打怪)
-    掉血       = (回合数 - 1) × 每回合挨打 + 一次性伤害（破甲/固伤/吸血/先攻）
+    掉血       = (回合数 - 1) × 每回合挨打 + 一次性伤害（破甲/吸血/先攻）
+                 − 护盾（整场减一次） + 固伤（护盾不减固伤）
+
+护盾（状态行上那个「魔防」）按**教程塔**的规矩算，用户 2026-10-29 定：
+`xinxin/project/functions.js:1779`
+    `var damage = init_damage + expectedDamage; damage -= hero_mdef;`
+—— 整场从总伤害里一次性减掉，减到 0 就停（引擎把 `Math.max(0, damage)` 注释掉了，
+允许负伤；我们面板上不显示负掉血，改成写一句"护盾还剩多少"）；之后才加固伤，
+固伤不吃护盾减免。
 
 "它倒下的那一回合不再反击"和"最低 1 点"是引擎里的硬规则，不是近似：
   · `xinxin2/project/functions.js` 的 `getDamageInfo`：`core.heroAtk(...)` 之后
@@ -353,7 +361,7 @@ def fight(hero, monster, skills=None) -> dict:
 
     # 连击 / 反击 / 固定伤害 / 无视防御
     hits = max(1, int(traits.get("hits") or 1))
-    def_used = hero_mdef if traits.get("use_mdef") else hero_def
+    def_used = hero_def
     if traits.get("ignore_def"):
         def_used = 0
     if traits.get("triple_if_low") and mon_atk >= hero_def:
@@ -379,13 +387,16 @@ def fight(hero, monster, skills=None) -> dict:
 
     # 开打前的一次性伤害
     damage = 0
+    # 固伤（引擎里 special 22）：护盾不减它，所以单独攒着，最后才加
+    fixed_part = 0
     extra_notes = []
     if traits.get("armor_break"):
         extra = int(hero_def * int(traits["armor_break"]) / 100)
         damage += extra
         extra_notes.append("破甲：+%d" % extra)
     if traits.get("fixed_once"):
-        damage += int(traits["fixed_once"])
+        fixed_part += int(traits["fixed_once"])
+        extra_notes.append("固伤：+%d（护盾不减）" % int(traits["fixed_once"]))
     if traits.get("vampire_open"):
         drained = int(hero_hp * int(traits["vampire_open"]) / 100)
         damage += drained
@@ -425,6 +436,20 @@ def fight(hero, monster, skills=None) -> dict:
                     atk_damage=atk_damage, lethal=True, reason="打不死",
                     notes=notes + ["打不死：回合数超过上限（它一直回血？）"])
 
+    # 护盾（状态行的魔防）：整场从总伤害里减一次 —— 教程塔引擎就是这一条
+    # （`damage = init_damage + expectedDamage; damage -= hero_mdef;`）。
+    # 减到 0 就停：引擎允许负伤，但面板上"掉 -30 血"没法看，改成说还剩多少。
+    if hero_mdef:
+        shielded = min(damage, hero_mdef)
+        damage -= shielded
+        left_over = hero_mdef - shielded
+        if shielded:
+            if left_over:
+                extra_notes.append("护盾：-%d（还剩 %d）" % (shielded, left_over))
+            else:
+                extra_notes.append("护盾：-%d" % shielded)
+    damage += fixed_part
+
     if traits.get("self_destruct") and hero_hp and damage < hero_hp - 1:
         damage = hero_hp - 1
         extra_notes.append("自爆：打完血只剩 1")
@@ -433,7 +458,9 @@ def fight(hero, monster, skills=None) -> dict:
     if dead:
         extra_notes.append("打不过：这一场要 %d 点血，你只有 %d"
                            % (damage, hero_hp))
-    if notes and extra_notes:
+    # 这里以前写的是 `if notes and extra_notes`：没有技能时，破甲/先攻/护盾这些
+    # 一行行算出来的说明会被整个丢掉（界面上就看不见"护盾 -5"这类关键提示）。
+    if extra_notes:
         notes = notes + extra_notes
     return dict(base, ok=True, turns=turns, mon_damage=per_round,
                 atk_damage=atk_damage, damage=damage,
