@@ -879,7 +879,7 @@ Window {
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            width: parent.width - 52 - 116 - 8
+                            width: parent.width - 52 - 116 - 12 - 16
                             height: 22
                             radius: 5
                             anchors.verticalCenter: parent.verticalCenter
@@ -903,6 +903,25 @@ Window {
                                 text: modelData.memo || ""
                                 onEditingFinished: controller.saveRouteMemo(
                                     sheetRoot.sheetName, modelData.index, text)
+                            }
+                        }
+                        Text {
+                            objectName: "routeRowDelete"
+                            width: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "✕"
+                            color: deleteRouteMouse.containsMouse
+                                    ? host.danger : host.ink3
+                            font.pixelSize: 10
+                            MouseArea {
+                                id: deleteRouteMouse
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: controller.removeRoute(
+                                    sheetRoot.sheetName, modelData.index)
                             }
                         }
                     }

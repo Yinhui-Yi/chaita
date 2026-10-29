@@ -13,7 +13,7 @@ from .... import helpers
 def _make_route():
     controller, engine, window = helpers.make_controller()
     controller._last_status = {"hp": "1000", "atk": "90", "def": "30",
-                               "mdef": "10"}
+                               "mdef": "0"}
     controller._monsters = [
         {"name": "血蚊", "hp": "1200", "atk": "60", "def": "20",
          "skill_items": [{"name": "先攻", "code": "", "params": {}}]}]
@@ -52,7 +52,7 @@ def test_route_computed_stats_are_live_not_saved_as_memo():
     # 备注不再自动写计算值（计算那部分是界面按当前格子实时算、只读显示）
     assert "memo" not in routes[0]
     assert window.routeStatsFor("长安1", 0) \
-        == "血 460 · 攻 90 · 防 30 · 魔防 10"
+        == "血 460 · 攻 90 · 防 30 · 魔防 0"
 
 
 def test_route_cells_reflect_current_grid_edits():
