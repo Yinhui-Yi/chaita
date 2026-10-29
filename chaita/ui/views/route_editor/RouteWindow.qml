@@ -17,13 +17,15 @@ import "edit_card"
 // 游戏旁边边看边走。状态都在主窗口的 `route*` 上，这里读 `host.xxx`。
 Window {
     id: routeWin
-    // 主窗口（状态都在它身上）
+    // 主窗口（共享工具 + controller 都在它身上）
     property var host
+    // 这一扇窗自己的上下文（floor/index/cells/结果/菜单/编辑），多开各管各的
+    property var ctx: ({})
 
     // Ctrl+C 复制路线（和按钮「复制」同一件事，写系统剪贴板）
     Shortcut {
         sequence: "Ctrl+C"
-        onActivated: host.routeCopy()
+        onActivated: host.routeCopy(ctx)
     }
 
     objectName: "routeWindow"
@@ -47,11 +49,11 @@ Window {
     readonly property int maxH: Math.max(170, screenRect.height - 72)
     // 点开格子菜单时窗口长高一截（菜单挂在格子下面，得放得下）；拉过就按拉的来
     readonly property int autoHeight: Math.min(maxH, autoH
-        + (host.routeMenu !== "" ? 210 : 0))
+        + (ctx.menu !== "" ? 210 : 0))
 
     // 用户："路线图的窗口不能拉伸" —— 宽高都能拉（和伤害计算同一套手柄）
-    width: Math.max(320, host.routeWinW > 0 ? host.routeWinW : autoW)
-    height: Math.max(170, host.routeWinH > 0 ? host.routeWinH : autoHeight)
+    width: Math.max(320, ctx.winW > 0 ? ctx.winW : autoW)
+    height: Math.max(170, ctx.winH > 0 ? ctx.winH : autoHeight)
 
     // 整块钳在屏幕里（拖抬头以后不会掉出去）
     function clampPos() {
@@ -94,9 +96,9 @@ Window {
         return null
     }
     function placeMenu() {
-        if (host.routeMenu === "" || host.routeMenuCell < 0)
+        if (ctx.menu === "" || ctx.menuCell < 0)
             return
-        var chip = cellChip(host.routeMenuCell)
+        var chip = cellChip(ctx.menuCell)
         if (!chip)
             return
         var point = chip.mapToItem(cardBox, 0, 0)
@@ -109,23 +111,23 @@ Window {
         var y = point.y + chip.height + 2
         if (y + menuH > cardBox.height - 4)
             y = Math.max(4, point.y - menuH - 2)
-        host.routeMenuX = Math.round(Math.max(4, Math.min(point.x,
+        ctx.menuX = Math.round(Math.max(4, Math.min(point.x,
                                                         cardBox.width - 254)))
-        host.routeMenuY = Math.round(y)
+        ctx.menuY = Math.round(y)
     }
 
     Shortcut {
         sequence: "Esc"
-        onActivated: host.closeRoute()
+        onActivated: host.closeRoute(ctx)
     }
     onActiveChanged: {
         if (!routeWin.active)
-            host.closeRouteMenu()
+            host.closeRouteMenu(ctx)
     }
 
     // ---- 拉大小：四条边 + 四个角都能拉（用户："路线图的窗口不能拉伸"）----
     // 和伤害计算同一套算法（BattleGrip）：位移用**屏幕坐标**，拉出来的尺寸记进
-    // host.routeWinW/H —— 窗口宽高是绑定出来的，不记的话绑定会把它顶回去。
+    // ctx.winW/H —— 窗口宽高是绑定出来的，不记的话绑定会把它顶回去。
     component RouteGrip: Item {
         id: grip
         property bool pullLeft: false
@@ -189,8 +191,8 @@ Window {
                 // 从上边/左边拉：窗口原点跟着动，另一侧才不动
                 var x = grip.pullLeft ? startX + (startW - w) : startX
                 var y = grip.pullTop ? startY + (startH - h) : startY
-                host.routeWinW = Math.round(w)
-                host.routeWinH = Math.round(h)
+                ctx.winW = Math.round(w)
+                ctx.winH = Math.round(h)
                 routeWin.x = Math.round(x)
                 routeWin.y = Math.round(y)
                 routeWin.clampPos()
@@ -257,7 +259,7 @@ Window {
                 anchors.left: parent.left
                 anchors.leftMargin: 52
                 anchors.verticalCenter: parent.verticalCenter
-                text: host.routeFloor
+                text: ctx.floor
                 color: Theme.ink2
                 font.family: Theme.uiFont
                 font.pixelSize: 10
@@ -279,7 +281,7 @@ Window {
                     anchors.margins: -4
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: host.routeCopy()
+                    onClicked: host.routeCopy(ctx)
                 }
             }
             Text {
@@ -298,7 +300,7 @@ Window {
                     anchors.margins: -4
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: host.routeRemove()
+                    onClicked: host.routeRemove(ctx)
                 }
             }
             Item {
@@ -321,7 +323,7 @@ Window {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeRoute()
+                    onClicked: host.closeRoute(ctx)
                 }
             }
         }
@@ -335,10 +337,10 @@ Window {
             width: parent.width - 20
             height: 20
             verticalAlignment: Text.AlignVCenter
-            text: "血 " + host.fmt(host.routeHero.hp)
-                  + "  ·  攻 " + host.fmt(host.routeHero.atk)
-                  + "  ·  防 " + host.fmt(host.routeHero.def)
-                  + "  ·  魔防 " + host.fmt(host.routeHero.mdef)
+            text: "血 " + host.fmt(ctx.hero.hp)
+                  + "  ·  攻 " + host.fmt(ctx.hero.atk)
+                  + "  ·  防 " + host.fmt(ctx.hero.def)
+                  + "  ·  魔防 " + host.fmt(ctx.hero.mdef)
             color: Theme.ink2
             font.family: Theme.uiFont
             font.pixelSize: 9
@@ -357,7 +359,7 @@ Window {
             contentHeight: chainCol.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            onContentYChanged: host.routeMenuPlace()
+            onContentYChanged: host.routeMenuPlace(ctx)
 
             Column {
                 id: chainCol
@@ -366,7 +368,7 @@ Window {
 
                 Text {
                     objectName: "routeEmpty"
-                    visible: (host.routeCells || []).length === 0
+                    visible: (ctx.cells || []).length === 0
                     width: chainCol.width
                     height: visible ? 30 : 0
                     verticalAlignment: Text.AlignVCenter
@@ -412,7 +414,7 @@ Window {
 
                     // 一格 = 箭头 + 缩略图 + 掉血（格后）
                     Repeater {
-                        model: host.routeChainRows || []
+                        model: ctx.chainRows || []
                         delegate: Item {
                             id: stepItem
                             objectName: "routeCellChip"
@@ -430,14 +432,14 @@ Window {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: host.routeEditStep(modelData.index)
+                                onClicked: host.routeEditStep(ctx, modelData.index)
                             }
                             Row {
                                 id: stepRow
                                 spacing: 2
                                 ChainArrow {
                                     objectName: "routeCellArrow"
-                                    onClicked: host.openRouteMenu(stepItem.cellIndex)
+                                    onClicked: host.openRouteMenu(ctx, stepItem.cellIndex)
                                 }
                                 Item {
                                     width: 14
@@ -462,9 +464,9 @@ Window {
                                 Text {
                                     objectName: "routeCellDamage"
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: host.routeCellDamage(modelData.index)
+                                    text: host.routeCellDamage(ctx, modelData.index)
                                     color: {
-                                        var text = String(host.routeCellDamage(modelData.index))
+                                        var text = String(host.routeCellDamage(ctx, modelData.index))
                                         if (text.indexOf("打不了") >= 0)
                                             return Theme.danger
                                         if (text.indexOf("没数值") >= 0)
@@ -481,10 +483,10 @@ Window {
                     // 链尾「计算」（和伤害计算一样：算完就藏，合计/剩血在底栏）
                     FlatBtn {
                         objectName: "routeRun"
-                        visible: !host.routeComputed()
+                        visible: !host.routeComputed(ctx)
                         height: 26
                         label: "计算"
-                        onClicked: host.routeCompute()
+                        onClicked: host.routeCompute(ctx)
                     }
                 }
             }
@@ -498,13 +500,13 @@ Window {
             y: routeFlick.y
             width: 84
             spacing: 1
-            visible: host.routeComputed()
+            visible: host.routeComputed(ctx)
             Text {
                 objectName: "routeTotalDamage"
                 width: parent.width
                 horizontalAlignment: Text.AlignRight
-                text: host.routeTotal()
-                color: host.routeDead() ? Theme.danger : Theme.ink
+                text: host.routeTotal(ctx)
+                color: host.routeDead(ctx) ? Theme.danger : Theme.ink
                 font.family: Theme.monoFont
                 font.pixelSize: 10
                 font.bold: true
@@ -513,8 +515,8 @@ Window {
                 objectName: "routeLeftHp"
                 width: parent.width
                 horizontalAlignment: Text.AlignRight
-                text: host.routeLeft()
-                color: host.routeDead() ? Theme.danger : Theme.ink3
+                text: host.routeLeft(ctx)
+                color: host.routeDead(ctx) ? Theme.danger : Theme.ink3
                 font.family: Theme.uiFont
                 font.pixelSize: 8
             }
@@ -572,8 +574,8 @@ Window {
     }
 
     // ---- 点格子填内容的下拉（「换」的时候用，同一扇窗的覆盖层） ----
-    PickMenu { id: routeMenuLayer; host: routeWin.host }
+    PickMenu { id: routeMenuLayer; host: routeWin.host; ctx: routeWin.ctx }
 
     // ---- 点缩略图改参数（和伤害计算同一个卡片） ----
-    EditCard { host: routeWin.host }
+    EditCard { host: routeWin.host; ctx: routeWin.ctx }
 }

@@ -619,33 +619,49 @@ Window {
     // 一条路线 = 地图上长按玩家拖出来的格子（按走过的顺序、允许回头）。每格能填
     // "这一格有什么"（怪 / 资源 / 门）；「计算」沿链跑一遍，掉血写格后、总掉血在右端。
     // 公式用的是 `chaita/game/battle.py` 那一套（和伤害计算同一个，不另写一份）。
-    property var routeWindow: null
-    // 用户拉过的窗口大小（0 = 还没拉过，跟着内容自适应）
-    property real routeWinW: 0
-    property real routeWinH: 0
-    // 窗口里正在看的那条：哪一层、第几条（记录在那一层的 `routes` 里）
-    property string routeFloor: ""
-    property int routeIndex: -1
-    // 这条链的格子副本（Repeater 读它；直接读列表里的那份会被当成循环绑定）
-    property var routeCells: []
-    // 链上**要显示的**格子（只留怪/宝石/血瓶，带原 index）：空的走过格不摆出来
-    property var routeChainRows: []
-    // 「计算」的结果（`controller.computeBattle` 那份），rows 和格子一一对齐
-    property var routeResult: ({})
-    // 链上的人物数值（打开/计算时从状态行带出来，只显示）
-    property var routeHero: ({ "hp": 0, "atk": 0, "def": 0, "mdef": 0 })
-    // 点格子填内容的下拉菜单
-    property string routeMenu: ""
-    property int routeMenuCell: -1
-    property string routePickTab: "monster"
-    property var routePickData: []
-    property real routeMenuX: 0
-    property real routeMenuY: 0
-    // 点缩略图改参数（和伤害计算点缩略图那个卡片一样）
-    property bool routeEditLayer: false
-    property int routeEditCell: -1
-    property var routeEditData: ({})
-    property var routeEditParams: []
+    // 路线窗口多开：一条路线一扇窗（和「这一层」小窗同款）。key = 层#序号。
+    property var routeSheets: ({})
+    property var routeOrder: []
+
+    // 每扇窗自己的上下文（ctx）：floor/index/cells/结果/英雄/菜单/编辑卡片。
+    // 这些以前是单份的 route* 属性，多开之后必须每窗一份。
+    function newRouteCtx(floor, index) {
+        return { "floor": String(floor || ""), "index": Number(index),
+                 "cells": [], "chainRows": [], "result": ({}),
+                 "hero": win.heroNow(),
+                 "menu": "", "menuCell": -1, "pickTab": "monster",
+                 "pickData": [], "menuX": 0, "menuY": 0,
+                 "editLayer": false, "editCell": -1, "editData": ({}),
+                 "editParams": [], "winW": 0, "winH": 0 }
+    }
+    function routeKey(ctx) {
+        return String(ctx.floor || "") + "#" + String(ctx.index)
+    }
+    // ctx 是普通 JS 对象，改它的字段不会触发 QML 通知；每次改完把整份重新塞回
+    // 窗口的 ctx 属性（新对象）才会重画。
+    function routeNotify(ctx) {
+        var sheet = win.routeSheets[win.routeKey(ctx)]
+        if (sheet)
+            sheet.ctx = Object.assign({}, ctx)
+    }
+
+    // ---- 兼容「当前路线」的只读视图（tests/helpers 读这几个；取最后开的那扇）----
+    readonly property var routeWindow: {
+        if (win.routeOrder.length === 0)
+            return null
+        return win.routeSheets[win.routeOrder[win.routeOrder.length - 1]] || null
+    }
+    readonly property var routeCtx: {
+        var sheet = win.routeWindow
+        return (sheet && sheet.ctx) || ({})
+    }
+    readonly property string routeFloor: String(win.routeCtx.floor || "")
+    readonly property int routeIndex: Number(win.routeCtx.index === undefined
+                                             ? -1 : win.routeCtx.index)
+    readonly property var routeResult: win.routeCtx.result || ({})
+    readonly property var routeCells: win.routeCtx.cells || []
+    readonly property string routePickTab: String(win.routeCtx.pickTab || "monster")
+    readonly property bool routeEditLayer: !!win.routeCtx.editLayer
 
     // 魔塔一层就是 13×13（用户拍板，不读 AI —— 模型数出 14/15 反而把格子带偏）
     readonly property int routeCols: 13
@@ -797,42 +813,46 @@ Window {
         return out
     }
 
-    function routeOpen() {
-        return win.routeWindow !== null && win.routeIndex >= 0
-    }
-
-    // 打开一层里的某条路线（链在另一扇窗口里，和伤害计算同一个形状）
+    // 打开一层里的某条路线：一条一扇窗；点已开的那条 = 提到最前。
     function openRoute(floorText, routeIndex) {
         if (!controller)
             return
-        if (!win.routeWindow)
-            win.routeWindow = routeWindowComp.createObject(null, {})
-        if (!win.routeWindow)
+        var ctx = win.newRouteCtx(floorText, routeIndex)
+        var key = win.routeKey(ctx)
+        var sheet = win.routeSheets[key]
+        if (sheet) {
+            win.routeSync(sheet.ctx)   // 内容可能被改了，重取一遍
+            sheet.raise()
+            sheet.requestActivate()
             return
-        win.routeFloor = String(floorText || "")
-        win.routeIndex = Number(routeIndex)
-        win.routeMenu = ""
-        win.routeMenuCell = -1
-        win.routeResult = ({})
-        win.routeHero = win.heroNow()
-        win.routeSync()
-        win.routeWindow.place()
-        win.routeWindow.show()
+        }
+        sheet = routeWindowComp.createObject(null, { "ctx": ctx })
+        if (!sheet)
+            return
+        win.routeSheets[key] = sheet
+        win.routeOrder = win.routeOrder.concat([key])
+        sheet.place()
+        sheet.show()
+        win.routeSync(ctx)
         // 点路线要把它**提到最前面**（用户："我点路线为什么窗口不自动回到最前面"）
         try {
-            win.routeWindow.raise()
-            win.routeWindow.requestActivate()
+            sheet.raise()
+            sheet.requestActivate()
         } catch (error) {}
     }
 
-    function closeRoute() {
-        win.routeMenu = ""
-        win.routeMenuCell = -1
-        if (!win.routeWindow)
+    function closeRoute(ctx) {
+        if (!ctx)
             return
-        var gone = win.routeWindow
-        win.routeWindow = null
-        gone.destroy()
+        ctx.menu = ""
+        ctx.menuCell = -1
+        var key = win.routeKey(ctx)
+        var sheet = win.routeSheets[key]
+        if (!sheet)
+            return
+        delete win.routeSheets[key]
+        win.routeOrder = win.routeOrder.filter(function (k) { return k !== key })
+        sheet.destroy()
     }
 
     // 人物状态：打开链、点「计算」时都重新取一次（状态行刚读到的就是最新）
@@ -847,21 +867,21 @@ Window {
     }
 
     // 从记录里把这条链的格子拿一份到 QML 上（每次改完都要再取一次）
-    function routeSync() {
-        var entry = win.floorEntry(win.routeFloor)
+    function routeSync(ctx) {
+        var entry = win.floorEntry(ctx.floor)
         var routes = entry ? (entry.routes || []) : []
-        var route = routes[win.routeIndex] || null
+        var route = routes[ctx.index] || null
         // 内容按坐标从这一层**当前**的 grid 实时取：编辑模式改了 grid，
         // 路线链跟着变（用户："路线图里的资源数值和地图下我调过的数值不一致"）
-        win.routeCells = controller
-                ? controller.routeCells(win.routeFloor, win.routeIndex)
+        ctx.cells = controller
+                ? controller.routeCells(ctx.floor, ctx.index)
                 : (route ? (route.cells || []).slice(0) : [])
         var shown = []
         // 走过的格子只摆**第一次**：怪打死 / 资源捡走以后，回头再走这格就是空的
         // （用户："走过怪物后怪物就死了"）
         var seen = {}
-        for (var i = 0; i < win.routeCells.length; i++) {
-            var cell = win.routeCells[i] || ({})
+        for (var i = 0; i < ctx.cells.length; i++) {
+            var cell = ctx.cells[i] || ({})
             if (!win.routeShown(cell))
                 continue
             var key = win.routeCellKey(cell)
@@ -870,7 +890,8 @@ Window {
             seen[key] = true
             shown.push({ "index": i, "cell": cell })
         }
-        win.routeChainRows = shown
+        ctx.chainRows = shown
+        win.routeNotify(ctx)
     }
 
     // 一格的唯一 key（行列）：判断"这一格是不是又走了一遍"
@@ -911,26 +932,26 @@ Window {
         return name !== "" ? name.substring(0, 1) : ""
     }
 
-    function routeComputed() {
-        return (win.routeResult || ({})).total_damage !== undefined
+    function routeComputed(ctx) {
+        return (ctx.result || ({})).total_damage !== undefined
     }
 
-    function routeStepResult(cellIndex) {
-        var rows = (win.routeResult || ({})).rows || []
+    function routeStepResult(ctx, cellIndex) {
+        var rows = (ctx.result || ({})).rows || []
         return rows[cellIndex] || ({})
     }
 
     // 掉血写在格子后面（和伤害计算同一个写法："（−930）"）；
     // 没算过是"—"，算不出来是"打不了"；手册里没有这只怪（名字对不上）是"没数值"
-    function routeCellDamage(cellIndex) {
-        var cell = win.routeCells[cellIndex] || ({})
+    function routeCellDamage(ctx, cellIndex) {
+        var cell = ctx.cells[cellIndex] || ({})
         if (String(cell.kind || "") !== "monster")
             return ""
         if (!Number(cell.hp))
             return "（没数值）"
-        if (!win.routeComputed())
+        if (!win.routeComputed(ctx))
             return "—"
-        var row = win.routeStepResult(cellIndex)
+        var row = win.routeStepResult(ctx, cellIndex)
         if (row.ok === false)
             return "（打不了）"
         if (row.lethal)
@@ -944,8 +965,8 @@ Window {
     //（占位不能省：界面上的格子和结果是按下标对齐的）
     // 走过一次就"清空"：怪打死了、资源捡走了，回头再走这格不再算一遍
     //（用户："走过怪物后怪物就死了"）
-    function routeSteps() {
-        return win.routeStepsFor(win.routeCells)
+    function routeSteps(ctx) {
+        return win.routeStepsFor(ctx.cells)
     }
 
     function routeStepsFor(cells) {
@@ -998,21 +1019,22 @@ Window {
              + " · 防 " + win.fmt(stats.def) + " · 魔防 " + win.fmt(stats.mdef)
     }
 
-    function routeCompute() {
-        if (!controller || !win.routeOpen())
+    function routeCompute(ctx) {
+        if (!controller || !ctx)
             return
-        win.routeHero = win.heroNow()
-        var payload = JSON.stringify({ "hero": win.routeHero,
-                                       "steps": win.routeSteps() })
-        win.routeResult = controller.computeBattle(payload) || ({})
+        ctx.hero = win.heroNow()
+        var payload = JSON.stringify({ "hero": ctx.hero,
+                                       "steps": win.routeSteps(ctx) })
+        ctx.result = controller.computeBattle(payload) || ({})
+        win.routeNotify(ctx)
     }
 
     // 「复制」：把这条链上的怪/宝石/血瓶转成伤害计算的步骤，空走过格不要；
     // 直接写进系统剪贴板（真复制），伤害计算那边「粘贴」/ Ctrl+V 能读回来。
-    function routeCopy() {
-        if (!controller || !win.routeOpen())
+    function routeCopy(ctx) {
+        if (!controller || !ctx)
             return
-        var steps = win.routeSteps()
+        var steps = win.routeSteps(ctx)
         var out = []
         for (var i = 0; i < steps.length; i++) {
             var step = steps[i] || ({})
@@ -1061,54 +1083,58 @@ Window {
         return out
     }
 
-    function routeTotal() {
-        if (!win.routeComputed())
+    function routeTotal(ctx) {
+        if (!win.routeComputed(ctx))
             return ""
-        return "总掉血 " + win.fmt(win.routeResult.total_damage)
+        return "总掉血 " + win.fmt(ctx.result.total_damage)
     }
 
-    function routeLeft() {
-        if (!win.routeComputed())
+    function routeLeft(ctx) {
+        if (!win.routeComputed(ctx))
             return ""
-        return "剩血 " + win.fmt(win.routeResult.hp_after)
+        return "剩血 " + win.fmt(ctx.result.hp_after)
     }
 
     // 沿链走完人倒了（剩血 0）：总掉血那行标红，别让人以为还能继续打
-    function routeDead() {
-        return win.routeComputed() && Number(win.routeResult.hp_after) <= 0
+    function routeDead(ctx) {
+        return win.routeComputed(ctx) && Number(ctx.result.hp_after) <= 0
     }
 
     // 点格子：填这一格有什么（怪 / 资源 / 门 / 清空）
-    function openRouteMenu(cellIndex) {
-        if (!win.routeOpen())
+    function openRouteMenu(ctx, cellIndex) {
+        if (!ctx)
             return
-        win.routeMenuCell = Number(cellIndex)
-        win.routeMenu = "cell"
-        win.routePickTab = "monster"
-        win.routeRefreshPick()
+        ctx.menuCell = Number(cellIndex)
+        ctx.menu = "cell"
+        ctx.pickTab = "monster"
+        win.routeRefreshPick(ctx)
+        win.routeNotify(ctx)
     }
 
-    function closeRouteMenu() {
-        win.routeMenu = ""
-        win.routeMenuCell = -1
+    function closeRouteMenu(ctx) {
+        ctx.menu = ""
+        ctx.menuCell = -1
+        win.routeNotify(ctx)
     }
 
-    function routeSwitchTab(tab) {
-        if (win.routePickTab === tab)
+    function routeSwitchTab(ctx, tab) {
+        if (ctx.pickTab === tab)
             return
-        win.routePickTab = tab
-        win.routeRefreshPick()
+        ctx.pickTab = tab
+        win.routeRefreshPick(ctx)
+        win.routeNotify(ctx)
     }
 
-    function routeRefreshPick() {
-        win.routePickData = win.routePickRows()
-        win.routeMenuPlace()
-        Qt.callLater(win.routeMenuPlace)
+    function routeRefreshPick(ctx) {
+        ctx.pickData = win.routePickRows(ctx)
+        win.routeMenuPlace(ctx)
+        Qt.callLater(function () { win.routeMenuPlace(ctx) })
+        win.routeNotify(ctx)
     }
 
-    function routePickRows() {
+    function routePickRows(ctx) {
         var out = []
-        if (win.routePickTab === "item") {
+        if (ctx.pickTab === "item") {
             // 资源只列宝石和血瓶（用户："非怪和宝石血瓶不需要显示"）
             var items = controller ? controller.routeItems() : []
             for (var i = 0; i < items.length; i++)
@@ -1121,9 +1147,10 @@ Window {
         return out
     }
 
-    function routeMenuPlace() {
-        if (win.routeWindow && win.routeWindow.placeMenu)
-            win.routeWindow.placeMenu()
+    function routeMenuPlace(ctx) {
+        var sheet = win.routeSheets[win.routeKey(ctx)]
+        if (sheet && sheet.placeMenu)
+            sheet.placeMenu()
     }
 
     // ---- 点缩略图改参数（和伤害计算点缩略图出来的是同一个"改参数"卡片）----
@@ -1188,23 +1215,24 @@ Window {
         return out
     }
 
-    function routeEditStep(cellIndex) {
-        if (!win.routeOpen())
+    function routeEditStep(ctx, cellIndex) {
+        if (!ctx)
             return
-        win.routeEditCell = Number(cellIndex)
-        var cell = win.routeCells[win.routeEditCell] || ({})
-        win.routeEditData = win.routeCopyCell(cell)
-        win.routeEditParams = win.routeEditParamsFor(cell)
-        win.routeMenu = ""
-        win.routeMenuCell = -1
-        win.routeEditLayer = true
+        ctx.editCell = Number(cellIndex)
+        var cell = ctx.cells[ctx.editCell] || ({})
+        ctx.editData = win.routeCopyCell(cell)
+        ctx.editParams = win.routeEditParamsFor(cell)
+        ctx.menu = ""
+        ctx.menuCell = -1
+        ctx.editLayer = true
+        win.routeNotify(ctx)
     }
 
     // 卡片里改一个字段 → 写回这一格（存进 controller 的 routes）
-    function routeEditSet(key, value) {
-        if (!controller || win.routeEditCell < 0)
+    function routeEditSet(ctx, key, value) {
+        if (!controller || ctx.editCell < 0)
             return
-        var data = win.routeCopyCell(win.routeEditData)
+        var data = win.routeCopyCell(ctx.editData)
         if (key === "count") {
             var clean = String(value === undefined || value === null
                                ? "" : value).replace(/[^0-9]/g, "")
@@ -1216,17 +1244,17 @@ Window {
             data[key] = Number(String(value === undefined || value === null
                                       ? "" : value).replace(/[^0-9]/g, "") || 0)
         }
-        controller.saveRouteCell(win.routeFloor, win.routeIndex,
-                                 win.routeEditCell, data)
-        win.routeEditData = data
-        win.routeSync()
-        win.routeResult = ({})
+        controller.saveRouteCell(ctx.floor, ctx.index,
+                                 ctx.editCell, data)
+        ctx.editData = data
+        win.routeSync(ctx)
+        ctx.result = ({})
     }
 
-    function routeEditSkill(skillIndex, field, value) {
-        if (!controller || win.routeEditCell < 0)
+    function routeEditSkill(ctx, skillIndex, field, value) {
+        if (!controller || ctx.editCell < 0)
             return
-        var data = win.routeCopyCell(win.routeEditData)
+        var data = win.routeCopyCell(ctx.editData)
         var skills = data.skills || []
         if (skillIndex < 0 || skillIndex >= skills.length)
             return
@@ -1234,35 +1262,46 @@ Window {
         skills[skillIndex].params = skills[skillIndex].params || ({})
         skills[skillIndex].params[field] = text
         data.skills = skills
-        controller.saveRouteCell(win.routeFloor, win.routeIndex,
-                                 win.routeEditCell, data)
-        var edit = win.routeEditData || ({})
+        controller.saveRouteCell(ctx.floor, ctx.index,
+                                 ctx.editCell, data)
+        var edit = ctx.editData || ({})
         var es = edit.skills || []
         if (es[skillIndex] !== undefined) {
             es[skillIndex].params = es[skillIndex].params || ({})
             es[skillIndex].params[field] = text
             edit.skills = es
         }
-        win.routeSync()
-        win.routeResult = ({})
+        win.routeSync(ctx)
+        ctx.result = ({})
     }
 
     // 「删掉这步」（和伤害计算同一个按钮）：这一格回到"只是走过"
-    function routeEditRemove() {
-        if (!controller || win.routeEditCell < 0)
+    // 「完成」：只关卡片、不改内容（「删掉这步」才真正清这一格）
+    function routeEditDone(ctx) {
+        if (!ctx)
             return
-        controller.saveRouteCell(win.routeFloor, win.routeIndex,
-                                 win.routeEditCell, {})
-        win.routeEditLayer = false
-        win.routeEditData = ({})
-        win.routeEditCell = -1
-        win.routeSync()
-        win.routeResult = ({})
+        ctx.editLayer = false
+        ctx.editCell = -1
+        ctx.editData = ({})
+        ctx.editParams = []
+        win.routeNotify(ctx)
+    }
+
+    function routeEditRemove(ctx) {
+        if (!controller || ctx.editCell < 0)
+            return
+        controller.saveRouteCell(ctx.floor, ctx.index,
+                                 ctx.editCell, {})
+        ctx.editLayer = false
+        ctx.editData = ({})
+        ctx.editCell = -1
+        win.routeSync(ctx)
+        ctx.result = ({})
     }
 
     // 填进去：kind = monster / item / door；kind = "" = 清空这一格
-    function routeFill(cellIndex, entry, kind) {
-        if (!controller || !win.routeOpen())
+    function routeFill(ctx, cellIndex, entry, kind) {
+        if (!controller || !ctx)
             return
         var type = String(kind || "")
         var fill = ({})
@@ -1278,19 +1317,19 @@ Window {
         } else if (type === "door") {
             fill = { "kind": "door" }
         }
-        controller.saveRouteCell(win.routeFloor, win.routeIndex,
+        controller.saveRouteCell(ctx.floor, ctx.index,
                                  Number(cellIndex), fill)
-        win.routeMenu = ""
-        win.routeMenuCell = -1
-        win.routeSync()
-        win.routeResult = ({})           // 链变了：上次算的结果作废
+        ctx.menu = ""
+        ctx.menuCell = -1
+        win.routeSync(ctx)
+        ctx.result = ({})           // 链变了：上次算的结果作废
     }
 
-    function routeRemove() {
-        if (!controller || !win.routeOpen())
+    function routeRemove(ctx) {
+        if (!controller || !ctx)
             return
-        controller.removeRoute(win.routeFloor, win.routeIndex)
-        win.closeRoute()
+        controller.removeRoute(ctx.floor, ctx.index)
+        win.closeRoute(ctx)
     }
 
     // ---- 缓存下来的模型（Repeater 直接绑这些属性，避免每次重画都算一遍） ----
