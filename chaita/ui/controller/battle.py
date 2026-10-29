@@ -89,11 +89,13 @@ class BattleMixin:
         for entry in choices:
             stem = str(entry.get("icon") or "")
             effect = str(entry.get("effect") or "")
-            # 四色宝石（红蓝绿黄）无条件留着：绿宝石加的是敏捷，算式里没有这一项，
-            # 但它就是玩家拿来算"吃这颗"的东西（用户："资源（包含 4 色宝石）"）。
-            if not iteminfo.is_gem(stem):
+            kind = iteminfo.kind_rank(str(entry.get("name") or ""), stem)
+            # 宝石无条件留（绿宝石加敏捷、公式里没这一项但玩家要选它）；
+            # 武器/防具也留（默认 +0，数值由用户在那一行里改，进路线）。
+            # 其余只有"算得出加成"才摆出来。
+            if not (iteminfo.is_gem(stem) or kind in (1, 2)):
                 if not effect or not battle.parse_item_effect(effect):
-                    continue          # 算不出加成：摆出来也没用
+                    continue
             out.append({"name": str(entry.get("name") or stem),
                         "icon": stem, "effect": effect})
         return out

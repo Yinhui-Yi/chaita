@@ -124,19 +124,20 @@ def test_route_editors_reject_stale_indexes():
                                          "name": "血蚊"}) is False
 
 
-# ---- 预填：只认怪 / 宝石 / 血瓶 ----
+# ---- 预填：怪 / 宝石 / 武器 / 防具 / 血瓶 ----
 
-def test_route_items_keeps_only_gems_and_potions():
+def test_route_items_keeps_gems_weapons_armor_potions():
     c = FakeRoutes([{"floor": "1层", "grid": {}}])
     c.battleItems = lambda: [
         {"name": "红宝石", "icon": "gem_red"},
         {"name": "血瓶", "icon": "potion_red"},
         {"name": "黄钥匙", "icon": "key_yellow"},
-        {"name": "铁剑", "icon": "sword"}]
+        {"name": "铁剑", "icon": "sword"},
+        {"name": "铁盾", "icon": "shield"}]
 
     names = [row["name"] for row in c.routeItems()]
 
-    assert names == ["红宝石", "血瓶"]          # 钥匙/武器不进路线链
+    assert names == ["红宝石", "血瓶", "铁剑", "铁盾"]  # 钥匙不进路线链
 
 
 def test_map_content_skips_broken_cells():
@@ -160,12 +161,11 @@ def test_map_content_keeps_item_effect():
     assert c._map_content(c._map_history[0])[(0, 0)]["effect"] == "体力 +300"
 
 
-def test_route_prefill_skips_non_gem_items(monkeypatch):
-    """格子记的是钥匙：链上只留坐标，不填内容（用户："非怪和宝石血瓶不需要显示"）。"""
+def test_route_prefill_skips_keys(monkeypatch):
+    """格子记的是钥匙：链上只留坐标（钥匙和掉血无关）。"""
     import chaita.game.iteminfo as ii
     monkeypatch.setattr(ii, "icon_for", lambda name: "key_yellow")
-    monkeypatch.setattr(ii, "is_gem", lambda stem: False)
-    monkeypatch.setattr(ii, "is_potion", lambda stem, name="": False)
+
     c = FakeRoutes([{"floor": "1层", "grid": {"cells": [
         {"row": 0, "col": 0, "kind": "item", "name": "黄钥匙"}]}}])
 
@@ -178,8 +178,6 @@ def test_route_prefill_skips_non_gem_items(monkeypatch):
 def test_route_prefill_fills_gem_icon_and_effect(monkeypatch):
     import chaita.game.iteminfo as ii
     monkeypatch.setattr(ii, "icon_for", lambda name: "gem_red")
-    monkeypatch.setattr(ii, "is_gem", lambda stem: True)
-    monkeypatch.setattr(ii, "is_potion", lambda stem, name="": False)
     monkeypatch.setattr(ii, "effect_for", lambda icon, name: "攻击力 +1")
     c = FakeRoutes([{"floor": "1层", "grid": {"cells": [
         {"row": 0, "col": 0, "kind": "item", "name": "红宝石"}]}}])
@@ -189,6 +187,21 @@ def test_route_prefill_fills_gem_icon_and_effect(monkeypatch):
     assert cells[0]["kind"] == "item"
     assert cells[0]["icon"] == "gem_red"
     assert cells[0]["effect"] == "攻击力 +1"
+
+
+def test_route_prefill_fills_weapon(monkeypatch):
+    """格子记的是武器（铁剑）：要进路线链，带图标和默认效果。"""
+    import chaita.game.iteminfo as ii
+    monkeypatch.setattr(ii, "icon_for", lambda name: "sword")
+    monkeypatch.setattr(ii, "effect_for", lambda icon, name: "攻击力 +0")
+    c = FakeRoutes([{"floor": "1层", "grid": {"cells": [
+        {"row": 0, "col": 0, "kind": "item", "name": "铁剑"}]}}])
+
+    cells = c._with_map_content(c._map_history[0], [{"row": 0, "col": 0}])
+
+    assert cells[0]["kind"] == "item"
+    assert cells[0]["icon"] == "sword"
+    assert cells[0]["effect"] == "攻击力 +0"
 
 
 def test_route_prefill_keeps_cells_when_no_grid():

@@ -90,19 +90,18 @@ def _clean_fill(fill) -> dict:
 class RoutesMixin:
     @Slot(result="QVariantList")
     def routeItems(self) -> list:
-        """路线链能填的资源：**只有宝石和血瓶**。
+        """路线链能填的资源：宝石 / 武器 / 防具 / 血瓶。
 
-        用户："非怪和宝石血瓶不需要显示" —— 钥匙/武器/防具/书这类照样记在
-        那一层的地图记录里（`entry["grid"]`），但不进路线链：它们和"这条路上
-        掉多少血"无关，摆在链上只会让人看不懂。伤害计算那边的资源列表更宽
-        （`battleItems`），这里再收一道。
+        武器/防具以前被排除（"非怪和宝石血瓶不需要显示"），但用户 2026-10-29
+        改主意：武器/防具要能进路线（它们改攻防、会影响后面的掉血）。
+        钥匙/书/门这类和掉血无关的仍不进。
         """
         from ....game import iteminfo
         out = []
         for row in self.battleItems():
             icon = str(row.get("icon") or "")
-            if iteminfo.is_gem(icon) or iteminfo.is_potion(icon,
-                                                           row.get("name")):
+            kind = iteminfo.kind_rank(str(row.get("name") or ""), icon)
+            if kind in (0, 1, 2, 3):   # 宝石 / 武器 / 防具 / 血瓶
                 out.append(row)
         return out
 
@@ -241,12 +240,12 @@ class RoutesMixin:
                     if monster.get(key) not in (None, "", []):
                         fill[key] = monster[key]
             else:
-                # 资源（宝石/血瓶）按道具表补图标和效果 —— 和「这一层」资源行
-                # 同一套规则，不自己猜；别的资源不进路线
+                # 资源（宝石/武器/防具/血瓶）按道具表补图标和效果 —— 和
+                # 「这一层」资源行同一套规则，不自己猜；钥匙/书不进路线
                 from ....game import iteminfo
                 icon = iteminfo.icon_for(hit["name"]) or ""
-                if not (iteminfo.is_gem(icon)
-                        or iteminfo.is_potion(icon, hit["name"])):
+                kind = iteminfo.kind_rank(str(hit["name"] or ""), icon)
+                if kind not in (0, 1, 2, 3):
                     out.append(data)
                     continue
                 effect = (hit.get("effect")
