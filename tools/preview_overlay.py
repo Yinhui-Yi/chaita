@@ -48,7 +48,7 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
              "battleitemedit", "battlemarks", "route", "routechain",
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
-             "iconscroll3", "queue", "chatlong")
+             "iconscroll3", "queue", "chatlong", "compare")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -153,6 +153,15 @@ def scroll_sheet_to_items(window, name):
     content = float(flick.property("contentHeight") or 0)
     view = float(flick.height() or 0)
     flick.setProperty("contentY", max(0.0, content - view))
+
+
+def _compare_route(monster_first):
+    """一条路线的 steps：血蚊 + 红宝石，宝石放前/放后（掉血不一样）。"""
+    monster = {"kind": "monster", "name": "红头怪", "hp": 80,
+               "atk": 25, "def": 1, "count": 1, "skills": []}
+    gem = {"kind": "item", "name": "红宝石", "effect": "攻击力 +1",
+           "icon": "gem_red", "count": 1}
+    return [monster, gem] if monster_first else [gem, monster]
 
 
 def open_battle(window, controller, compute=True, plans=2):
@@ -668,6 +677,20 @@ def main() -> int:
                  "at": "14:31"},
             ]
             controller.chatLogChanged.emit()
+        elif scenario == "compare":
+            # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
+            window.openCompare()
+            window.compareAdd(_compare_route(True), "路线1")
+            window.compareAdd(_compare_route(False), "路线2")
+            window.compareAdd(_compare_route(True), "路线3")
+            # 预览时主窗口被挪到 -6000 摆着，对比窗跟着挪到它右边，出图才紧凑
+            _cw = window.property("compareWindow")
+            _cw = _cw.toQObject() if hasattr(_cw, "toQObject") else _cw
+            if _cw is not None:
+                _cw.setX(window.x() + window.width() + 8)
+                _cw.setY(window.y() + 40)
+            QGuiApplication.processEvents()
+
         elif scenario == "iconpick":
             # 选图界面：素材库里有大量动画帧，这里要看到去重后的样子
             window.openMonster(0)

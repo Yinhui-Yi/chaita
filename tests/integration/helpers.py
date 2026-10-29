@@ -109,7 +109,7 @@ def wait_for(predicate, timeout=20.0, step=0.05):
 
 
 def host_windows(window):
-    """主窗口 + 它开出来的「这一层」/伤害计算/路线链真窗口。"""
+    """主窗口 + 它开出来的「这一层」/伤害计算/路线链/路线对比真窗口。"""
     hosts = [window]
     names = window.property("floorWindows")
     names = names.toVariant() if hasattr(names, "toVariant") else names
@@ -120,23 +120,17 @@ def host_windows(window):
             continue
         if sheet is not None:
             hosts.append(sheet)
-    try:
-        battle = window.property("battleWindow")
-        if hasattr(battle, "toQObject"):
-            battle = battle.toQObject()
-        if battle is not None:
-            hosts.append(battle)
-    except (RuntimeError, AttributeError):
-        pass
-    try:
-        route = window.property("routeWindow")
-        if hasattr(route, "toQObject"):
-            route = route.toQObject()
-        if route is not None:
-            hosts.append(route)
-    except (RuntimeError, AttributeError):
-        pass
+    for prop in ("battleWindow", "routeWindow", "compareWindow"):
+        try:
+            value = window.property(prop)
+        except (RuntimeError, AttributeError):
+            continue
+        if hasattr(value, "toQObject"):
+            value = value.toQObject()
+        if value is not None:
+            hosts.append(value)
     return hosts
+
 
 
 def find_item(window, name):
@@ -280,6 +274,29 @@ def route_window(window):
     """路线链窗口（`win.routeWindow`）；没开就是 None。"""
     value = window.property("routeWindow")
     return value.toQObject() if hasattr(value, "toQObject") else value
+
+
+def drop_text(window, item, mime_type, text):
+    """把一段文本按指定 MIME 类型"拖"到控件上松手（合成 enter/move/drop）。
+
+    和 `drop_cells` 同一套路：真拖拽会话在测试里驱动不了，直接合成三个事件，
+    走的是 QML 的 `DropArea.onDropped`。`mime_type` 例如
+    `application/x-route-json`（路线链拖进路线对比）。
+    """
+    from PySide6.QtCore import QMimeData
+    from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
+    target = window_of(window, item)
+    point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
+    mime = QMimeData()
+    mime.setData(mime_type, str(text).encode("utf-8"))
+    for event in (QDragEnterEvent(point.toPoint(), Qt.CopyAction, mime,
+                                  Qt.LeftButton, Qt.NoModifier),
+                  QDragMoveEvent(point.toPoint(), Qt.CopyAction, mime,
+                                 Qt.LeftButton, Qt.NoModifier),
+                  QDropEvent(point, Qt.CopyAction, mime,
+                             Qt.LeftButton, Qt.NoModifier)):
+        APP.sendEvent(target, event)
+    APP.processEvents()
 
 
 def texts_of(item):

@@ -270,6 +270,7 @@ Window {
                 width: Math.min(implicitWidth, 90)
             }
             Text {
+                id: routeCopyText
                 objectName: "routeCopy"
                 anchors.right: routeDeleteText.left
                 anchors.rightMargin: 14
@@ -306,6 +307,59 @@ Window {
                     onClicked: host.routeRemove(ctx)
                 }
             }
+            // 拖拽入口：按住「拖」把这条路线拖到「路线对比」窗口上松手
+            Text {
+                objectName: "routeDragOut"
+                anchors.right: routeCopyText.left
+                anchors.rightMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                text: "拖"
+                color: dragOutMouse.containsMouse ? Theme.amber : Theme.ink2
+                font.family: Theme.uiFont
+                font.pixelSize: 9
+                MouseArea {
+                    id: dragOutMouse
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    hoverEnabled: true
+                    cursorShape: Qt.OpenHandCursor
+                    onPressed: function (m) {
+                        var text = host.routeStepsJson(ctx)
+                        if (text === "")
+                            return
+                        dragOutChip.Drag.mimeData = {
+                            "application/x-route-json": text }
+                        dragOutChip.visible = true
+                        dragOutChip.Drag.active = true
+                    }
+                }
+            }
+
+            // 拖动时跟着光标的小牌子
+            Item {
+                id: dragOutChip
+                visible: false
+                z: 40
+                width: 56
+                height: 20
+                Drag.dragType: Drag.Automatic
+                Drag.hotSpot: Qt.point(10, 10)
+                Drag.onDragFinished: dragOutChip.visible = false
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 4
+                    color: Theme.amber
+                    Text {
+                        anchors.centerIn: parent
+                        text: "路线"
+                        color: Theme.paperHi
+                        font.family: Theme.uiFont
+                        font.pixelSize: 9
+                        font.bold: true
+                    }
+                }
+            }
+
             Item {
                 id: routeClose
                 objectName: "routeClose"

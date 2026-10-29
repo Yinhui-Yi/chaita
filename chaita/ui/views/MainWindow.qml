@@ -28,6 +28,7 @@ import "skill_picker"
 import "battle_calc"
 import "floor_sheet"
 import "route_editor"
+import "route_compare"
 
 Window {
     id: win
@@ -1036,11 +1037,10 @@ Window {
         win.routeNotify(ctx)
     }
 
-    // 「复制」：把这条链上的怪/宝石/血瓶转成伤害计算的步骤，空走过格不要；
-    // 直接写进系统剪贴板（真复制），伤害计算那边「粘贴」/ Ctrl+V 能读回来。
-    function routeCopy(ctx) {
-        if (!controller || !ctx)
-            return
+    // 这条路线转成和「复制」一模一样的那份 JSON（拖拽和粘贴共用一种格式）
+    function routeStepsJson(ctx) {
+        if (!ctx)
+            return ""
         var steps = win.routeSteps(ctx)
         var out = []
         for (var i = 0; i < steps.length; i++) {
@@ -1049,8 +1049,19 @@ Window {
                 out.push(step)
         }
         if (out.length === 0)
+            return ""
+        return JSON.stringify({ "steps": out })
+    }
+
+    // 「复制」：把这条链上的怪/宝石/血瓶转成伤害计算的步骤，空走过格不要；
+    // 直接写进系统剪贴板（真复制），伤害计算/路线对比「粘贴」或 Ctrl+V 能读回来。
+    function routeCopy(ctx) {
+        if (!controller || !ctx)
             return
-        controller.clipboardCopy(JSON.stringify({ "steps": out }))
+        var text = win.routeStepsJson(ctx)
+        if (text === "")
+            return
+        controller.clipboardCopy(text)
     }
 
     // 从系统剪贴板解析路线步骤：只认「复制路线」写进去的那种 JSON，
@@ -1726,6 +1737,142 @@ Window {
             win.battleWindow = null
             gone.destroy()
         }
+    }
+
+    // ---- 路线对比：把几条算好的路线摆一起，比每只怪掉多少血 ----
+    property var compareWindow: null
+    property real compareWinW: 0
+    property real compareWinH: 0
+    // 每条 = { label, steps, result }（result 是 computeBattle 那一份）
+    property var compareRoutes: []
+
+    function openCompare() {
+        if (!win.compareWindow) {
+            win.compareWindow = compareWindowComp.createObject(null, {})
+            if (!win.compareWindow)
+                return
+        }
+        win.compareWindow.place()
+        win.compareWindow.show()
+        try {
+            win.compareWindow.raise()
+            win.compareWindow.requestActivate()
+        } catch (error) {}
+    }
+
+    function closeCompare() {
+        if (win.compareWindow) {
+            var gone = win.compareWindow
+            win.compareWindow = null
+            gone.destroy()
+        }
+    }
+
+    // 加一条路线（steps 已经是「伤害计算」那套步骤），顺手按当前人物状态算一遍
+    function compareAdd(steps, label) {
+        if (!controller || !steps || steps.length === 0)
+            return -1
+        var hero = controller.battleHero() || ({})
+        var result = controller.computeBattle(JSON.stringify({
+            "hero": hero, "steps": steps })) || ({})
+        var routes = win.compareRoutes.slice(0)
+        var name = String(label || "")
+        if (name === "")
+            name = "路线" + (routes.length + 1)
+        routes.push({ "label": name, "steps": steps, "result": result })
+        win.compareRoutes = routes
+        return routes.length - 1
+    }
+
+    // 从系统剪贴板导入一条（和伤害计算「粘贴」同一种 JSON）
+    function comparePaste() {
+        if (!controller)
+            return
+        var steps = win.routeParseClipboard(controller.clipboardText())
+        if (steps.length === 0)
+            return
+        win.compareAdd(steps, "")
+        win.openCompare()
+    }
+
+    // 拖进来的路线（路线链上那个「拖」把同样的 JSON 塞进 mimeData）
+    function compareDropRoute(text) {
+        if (!controller)
+            return
+        var steps = win.routeParseClipboard(String(text || ""))
+        if (steps.length === 0)
+            return
+        win.compareAdd(steps, "")
+        win.openCompare()
+    }
+
+    function compareRemove(index) {
+        var routes = win.compareRoutes.slice(0)
+        if (index < 0 || index >= routes.length)
+            return
+        routes.splice(index, 1)
+        win.compareRoutes = routes
+    }
+
+    function compareClear() {
+        win.compareRoutes = []
+    }
+
+    // 对比表：行 = 一只怪（按「名字 + 第几只」对齐），列 = 各路线
+    function compareRows() {
+        var routes = win.compareRoutes || []
+        var keys = []
+        var info = ({})
+        var perRoute = []
+        for (var r = 0; r < routes.length; r++) {
+            var steps = routes[r].steps || []
+            var rows = (routes[r].result || ({})).rows || []
+            var seen = ({})
+            var map = ({})
+            for (var i = 0; i < steps.length; i++) {
+                if (String((steps[i] || ({})).kind || "") !== "monster")
+                    continue
+                var name = String((steps[i] || ({})).name || "")
+                seen[name] = (seen[name] || 0) + 1
+                var key = name + "#" + seen[name]
+                var row = rows[i] || ({})
+                map[key] = { "damage": row.damage === undefined ? null
+                                                           : row.damage,
+                             "lethal": !!row.lethal,
+                             "bad": row.ok === false }
+                if (info[key] === undefined) {
+                    info[key] = { "name": name, "occurrence": seen[name] }
+                    keys.push(key)
+                }
+            }
+            perRoute.push(map)
+        }
+        var out = []
+        for (var k = 0; k < keys.length; k++) {
+            var key2 = keys[k]
+            var damages = []
+            for (var c = 0; c < routes.length; c++)
+                damages.push(perRoute[c][key2] === undefined
+                             ? null : perRoute[c][key2])
+            out.push({ "key": key2, "name": info[key2].name,
+                       "occurrence": info[key2].occurrence,
+                       "damages": damages })
+        }
+        return out
+    }
+
+    // 每条路线的合计：总掉血 / 剩血
+    function compareTotals() {
+        var routes = win.compareRoutes || []
+        var out = []
+        for (var i = 0; i < routes.length; i++) {
+            var res = routes[i].result || ({})
+            out.push({ "total": res.total_damage,
+                       "hp": res.hp_after,
+                       "dead": res.hp_after !== undefined
+                               && Number(res.hp_after) <= 0 })
+        }
+        return out
     }
 
     // 大数字按游戏里的写法显示（21000万 / 1.2亿），一眼看得出量级
@@ -2977,6 +3124,13 @@ Window {
         Component {
             id: battleWindowComp
             BattleWindow { host: win }
+        }
+
+        // ============ 路线对比 ============
+        // 几条算好的路线摆一起，比每只怪的掉血。另开的一扇窗口。
+        Component {
+            id: compareWindowComp
+            CompareWindow { host: win }
         }
 
         // ============ 路线链（docs/ROUTE.md）============
