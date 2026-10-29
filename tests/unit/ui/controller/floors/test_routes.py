@@ -131,8 +131,8 @@ def test_route_items_keeps_only_gems_and_potions():
     c.battleItems = lambda: [
         {"name": "红宝石", "icon": "gem_red"},
         {"name": "血瓶", "icon": "potion_red"},
-        {"name": "黄钥匙", "icon": "h5_yellowKey"},
-        {"name": "铁剑", "icon": "h5_sword1"}]
+        {"name": "黄钥匙", "icon": "key_yellow"},
+        {"name": "铁剑", "icon": "sword"}]
 
     names = [row["name"] for row in c.routeItems()]
 
@@ -163,7 +163,7 @@ def test_map_content_keeps_item_effect():
 def test_route_prefill_skips_non_gem_items(monkeypatch):
     """格子记的是钥匙：链上只留坐标，不填内容（用户："非怪和宝石血瓶不需要显示"）。"""
     import chaita.game.iteminfo as ii
-    monkeypatch.setattr(ii, "icon_for", lambda name: "h5_yellowKey")
+    monkeypatch.setattr(ii, "icon_for", lambda name: "key_yellow")
     monkeypatch.setattr(ii, "is_gem", lambda stem: False)
     monkeypatch.setattr(ii, "is_potion", lambda stem, name="": False)
     c = FakeRoutes([{"floor": "1层", "grid": {"cells": [

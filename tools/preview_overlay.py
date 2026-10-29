@@ -309,7 +309,7 @@ def _fake_state():
             {"name": "红血瓶", "effect": "体力 +150", "count": 3,
              "icon": "potion_red"},
             {"name": "黄钥匙", "effect": "可以打开一扇黄门", "count": 2,
-             "icon": "h5_yellowKey"},
+             "icon": "key_yellow"},
             {"name": "红宝石", "effect": "攻击力 +1", "count": 2,
              "icon": "gem_red"},
             # 多段效果（黄宝石加三样）和"武器/防具默认 0"也摆进来：
@@ -317,7 +317,7 @@ def _fake_state():
             {"name": "黄宝石", "count": 1,
              "effect": "攻击力 +1 · 防御力 +1 · 魔防 +2", "icon": "gem_yellow"},
             {"name": "铁盾", "count": 1, "effect": "防御力 +0",
-             "icon": "h5_shield1"},
+             "icon": "shield"},
         ]},
     ]
     # 手册页上的真数值（`docs/capture/_manual_repro.png`）。

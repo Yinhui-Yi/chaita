@@ -81,7 +81,7 @@ def test_item_done_tick_toggles():
 def test_item_delete_removes_that_row():
     controller, engine, window = _sheet(items=[
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1, "icon": "gem_red"},
-        {"name": "红钥匙", "effect": "", "count": 1, "icon": "h5_redKey"}])
+        {"name": "红钥匙", "effect": "", "count": 1, "icon": "key_red"}])
     # 显示顺序是"宝石 → 钥匙"，存储顺序也是；删第二行 = 钥匙
     rows = helpers.find_all(window, "floorItemDelete")
     helpers.click_item(window, rows[1])

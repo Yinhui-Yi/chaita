@@ -255,8 +255,8 @@ def test_fix_item_icons_migrates_old_game_prefix():
     row = st._fix_item_icons(entry)
 
     assert [one["icon"] for one in row["items"]] == [
-        "h5_sword1", "rm_shield1", "gem_red", ""]
-    assert row["routes"][0]["cells"][0]["icon"] == "h5_sword1"
+        "sword", "shield", "gem_red", ""]
+    assert row["routes"][0]["cells"][0]["icon"] == "sword"
     assert "icon" not in row["routes"][0]["cells"][1]
 
 

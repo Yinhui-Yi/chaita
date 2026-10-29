@@ -20,23 +20,25 @@ _CATALOG_PATH = os.path.join(_ROOT, "assets", "item_catalog.json")
 _MAP_PATH = os.path.join(_ROOT, "assets", "items", "map.json")
 _ITEMS_DIR = os.path.join(_ROOT, "assets", "items")
 
-# 资源图标以前带的是**别人游戏**的工程名前缀（`xinxin2_` / `xinxin_`，也就是那两座塔
-# 源工程目录的名字）。assets/items 里现在统一成我们自己的塔 key：
-#   xinxin2_* → h5_*   （h5mota 魔塔 / 喵塔）
-#   xinxin_*  → rm_*   （教程塔 RMXP）
+# 资源图标以前叫别的游戏工程目录名（`xinxin2_redKey`）或塔 key（`h5_redKey`），
+# 现在一律用语义名（`key_red` / `sword` / `shield`），文件名里不再有塔/引擎的痕迹。
 # 老存档、老日志里躺着旧名字，读的时候在 `migrate_icon()` 里过一道。
-_RENAMED_PREFIXES = (("xinxin2_", "h5_"), ("xinxin_", "rm_"))
+_RENAMED_ICONS = {
+    "xinxin2_redKey": "key_red", "h5_redKey": "key_red",
+    "xinxin2_blueKey": "key_blue", "h5_blueKey": "key_blue",
+    "xinxin2_yellowKey": "key_yellow", "h5_yellowKey": "key_yellow",
+    "xinxin2_sword1": "sword", "h5_sword1": "sword",
+    "xinxin_sword1": "sword", "rm_sword1": "sword",
+    "xinxin2_shield1": "shield", "h5_shield1": "shield",
+    "xinxin_shield1": "shield", "rm_shield1": "shield",
+}
 
 _CACHE = {}
 
 
 def migrate_icon(stem: str) -> str:
-    """旧图标名 → 现在的名字（不认识的照原样返回）。"""
-    text = str(stem or "")
-    for old, new in _RENAMED_PREFIXES:
-        if text.startswith(old):
-            return new + text[len(old):]
-    return text
+    """旧图标名 → 现在的语义名（不认识的照原样返回）。"""
+    return _RENAMED_ICONS.get(str(stem or ""), str(stem or ""))
 
 
 def icon_exists(stem: str) -> bool:
