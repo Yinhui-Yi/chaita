@@ -1,0 +1,24 @@
+name: chaita
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.12
+  - pip
+  - numpy>=2.0
+  - opencv>=4.10
+  - pyside6>=6.8
+  - pywin32>=306
+  - pytest>=8.0
+  - pip:
+      # 三个功能全靠这两个：agent-framework 本体只带 core，
+      # `from agent_framework.openai import OpenAIChatClient` 要单独装
+      # agent-framework-openai（漏了它，「读取」一跑就 ImportError）
+      - agent-framework>=1.22
+      - agent-framework-openai>=1.17
+      - openai>=3.35
+      # 可选：想把图标背景抠干净再装（不带也能跑，会退回纯裁剪，见 README「图标」）
+      # - rembg>=2.0
+      # - onnxruntime>=1.31

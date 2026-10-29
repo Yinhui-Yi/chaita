@@ -1,0 +1,31 @@
+# 隔离的界面测试环境：Xvfb 里跑悬浮层，鼠标事件用 xdotool 发进虚拟 X，
+# 不碰宿主机鼠标（用户玩游戏时也能跑）。
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    QT_QPA_PLATFORM=xcb \
+    DISPLAY=:99 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb x11-utils xdotool \
+        libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3 \
+        libglib2.0-0 libxrender1 libxi6 libxtst6 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip && pip install \
+        pyside6==6.7.3 opencv-python-headless numpy
+
+WORKDIR /work
+COPY . /work
+
+# 中文显示需要字体（界面里全是中文）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        fonts-wqy-zenhei \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY tools/docker_entry.sh /usr/local/bin/docker_entry.sh
+RUN chmod +x /usr/local/bin/docker_entry.sh
+
+ENTRYPOINT ["/usr/local/bin/docker_entry.sh"]

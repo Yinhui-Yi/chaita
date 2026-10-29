@@ -1,0 +1,18 @@
+{
+  "红宝石": "gem_red",
+  "红药水": "potion_red",
+  "红血瓶": "potion_red",
+  "红钥匙": "xinxin2_redKey",
+  "绿宝石": "gem_green",
+  "绿血瓶": "potion_green",
+  "蓝宝石": "gem_purple",
+  "蓝药水": "potion_purple",
+  "蓝血瓶": "potion_purple",
+  "蓝钥匙": "xinxin2_blueKey",
+  "血瓶": "potion_red",
+  "铁剑": "xinxin2_sword1",
+  "铁盾": "xinxin2_shield1",
+  "黄宝石": "gem_yellow",
+  "黄血瓶": "potion_yellow",
+  "黄钥匙": "xinxin2_yellowKey"
+}

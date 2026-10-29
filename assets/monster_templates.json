@@ -1,0 +1,1132 @@
+[
+  {
+    "name": "上级魔法师",
+    "hp": "290",
+    "atk": "40",
+    "def": "90",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/019_robed_mage_red.png",
+    "icon_from": "xinxin:redPriest:32"
+  },
+  {
+    "name": "不死战士",
+    "hp": "1100",
+    "atk": "1240",
+    "def": "800",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/031_skeleton_spirit_skeleton_soldier.png",
+    "icon_from": "xinxin2:soldier:32"
+  },
+  {
+    "name": "不死骷髅兵",
+    "hp": "1400",
+    "atk": "1400",
+    "def": "601",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/028_skeleton_spirit_skeleton.png",
+    "icon_from": "xinxin2:ghostSkeleton:32"
+  },
+  {
+    "name": "丧尸",
+    "hp": "190",
+    "atk": "90",
+    "def": "33",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/036_zombie_zombie.png",
+    "icon_from": "xinxin:zombie:32"
+  },
+  {
+    "name": "丧尸剑士",
+    "hp": "535",
+    "atk": "305",
+    "def": "180",
+    "exp": "5",
+    "skills": "",
+    "icon": "library/monster/038_zombie_zombie_soldier.png",
+    "icon_from": "xinxin2:zombieKnight:32"
+  },
+  {
+    "name": "丧尸士兵",
+    "hp": "511",
+    "atk": "353",
+    "def": "230",
+    "exp": "6",
+    "skills": "",
+    "icon": "library/monster/038_zombie_zombie_soldier.png",
+    "icon_from": "xinxin:zombieKnight:32"
+  },
+  {
+    "name": "中级守卫",
+    "hp": "775",
+    "atk": "220",
+    "def": "310",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/041_guard_mid_guard.png",
+    "icon_from": "xinxin:blueGuard:32"
+  },
+  {
+    "name": "中级骷髅兵",
+    "hp": "290",
+    "atk": "170",
+    "def": "23",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/025_skeleton_mid_skeleton_soldier.png",
+    "icon_from": "xinxin:skeletonCaptain:32"
+  },
+  {
+    "name": "中级魔法师",
+    "hp": "190",
+    "atk": "20",
+    "def": "20",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/018_robed_mage_yellow.png",
+    "icon_from": "xinxin:grayPriest:32"
+  },
+  {
+    "name": "仙子",
+    "hp": "9999999",
+    "atk": "10",
+    "def": "999",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/077_fairy_fairy.png",
+    "icon_from": "xinxin:darkFairy:32"
+  },
+  {
+    "name": "假公主",
+    "hp": "600",
+    "atk": "270",
+    "def": "160",
+    "exp": "13",
+    "skills": "",
+    "icon": "library/monster/075_princess_fake_princess.png",
+    "icon_from": "xinxin:badPrincess:32"
+  },
+  {
+    "name": "八爪鱼",
+    "hp": "300",
+    "atk": "188",
+    "def": "150",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/069_octopus_octopus.png",
+    "icon_from": "xinxin2:E330:32"
+  },
+  {
+    "name": "冻死骨",
+    "hp": "1080",
+    "atk": "911",
+    "def": "593",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/023_skeleton_frozen_bone.png",
+    "icon_from": "xinxin2:E382:32"
+  },
+  {
+    "name": "剑圣",
+    "hp": "999999",
+    "atk": "1",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/056_knight_sword_saint.png",
+    "icon_from": "xinxin:swordEmperor:32"
+  },
+  {
+    "name": "剑王",
+    "hp": "1065",
+    "atk": "894",
+    "def": "770",
+    "exp": "15",
+    "skills": "",
+    "icon": "library/monster/058_swordsman_sword_king.png",
+    "icon_from": "xinxin:redSwordsman:32"
+  },
+  {
+    "name": "剑神·沙士",
+    "hp": "1320",
+    "atk": "1410",
+    "def": "1090",
+    "exp": "190",
+    "skills": "",
+    "icon": "library/monster/053_knight_goldslime.png",
+    "icon_from": "xinxin2:goldSlime:32"
+  },
+  {
+    "name": "双手剑兵",
+    "hp": "280",
+    "atk": "210",
+    "def": "110",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/057_swordsman_two_hand_sword_soldier.png",
+    "icon_from": "xinxin:swordsman:32"
+  },
+  {
+    "name": "双手剑士",
+    "hp": "180",
+    "atk": "123",
+    "def": "81",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/057_swordsman_two_hand_sword_soldier.png",
+    "icon_from": "xinxin2:swordsman:32"
+  },
+  {
+    "name": "史莱姆",
+    "hp": "35",
+    "atk": "19",
+    "def": "2",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/001_slime_green_slime.png",
+    "icon_from": "xinxin2:greenSlime:32"
+  },
+  {
+    "name": "史莱姆人",
+    "hp": "90",
+    "atk": "79",
+    "def": "24",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/047_slime_man_slime_man.png",
+    "icon_from": "xinxin:slimeMan:32"
+  },
+  {
+    "name": "史莱姆王",
+    "hp": "172",
+    "atk": "130",
+    "def": "60",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/004_slime_slime_king.png",
+    "icon_from": "xinxin:slimelord:32"
+  },
+  {
+    "name": "四手史莱姆人",
+    "hp": "280",
+    "atk": "234",
+    "def": "164",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/048_slime_man_four_arm_slime_man.png",
+    "icon_from": "xinxin2:E334:32"
+  },
+  {
+    "name": "大法师",
+    "hp": "450",
+    "atk": "100",
+    "def": "302",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/071_mage_archmage.png",
+    "icon_from": "xinxin:brownWizard:32"
+  },
+  {
+    "name": "大蝙蝠",
+    "hp": "66",
+    "atk": "55",
+    "def": "12",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/013_bat_big_bat.png",
+    "icon_from": "xinxin:bigBat:32"
+  },
+  {
+    "name": "大魔王",
+    "hp": "1000",
+    "atk": "1200",
+    "def": "980",
+    "exp": "41",
+    "skills": "",
+    "icon": "library/monster/065_magician_demon_king.png",
+    "icon_from": "xinxin:redKing:32"
+  },
+  {
+    "name": "守卫",
+    "hp": "85",
+    "atk": "40",
+    "def": "55",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/040_guard_guard.png",
+    "icon_from": "xinxin:yellowGuard:32"
+  },
+  {
+    "name": "尖角怪",
+    "hp": "99999",
+    "atk": "1",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/011_slime_sharp_horn.png",
+    "icon_from": "xinxin:whiteHornSlime:32"
+  },
+  {
+    "name": "巨型八爪鱼",
+    "hp": "700",
+    "atk": "295",
+    "def": "120",
+    "exp": "18",
+    "skills": "",
+    "icon": "library/monster/070_octopus_giant_octopus.png",
+    "icon_from": "xinxin:octopus:32"
+  },
+  {
+    "name": "巨龙",
+    "hp": "1350",
+    "atk": "891",
+    "def": "668",
+    "exp": "41",
+    "skills": "",
+    "icon": "library/monster/085_dragon_giant_dragon.png",
+    "icon_from": "xinxin:magicDragon:32"
+  },
+  {
+    "name": "弓兵",
+    "hp": "380",
+    "atk": "10",
+    "def": "200",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/059_archer_archer.png",
+    "icon_from": "xinxin2:E377:32"
+  },
+  {
+    "name": "强盾骑士",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/052_knight_strong_shield_knight.png",
+    "icon_from": "xinxin2:greenKnight:32"
+  },
+  {
+    "name": "恶魔首领",
+    "hp": "5000",
+    "atk": "1500",
+    "def": "1200",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/090_demon_god_demon_god_warrior.png",
+    "icon_from": "xinxin:demon:32"
+  },
+  {
+    "name": "恶龙",
+    "hp": "1200",
+    "atk": "608",
+    "def": "452",
+    "exp": "50",
+    "skills": "",
+    "icon": "library/monster/085_dragon_giant_dragon.png",
+    "icon_from": "xinxin2:magicDragon:32"
+  },
+  {
+    "name": "斗神·高巴",
+    "hp": "2110",
+    "atk": "1287",
+    "def": "1010",
+    "exp": "190",
+    "skills": "",
+    "icon": "library/monster/043_guard_e380.png",
+    "icon_from": "xinxin2:E380:32"
+  },
+  {
+    "name": "暗黑魔法师",
+    "hp": "1650",
+    "atk": "220",
+    "def": "920",
+    "exp": "51",
+    "skills": "",
+    "icon": "library/monster/079_undead_dark_magician.png",
+    "icon_from": "xinxin:blackMagician:32"
+  },
+  {
+    "name": "极地法师",
+    "hp": "868",
+    "atk": "155",
+    "def": "720",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/073_mage_polar_mage.png",
+    "icon_from": "xinxin2:E413:32"
+  },
+  {
+    "name": "死灵大法师",
+    "hp": "850",
+    "atk": "175",
+    "def": "490",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/080_undead_undead_archmage.png",
+    "icon_from": "xinxin2:E396:32"
+  },
+  {
+    "name": "死灵战士",
+    "hp": "1300",
+    "atk": "1120",
+    "def": "890",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/082_undead_spirit_warrior.png",
+    "icon_from": "xinxin2:darkKnight:32"
+  },
+  {
+    "name": "死灵术士",
+    "hp": "905",
+    "atk": "200",
+    "def": "750",
+    "exp": "9",
+    "skills": "",
+    "icon": "library/monster/081_undead_undead_warlock.png",
+    "icon_from": "xinxin2:E397:32"
+  },
+  {
+    "name": "毒丧尸",
+    "hp": "1310",
+    "atk": "1083",
+    "def": "951",
+    "exp": "16",
+    "skills": "",
+    "icon": "library/monster/035_zombie_poison_zombie.png",
+    "icon_from": "xinxin:poisonZombie:32"
+  },
+  {
+    "name": "毒八爪鱼",
+    "hp": "938",
+    "atk": "530",
+    "def": "400",
+    "exp": "5",
+    "skills": "",
+    "icon": "library/monster/067_octopus_poison_octopus.png",
+    "icon_from": "xinxin2:E333:32"
+  },
+  {
+    "name": "毒蝙蝠",
+    "hp": "1091",
+    "atk": "971",
+    "def": "950",
+    "exp": "16",
+    "skills": "",
+    "icon": "library/monster/015_bat_poison_bat.png",
+    "icon_from": "xinxin:poisonBat:32"
+  },
+  {
+    "name": "毒龙",
+    "hp": "2350",
+    "atk": "1400",
+    "def": "930",
+    "exp": "61",
+    "skills": "",
+    "icon": "library/monster/087_dragon_poison_dragon.png",
+    "icon_from": "xinxin:E336:32"
+  },
+  {
+    "name": "毒龙（已弃用）",
+    "hp": "2350",
+    "atk": "1400",
+    "def": "930",
+    "exp": "61",
+    "skills": "",
+    "icon": "library/monster/052_knight_strong_shield_knight.png",
+    "icon_from": "xinxin:greenKnight:32"
+  },
+  {
+    "name": "混沌术士",
+    "hp": "708",
+    "atk": "250",
+    "def": "1110",
+    "exp": "10",
+    "skills": "",
+    "icon": "library/monster/020_robed_mage_black.png",
+    "icon_from": "xinxin2:skeletonPriest:32"
+  },
+  {
+    "name": "火炎大法师",
+    "hp": "1130",
+    "atk": "202",
+    "def": "540",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/072_mage_flame_archmage.png",
+    "icon_from": "xinxin2:redWizard:32"
+  },
+  {
+    "name": "灵武士",
+    "hp": "1060",
+    "atk": "1118",
+    "def": "1030",
+    "exp": "11",
+    "skills": "",
+    "icon": "library/monster/082_undead_spirit_warrior.png",
+    "icon_from": "xinxin:darkKnight:32"
+  },
+  {
+    "name": "灵骷髅",
+    "hp": "295",
+    "atk": "404",
+    "def": "282",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/028_skeleton_spirit_skeleton.png",
+    "icon_from": "xinxin:ghostSkeleton:32"
+  },
+  {
+    "name": "灵骷髅兵",
+    "hp": "800",
+    "atk": "602",
+    "def": "560",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/031_skeleton_spirit_skeleton_soldier.png",
+    "icon_from": "xinxin:soldier:32"
+  },
+  {
+    "name": "炎术士",
+    "hp": "330",
+    "atk": "90",
+    "def": "170",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/019_robed_mage_red.png",
+    "icon_from": "xinxin2:redPriest:32"
+  },
+  {
+    "name": "烈焰丧尸",
+    "hp": "1097",
+    "atk": "1024",
+    "def": "789",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/037_zombie_flame_zombie.png",
+    "icon_from": "xinxin2:E335:32"
+  },
+  {
+    "name": "痛苦魔女",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/076_princess_agony_witch.png",
+    "icon_from": "xinxin2:badPrincess:32"
+  },
+  {
+    "name": "白银史莱姆",
+    "hp": "1",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/005_slime_silver_slime.png",
+    "icon_from": "xinxin:silverSlime:32"
+  },
+  {
+    "name": "白银史莱姆王",
+    "hp": "7",
+    "atk": "150",
+    "def": "9999",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/007_slime_silver_slime_king.png",
+    "icon_from": "xinxin2:whiteHornSlime:32"
+  },
+  {
+    "name": "皇室剑士",
+    "hp": "1108",
+    "atk": "1393",
+    "def": "1339",
+    "exp": "10",
+    "skills": "",
+    "icon": "library/monster/055_knight_royal_swordsman.png",
+    "icon_from": "xinxin2:E434:32"
+  },
+  {
+    "name": "皇室枪兵",
+    "hp": "1390",
+    "atk": "1700",
+    "def": "1523",
+    "exp": "12",
+    "skills": "",
+    "icon": "library/monster/054_knight_royal_spearman.png",
+    "icon_from": "xinxin2:E433:32"
+  },
+  {
+    "name": "石头怪",
+    "hp": "10",
+    "atk": "70",
+    "def": "110",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/044_rock_stone_rock.png",
+    "icon_from": "xinxin2:rock:32"
+  },
+  {
+    "name": "石怪",
+    "hp": "30",
+    "atk": "45",
+    "def": "70",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/044_rock_stone_rock.png",
+    "icon_from": "xinxin:rock:32"
+  },
+  {
+    "name": "箭神·法比",
+    "hp": "2330",
+    "atk": "155",
+    "def": "1110",
+    "exp": "190",
+    "skills": "",
+    "icon": "library/monster/060_archer_e379.png",
+    "icon_from": "xinxin2:E379:32"
+  },
+  {
+    "name": "精锐弓兵",
+    "hp": "620",
+    "atk": "35",
+    "def": "502",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/061_archer_elite_archer.png",
+    "icon_from": "xinxin2:E378:32"
+  },
+  {
+    "name": "红色史莱姆",
+    "hp": "50",
+    "atk": "20",
+    "def": "4",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/002_slime_red_slime.png",
+    "icon_from": "xinxin:redSlime:32"
+  },
+  {
+    "name": "红蝙蝠",
+    "hp": "210",
+    "atk": "185",
+    "def": "70",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/014_bat_red_bat.png",
+    "icon_from": "xinxin:redBat:32"
+  },
+  {
+    "name": "红衣大法师",
+    "hp": "875",
+    "atk": "120",
+    "def": "513",
+    "exp": "11",
+    "skills": "",
+    "icon": "library/monster/072_mage_flame_archmage.png",
+    "icon_from": "xinxin:redWizard:32"
+  },
+  {
+    "name": "绿色史莱姆",
+    "hp": "40",
+    "atk": "18",
+    "def": "1",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/001_slime_green_slime.png",
+    "icon_from": "xinxin:greenSlime:32"
+  },
+  {
+    "name": "自己",
+    "hp": "1100",
+    "atk": "325",
+    "def": "160",
+    "exp": "31",
+    "skills": "",
+    "icon": "library/monster/074_hero_self.png",
+    "icon_from": "xinxin:badHero:32"
+  },
+  {
+    "name": "蝙蝠",
+    "hp": "55",
+    "atk": "32",
+    "def": "2",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/012_bat_bat.png",
+    "icon_from": "xinxin:bat:32"
+  },
+  {
+    "name": "触手植物",
+    "hp": "592",
+    "atk": "874",
+    "def": "794",
+    "exp": "7",
+    "skills": "",
+    "icon": "library/monster/088_plant_tentacle_plant.png",
+    "icon_from": "xinxin2:E381:32"
+  },
+  {
+    "name": "触手魔物",
+    "hp": "600",
+    "atk": "1634",
+    "def": "1616",
+    "exp": "11",
+    "skills": "",
+    "icon": "library/monster/089_plant_tentacle_monster.png",
+    "icon_from": "xinxin2:E438:32"
+  },
+  {
+    "name": "近卫骑士",
+    "hp": "992",
+    "atk": "737",
+    "def": "677",
+    "exp": "13",
+    "skills": "",
+    "icon": "library/monster/050_knight_bodyguard_knight.png",
+    "icon_from": "xinxin:redKnight:32"
+  },
+  {
+    "name": "迷失勇者",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/074_hero_self.png",
+    "icon_from": "xinxin2:badHero:32"
+  },
+  {
+    "name": "邪恶蝙蝠",
+    "hp": "1000",
+    "atk": "1",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "",
+    "icon_from": "xinxin2:evilBat:48"
+  },
+  {
+    "name": "邪眼史莱姆",
+    "hp": "932",
+    "atk": "621",
+    "def": "404",
+    "exp": "6",
+    "skills": "",
+    "icon": "library/monster/009_slime_evil_eye_slime.png",
+    "icon_from": "xinxin2:E337:32"
+  },
+  {
+    "name": "重生骷髅兵",
+    "hp": "800",
+    "atk": "610",
+    "def": "320",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/030_skeleton_reborn_skeleton_soldier.png",
+    "icon_from": "xinxin2:E385:32"
+  },
+  {
+    "name": "金角怪",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/010_slime_gold_horn.png",
+    "icon_from": "xinxin:goldHornSlime:32"
+  },
+  {
+    "name": "铁守卫",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "",
+    "icon_from": "xinxin:steelGuard:48"
+  },
+  {
+    "name": "铁怪",
+    "hp": "50",
+    "atk": "600",
+    "def": "990",
+    "exp": "14",
+    "skills": "",
+    "icon": "library/monster/045_rock_iron_rock.png",
+    "icon_from": "xinxin:steelRock:32"
+  },
+  {
+    "name": "铁骑士",
+    "hp": "420",
+    "atk": "380",
+    "def": "258",
+    "exp": "6",
+    "skills": "",
+    "icon": "library/monster/051_knight_iron_knight.png",
+    "icon_from": "xinxin:blueKnight:32"
+  },
+  {
+    "name": "闪光八爪鱼",
+    "hp": "1044",
+    "atk": "999",
+    "def": "826",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/068_octopus_flash_octopus.png",
+    "icon_from": "xinxin2:E411:32"
+  },
+  {
+    "name": "雷术士",
+    "hp": "160",
+    "atk": "30",
+    "def": "37",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/018_robed_mage_yellow.png",
+    "icon_from": "xinxin2:grayPriest:32"
+  },
+  {
+    "name": "骑士",
+    "hp": "130",
+    "atk": "115",
+    "def": "43",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/049_knight_knight.png",
+    "icon_from": "xinxin:yellowKnight:32"
+  },
+  {
+    "name": "骷髅",
+    "hp": "95",
+    "atk": "70",
+    "def": "0",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/021_skeleton_skeleton.png",
+    "icon_from": "xinxin:skeleton:32"
+  },
+  {
+    "name": "骷髅兵",
+    "hp": "190",
+    "atk": "100",
+    "def": "5",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/022_skeleton_skeleton_soldier.png",
+    "icon_from": "xinxin:skeletonSoilder:32"
+  },
+  {
+    "name": "骷髅剑士",
+    "hp": "320",
+    "atk": "189",
+    "def": "15",
+    "exp": "2",
+    "skills": "",
+    "icon": "library/monster/022_skeleton_skeleton_soldier.png",
+    "icon_from": "xinxin2:skeletonSoilder:32"
+  },
+  {
+    "name": "骷髅头目",
+    "hp": "999",
+    "atk": "692",
+    "def": "90",
+    "exp": "6",
+    "skills": "",
+    "icon": "library/monster/026_skeleton_high_skeleton_soldier.png",
+    "icon_from": "xinxin2:poisonSkeleton:32"
+  },
+  {
+    "name": "骷髅巫师",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/034_skeleton_skeleton_wizard.png",
+    "icon_from": "xinxin:skeletonWizard:32"
+  },
+  {
+    "name": "骷髅战士",
+    "hp": "830",
+    "atk": "570",
+    "def": "390",
+    "exp": "3",
+    "skills": "",
+    "icon": "library/monster/032_skeleton_skeleton_fighter.png",
+    "icon_from": "xinxin2:E384:32"
+  },
+  {
+    "name": "骷髅武士",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/027_skeleton_skeleton_warrior.png",
+    "icon_from": "xinxin:redSkeletonCaption:32"
+  },
+  {
+    "name": "骷髅法师",
+    "hp": "100",
+    "atk": "100",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/024_skeleton_skeleton_mage.png",
+    "icon_from": "xinxin:skeletonPriest:32"
+  },
+  {
+    "name": "骷髅王",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/033_skeleton_skeleton_king.png",
+    "icon_from": "xinxin:skeletonKing:32"
+  },
+  {
+    "name": "骷髅队长",
+    "hp": "500",
+    "atk": "330",
+    "def": "34",
+    "exp": "4",
+    "skills": "",
+    "icon": "library/monster/025_skeleton_mid_skeleton_soldier.png",
+    "icon_from": "xinxin2:skeletonCaptain:32"
+  },
+  {
+    "name": "高级守卫",
+    "hp": "1150",
+    "atk": "651",
+    "def": "860",
+    "exp": "12",
+    "skills": "",
+    "icon": "library/monster/042_guard_high_guard.png",
+    "icon_from": "xinxin:redGuard:32"
+  },
+  {
+    "name": "高级骷髅兵",
+    "hp": "1020",
+    "atk": "1341",
+    "def": "600",
+    "exp": "15",
+    "skills": "",
+    "icon": "library/monster/026_skeleton_high_skeleton_soldier.png",
+    "icon_from": "xinxin:poisonSkeleton:32"
+  },
+  {
+    "name": "鬼邪石",
+    "hp": "30",
+    "atk": "999",
+    "def": "999",
+    "exp": "9",
+    "skills": "",
+    "icon": "library/monster/046_rock_evil_stone.png",
+    "icon_from": "xinxin2:E414:32"
+  },
+  {
+    "name": "魔术师",
+    "hp": "50",
+    "atk": "18",
+    "def": "4",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/017_robed_mage_blue.png",
+    "icon_from": "xinxin2:bluePriest:32"
+  },
+  {
+    "name": "魔法师",
+    "hp": "65",
+    "atk": "10",
+    "def": "5",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/017_robed_mage_blue.png",
+    "icon_from": "xinxin:bluePriest:32"
+  },
+  {
+    "name": "魔法师元帅",
+    "hp": "380",
+    "atk": "90",
+    "def": "280",
+    "exp": "6",
+    "skills": "",
+    "icon": "library/monster/063_magician_magician_marshal.png",
+    "icon_from": "xinxin:greenKing:32"
+  },
+  {
+    "name": "魔法师首领",
+    "hp": "330",
+    "atk": "70",
+    "def": "150",
+    "exp": "5",
+    "skills": "",
+    "icon": "library/monster/062_magician_magician_leader.png",
+    "icon_from": "xinxin:whiteKing:32"
+  },
+  {
+    "name": "魔王",
+    "hp": "635",
+    "atk": "600",
+    "def": "500",
+    "exp": "9",
+    "skills": "",
+    "icon": "library/monster/064_magician_demon_king_guard.png",
+    "icon_from": "xinxin:yellowKing:32"
+  },
+  {
+    "name": "魔王·格勒第",
+    "hp": "5000",
+    "atk": "1500",
+    "def": "1200",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/083_demon_king_vamp.png",
+    "icon_from": "xinxin:vamp:32"
+  },
+  {
+    "name": "魔王近卫兵",
+    "hp": "1220",
+    "atk": "880",
+    "def": "612",
+    "exp": "8",
+    "skills": "",
+    "icon": "library/monster/064_magician_demon_king_guard.png",
+    "icon_from": "xinxin2:yellowKing:32"
+  },
+  {
+    "name": "魔界八爪鱼",
+    "hp": "2008",
+    "atk": "880",
+    "def": "700",
+    "exp": "100",
+    "skills": "",
+    "icon": "library/monster/070_octopus_giant_octopus.png",
+    "icon_from": "xinxin2:octopus:32"
+  },
+  {
+    "name": "魔神·些多",
+    "hp": "1630",
+    "atk": "310",
+    "def": "1104",
+    "exp": "300",
+    "skills": "",
+    "icon": "library/monster/084_demon_king_skeletonking.png",
+    "icon_from": "xinxin2:skeletonKing:32"
+  },
+  {
+    "name": "魔神武士",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/090_demon_god_demon_god_warrior.png",
+    "icon_from": "xinxin2:demon:32"
+  },
+  {
+    "name": "魔神法师",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/091_demon_god_demon_god_mage.png",
+    "icon_from": "xinxin:demonPriest:32"
+  },
+  {
+    "name": "黄金史莱姆",
+    "hp": "1",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/006_slime_gold_slime.png",
+    "icon_from": "xinxin:goldSlime:32"
+  },
+  {
+    "name": "黄金史莱姆王",
+    "hp": "7",
+    "atk": "200",
+    "def": "9999",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/008_slime_gold_slime_king.png",
+    "icon_from": "xinxin2:silverSlime:32"
+  },
+  {
+    "name": "黄金龙",
+    "hp": "3000",
+    "atk": "1530",
+    "def": "1240",
+    "exp": "180",
+    "skills": "",
+    "icon": "library/monster/086_dragon_golden_dragon.png",
+    "icon_from": "xinxin2:E431:32"
+  },
+  {
+    "name": "黑暗仙子",
+    "hp": "0",
+    "atk": "0",
+    "def": "0",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/078_fairy_dark_sprite.png",
+    "icon_from": "xinxin2:badFairy:32"
+  },
+  {
+    "name": "黑暗妖精",
+    "hp": "100000",
+    "atk": "900",
+    "def": "1150",
+    "exp": "0",
+    "skills": "",
+    "icon": "library/monster/078_fairy_dark_sprite.png",
+    "icon_from": "xinxin:badFairy:32"
+  },
+  {
+    "name": "黑色史莱姆",
+    "hp": "80",
+    "atk": "37",
+    "def": "9",
+    "exp": "1",
+    "skills": "",
+    "icon": "library/monster/003_slime_black_slime.png",
+    "icon_from": "xinxin:blackSlime:32"
+  },
+  {
+    "name": "黑衣魔王",
+    "hp": "1000",
+    "atk": "500",
+    "def": "0",
+    "exp": "1000",
+    "skills": "",
+    "icon": "library/monster/066_magician_black_cloak_demon_king.png",
+    "icon_from": "xinxin2:blackKing:32"
+  },
+  {
+    "name": "黑魔王",
+    "hp": "1000",
+    "atk": "500",
+    "def": "0",
+    "exp": "1000",
+    "skills": "",
+    "icon": "library/monster/066_magician_black_cloak_demon_king.png",
+    "icon_from": "xinxin:blackKing:32"
+  },
+  {
+    "name": "龙蝠",
+    "hp": "1247",
+    "atk": "1501",
+    "def": "1307",
+    "exp": "10",
+    "skills": "",
+    "icon": "library/monster/016_bat_dragon_bat.png",
+    "icon_from": "xinxin2:E439:32"
+  }
+]

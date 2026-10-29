@@ -1,0 +1,311 @@
+{
+ "source": "engine getSpecials",
+ "by_code": {
+  "1": {
+   "name": "先攻",
+   "engine_fields": [],
+   "params": []
+  },
+  "2": {
+   "name": "魔攻",
+   "engine_fields": [],
+   "params": []
+  },
+  "3": {
+   "name": "坚固",
+   "engine_fields": [],
+   "params": []
+  },
+  "4": {
+   "name": "2连击",
+   "engine_fields": [],
+   "params": []
+  },
+  "5": {
+   "name": "3连击",
+   "engine_fields": [],
+   "params": []
+  },
+  "6": {
+   "name": "连击",
+   "engine_fields": [
+    "n"
+   ],
+   "params": [
+    {
+     "field": "n",
+     "label": "次数",
+     "unit": "次",
+     "type": "int"
+    }
+   ]
+  },
+  "7": {
+   "name": "破甲",
+   "engine_fields": [
+    "defValue"
+   ],
+   "params": [
+    {
+     "field": "defValue",
+     "label": "防御百分比",
+     "unit": "%",
+     "type": "percent"
+    }
+   ]
+  },
+  "8": {
+   "name": "反击",
+   "engine_fields": [
+    "atkValue"
+   ],
+   "params": [
+    {
+     "field": "atkValue",
+     "label": "攻击百分比",
+     "unit": "%",
+     "type": "percent"
+    }
+   ]
+  },
+  "9": {
+   "name": "净化",
+   "engine_fields": [
+    "n"
+   ],
+   "params": [
+    {
+     "field": "n",
+     "label": "倍数",
+     "unit": "倍",
+     "type": "int"
+    }
+   ]
+  },
+  "10": {
+   "name": "模仿",
+   "engine_fields": [],
+   "params": []
+  },
+  "11": {
+   "name": "吸血",
+   "engine_fields": [
+    "value",
+    "add"
+   ],
+   "params": [
+    {
+     "field": "value",
+     "label": "吸血百分比",
+     "unit": "%",
+     "type": "percent"
+    },
+    {
+     "field": "add",
+     "label": "伤害加到自身",
+     "unit": "",
+     "type": "toggle"
+    }
+   ]
+  },
+  "12": {
+   "name": "中毒",
+   "engine_fields": [],
+   "params": []
+  },
+  "13": {
+   "name": "衰弱",
+   "engine_fields": [],
+   "params": []
+  },
+  "14": {
+   "name": "诅咒",
+   "engine_fields": [],
+   "params": []
+  },
+  "15": {
+   "name": "领域",
+   "engine_fields": [
+    "zoneSquare",
+    "range",
+    "value"
+   ],
+   "params": [
+    {
+     "field": "zoneSquare",
+     "label": "范围",
+     "unit": "",
+     "type": "choice"
+    },
+    {
+     "field": "range",
+     "label": "格数",
+     "unit": "格",
+     "type": "int"
+    },
+    {
+     "field": "value",
+     "label": "伤害",
+     "unit": "点",
+     "type": "int"
+    }
+   ]
+  },
+  "16": {
+   "name": "夹击",
+   "engine_fields": [],
+   "params": []
+  },
+  "17": {
+   "name": "仇恨",
+   "engine_fields": [],
+   "params": []
+  },
+  "18": {
+   "name": "阻击",
+   "engine_fields": [
+    "zoneSquare",
+    "value"
+   ],
+   "params": [
+    {
+     "field": "zoneSquare",
+     "label": "范围",
+     "unit": "",
+     "type": "choice"
+    },
+    {
+     "field": "value",
+     "label": "伤害",
+     "unit": "点",
+     "type": "int"
+    }
+   ]
+  },
+  "19": {
+   "name": "自爆",
+   "engine_fields": [],
+   "params": []
+  },
+  "20": {
+   "name": "无敌",
+   "engine_fields": [],
+   "params": []
+  },
+  "21": {
+   "name": "退化",
+   "engine_fields": [
+    "atkValue",
+    "defValue"
+   ],
+   "params": [
+    {
+     "field": "atkValue",
+     "label": "攻击下降",
+     "unit": "点",
+     "type": "int"
+    },
+    {
+     "field": "defValue",
+     "label": "防御下降",
+     "unit": "点",
+     "type": "int"
+    }
+   ]
+  },
+  "22": {
+   "name": "固伤",
+   "engine_fields": [
+    "damage"
+   ],
+   "params": [
+    {
+     "field": "damage",
+     "label": "固定伤害",
+     "unit": "点",
+     "type": "int"
+    }
+   ]
+  },
+  "23": {
+   "name": "重生",
+   "engine_fields": [],
+   "params": []
+  },
+  "24": {
+   "name": "激光",
+   "engine_fields": [
+    "value"
+   ],
+   "params": [
+    {
+     "field": "value",
+     "label": "伤害",
+     "unit": "点",
+     "type": "int"
+    }
+   ]
+  },
+  "25": {
+   "name": "光环",
+   "engine_fields": [
+    "range",
+    "zoneSquare",
+    "value",
+    "atkValue",
+    "defValue",
+    "add"
+   ],
+   "params": [
+    {
+     "field": "zoneSquare",
+     "label": "范围",
+     "unit": "",
+     "type": "choice"
+    },
+    {
+     "field": "range",
+     "label": "格数",
+     "unit": "格",
+     "type": "int"
+    },
+    {
+     "field": "value",
+     "label": "生命提升",
+     "unit": "%",
+     "type": "percent"
+    },
+    {
+     "field": "atkValue",
+     "label": "攻击提升",
+     "unit": "%",
+     "type": "percent"
+    },
+    {
+     "field": "defValue",
+     "label": "防御提升",
+     "unit": "%",
+     "type": "percent"
+    },
+    {
+     "field": "add",
+     "label": "可叠加",
+     "unit": "",
+     "type": "toggle"
+    }
+   ]
+  },
+  "26": {
+   "name": "支援",
+   "engine_fields": [],
+   "params": []
+  },
+  "27": {
+   "name": "捕捉",
+   "engine_fields": [
+    "zoneSquare"
+   ],
+   "params": []
+  }
+ }
+}
