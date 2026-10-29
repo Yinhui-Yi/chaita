@@ -3,7 +3,8 @@ import QtQuick
 import "../../shared"
 
 // 路线提取：长按玩家 = 起点（红点），鼠标进到相邻格就选一格、画一段红线；
-// 走回头路是允许的（链上如实追加；回到上一格 = 撤销一步）。松手交差。
+// 走回头路是允许的：退到走过的任何一格都如实追加（用户 2026-10-29 拍板，
+// 前进一格再后退一格也要记成来回两段，不再撤销）。松手交差。
 //
 // 坐标都在**图像自己的坐标系**里（调用方把它铺满那张图就行），
 // 格子边长由 `cell` 给（AI 读到的行列换算出来，读不到就 24）。
@@ -52,7 +53,7 @@ Item {
         routeCanvas.requestPaint()
     }
 
-    // 鼠标挪到某点：只有进了**相邻**格才算一步
+    // 鼠标挪到某点：只有进了**相邻**格才算一步；退到走过的格也照记（回头路）
     function moveTo(x, y) {
         if (!layer.editing)
             return
@@ -60,11 +61,7 @@ Item {
         var last = layer.cells[layer.cells.length - 1]
         if (layer.sameCell(cell, last))
             return
-        var prev = layer.cells[layer.cells.length - 2]
-        if (layer.sameCell(cell, prev)) {
-            // 回到上一格：撤销一步（不是新的一段路）
-            layer.cells = layer.cells.slice(0, layer.cells.length - 1)
-        } else if (Math.abs(cell.row - last.row) + Math.abs(cell.col - last.col) === 1) {
+        if (Math.abs(cell.row - last.row) + Math.abs(cell.col - last.col) === 1) {
             // 四向相邻才接上；斜着/跳格忽略（免得画出一条穿墙线）
             layer.cells = layer.cells.concat([cell])
         }
