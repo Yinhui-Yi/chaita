@@ -29,7 +29,7 @@ DEFAULT_TOWERS = [
     os.path.join(HOME, "Downloads", "xinxin", "mota_pack_20260623_204744"),
     os.path.join(HOME, "Downloads", "xinxin2new", "xinxin2"),
 ]
-LABELS = ["xinxin", "xinxin2"]
+LABELS = ["rm", "h5"]
 
 # 塔里的 key 前缀颜色 → 我们的图标名
 COLORS = {"red": "red", "blue": "purple", "green": "green", "yellow": "yellow"}

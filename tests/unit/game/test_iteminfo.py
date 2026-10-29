@@ -13,7 +13,7 @@ def test_is_gem():
     assert iteminfo.is_gem("gem_yellow")
     assert not iteminfo.is_gem("potion_red")
     assert not iteminfo.is_gem("")
-    assert not iteminfo.is_gem("xinxin2_redKey")
+    assert not iteminfo.is_gem("key_red")
 
 
 def test_is_potion():
@@ -28,9 +28,33 @@ def test_icon_for():
     assert iteminfo.icon_for("红宝石") == "gem_red"
     assert iteminfo.icon_for("蓝宝石") == "gem_purple"
     assert iteminfo.icon_for("红血瓶") == "potion_red"
-    assert iteminfo.icon_for("铁盾") == "xinxin2_shield1"
+    assert iteminfo.icon_for("铁盾") == "shield"
+    assert iteminfo.icon_for("铁剑") == "sword"
+    assert iteminfo.icon_for("红钥匙") == "key_red"
     # 名字里没有颜色 → 空串
     assert iteminfo.icon_for("不知道") == ""
+
+
+def test_migrate_icon_renames_old_game_prefix():
+    """老存档里带别的游戏/塔前缀的图标名，要换成现在的语义名。"""
+    assert iteminfo.migrate_icon("xinxin2_sword1") == "sword"
+    assert iteminfo.migrate_icon("h5_sword1") == "sword"
+    assert iteminfo.migrate_icon("xinxin_sword1") == "sword"
+    assert iteminfo.migrate_icon("xinxin2_redKey") == "key_red"
+    assert iteminfo.migrate_icon("h5_shield1") == "shield"
+    # 已经是新名字 / 中性名 / 不认识的，一律照原样
+    assert iteminfo.migrate_icon("sword") == "sword"
+    assert iteminfo.migrate_icon("gem_red") == "gem_red"
+    assert iteminfo.migrate_icon("") == ""
+    assert iteminfo.migrate_icon(None) == ""
+
+
+def test_every_mapped_icon_file_exists():
+    """map.json 里点到的每个图标都得真在 assets/items 里（加资源界面缩略图来源）。"""
+    mapped = iteminfo.icon_map()
+    assert mapped, "map.json 不能是空的"
+    for stem in mapped.values():
+        assert iteminfo.icon_exists(stem), stem
 
 
 def test_key_for():
@@ -89,17 +113,17 @@ def test_effect_with_part():
 
 def test_kind_rank():
     assert iteminfo.kind_rank("红宝石", "gem_red") == 0      # 宝石
-    assert iteminfo.kind_rank("铁剑", "xinxin2_sword1") == 1  # 武器
-    assert iteminfo.kind_rank("铁盾", "xinxin2_shield1") == 2  # 防具
+    assert iteminfo.kind_rank("铁剑", "sword") == 1  # 武器
+    assert iteminfo.kind_rank("铁盾", "shield") == 2  # 防具
     assert iteminfo.kind_rank("红血瓶", "potion_red") == 3   # 血瓶
-    assert iteminfo.kind_rank("红钥匙", "xinxin2_redKey") == 4  # 钥匙
+    assert iteminfo.kind_rank("红钥匙", "key_red") == 4  # 钥匙
 
 
 def test_sort_items_gems_first_keys_last():
     rows = [
-        {"name": "红钥匙", "icon": "xinxin2_redKey", "effect": ""},
+        {"name": "红钥匙", "icon": "key_red", "effect": ""},
         {"name": "红宝石", "icon": "gem_red", "effect": "攻击力 +1"},
-        {"name": "铁盾", "icon": "xinxin2_shield1", "effect": ""},
+        {"name": "铁盾", "icon": "shield", "effect": ""},
     ]
     ordered = [row["name"] for row in iteminfo.sort_items(rows)]
     assert ordered == ["红宝石", "铁盾", "红钥匙"]

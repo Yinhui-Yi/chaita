@@ -242,6 +242,28 @@ def test_fix_monster_icon_clears_when_really_gone(monkeypatch):
     assert row["icon_id"] == ""
 
 
+def test_fix_item_icons_migrates_old_game_prefix():
+    """老存档里的资源图标名（带别人游戏的前缀）要跟到现在的新名字。"""
+    entry = {"items": [{"name": "铁剑", "icon": "xinxin2_sword1"},
+                       {"name": "铁盾", "icon": "xinxin_shield1"},
+                       {"name": "红宝石", "icon": "gem_red"},
+                       {"name": "没图标", "icon": ""}],
+             "routes": [{"cells": [{"kind": "item", "name": "铁剑",
+                                    "icon": "xinxin2_sword1"},
+                                   {"kind": "monster", "name": "史莱姆"}]}]}
+
+    row = st._fix_item_icons(entry)
+
+    assert [one["icon"] for one in row["items"]] == [
+        "sword", "shield", "gem_red", ""]
+    assert row["routes"][0]["cells"][0]["icon"] == "sword"
+    assert "icon" not in row["routes"][0]["cells"][1]
+
+
+def test_fix_item_icons_leaves_entries_without_items_alone():
+    assert st._fix_item_icons({"floor": "1层"}) == {"floor": "1层"}
+
+
 def test_fix_monster_icon_keeps_texture_name(monkeypatch):
     """不是文件 URL 的图标（贴图名）不动它。"""
     row = st._fix_monster_icon({"icon": "potion_red"})

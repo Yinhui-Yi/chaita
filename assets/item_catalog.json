@@ -1,695 +1,695 @@
 {
- "xinxin2_I315": {
+ "h5_I315": {
   "cls": "equips",
   "effect": "伤害*1.5，暂时将(等级)防御转换为(等级*1.5)攻击，但给予伤害不超过(等级)就没有效果。最低使用等级=1 气息消费=1 疲劳+10",
   "item": "I315",
   "name": "凡骨(Z1)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I316": {
+ "h5_I316": {
   "cls": "equips",
   "effect": "伤害*5，不致死，随后攻击退化。 最低使用等级=100 气息消费=2 疲劳+30",
   "item": "I316",
   "name": "皇者(Z5)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I317": {
+ "h5_I317": {
   "cls": "equips",
   "effect": "伤害*1.8，怪物疲劳+15。 最低使用等级=76 气息消费=2 疲劳+8",
   "item": "I317",
   "name": "天灵(Z4)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I318": {
+ "h5_I318": {
   "cls": "equips",
   "effect": "伤害*0.8，不致死，将实际伤害*0.3回复至自身。 最低使用等级=26 气息消费=1 疲劳+4",
   "item": "I318",
   "name": "深红(Z3)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I319": {
+ "h5_I319": {
   "cls": "equips",
   "effect": "伤害*1.3，吸取怪物的全部气息至自身。 最低使用等级=20 气息消费=1 疲劳+4",
   "item": "I319",
   "name": "流石(Z2)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I320": {
+ "h5_I320": {
   "cls": "equips",
   "effect": "将所受伤害的1.5倍回复至公主身上 最低使用等级=100 气息消费=2 疲劳+2",
   "item": "I320",
   "name": "贤者结界(X5)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I321": {
+ "h5_I321": {
   "cls": "equips",
   "effect": "所受的伤害除以1.5，敌人本回合以及下回合不能行动 最低使用等级=18 气息消费=2 疲劳+12",
   "item": "I321",
   "name": "结晶盾(X2)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I322": {
+ "h5_I322": {
   "cls": "equips",
   "effect": "",
   "item": "I322",
   "name": "精灵罩(X4)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I323": {
+ "h5_I323": {
   "cls": "items",
   "effect": "体力+180回复衰弱",
   "item": "I323",
   "name": "高级草药精华",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I324": {
+ "h5_I324": {
   "cls": "items",
   "effect": "体力+80回复中毒",
   "item": "I324",
   "name": "草药精华",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I339": {
+ "h5_I339": {
   "cls": "equips",
   "effect": "所受的伤害除以2.5 最低使用等级=1 气息消费=1 疲劳+3",
   "item": "I339",
   "name": "镜膜盾(X1)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I375": {
+ "h5_I375": {
   "cls": "equips",
   "effect": "",
   "item": "I375",
   "name": "反射盾(X3)",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I395": {
+ "h5_I395": {
   "cls": "tools",
   "effect": "可以将部分墙面变成黄门或传送门，或者移除地上的冰块。若随意门将暗墙变成了传送门或物品，则在开门后返还一把黄钥匙。",
   "item": "I395",
   "name": "随意门（废弃）",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I398": {
+ "h5_I398": {
   "cls": "tools",
   "effect": "增加游戏分数",
   "item": "I398",
   "name": "史莱姆银币",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I400": {
+ "h5_I400": {
   "cls": "tools",
   "effect": "增加游戏分数",
   "item": "I400",
   "name": "史莱姆金币",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I403": {
+ "h5_I403": {
   "cls": "tools",
   "effect": "大大增加游戏分数",
   "item": "I403",
   "name": "史莱姆纯银块",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I407": {
+ "h5_I407": {
   "cls": "tools",
   "effect": "大大增加游戏分数",
   "item": "I407",
   "name": "史莱姆纯金块",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_I445": {
+ "h5_I445": {
   "cls": "tools",
   "effect": "消除地面上的冰块",
   "item": "I445",
   "name": "随意门（冰）",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_bigKey": {
+ "h5_bigKey": {
   "cls": "items",
   "effect": "钥匙数各+1",
   "item": "bigKey",
   "name": "魔法匙",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_blueGem": {
+ "h5_blueGem": {
   "cls": "items",
   "effect": "2",
   "item": "blueGem",
   "name": "蓝宝石",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_blueKey": {
+ "h5_blueKey": {
   "cls": "tools",
   "effect": "可以打开一扇蓝门",
   "item": "blueKey",
   "name": "蓝钥匙",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_bluePotion": {
+ "h5_bluePotion": {
   "cls": "items",
   "effect": "400",
   "item": "bluePotion",
   "name": "高级伤药",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_bomb": {
+ "h5_bomb": {
   "cls": "tools",
   "effect": "可以炸掉勇士面前的怪物",
   "item": "bomb",
   "name": "炸弹",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_centerFly": {
+ "h5_centerFly": {
   "cls": "items",
   "effect": "提升一个等级",
   "item": "centerFly",
   "name": "跃进之翼",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_coin": {
+ "h5_coin": {
   "cls": "items",
   "effect": "金钱+200",
   "item": "coin",
   "name": "大金币",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_cross": {
+ "h5_cross": {
   "cls": "items",
   "effect": "公主的魔法防御+5",
   "item": "cross",
   "name": "神之护符",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_curseWine": {
+ "h5_curseWine": {
   "cls": "tools",
   "effect": "可以解除诅咒状态",
   "item": "curseWine",
   "name": "解咒药水",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_downFly": {
+ "h5_downFly": {
   "cls": "tools",
   "effect": "可以飞往楼下的相同位置",
   "item": "downFly",
   "name": "下楼器",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_earthquake": {
+ "h5_earthquake": {
   "cls": "tools",
   "effect": "可以破坏当前层的所有墙",
   "item": "earthquake",
   "name": "地震卷轴",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_greenGem": {
+ "h5_greenGem": {
   "cls": "items",
   "effect": "气息条上限-1",
   "item": "greenGem",
   "name": "绿宝石",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_greenKey": {
+ "h5_greenKey": {
   "cls": "tools",
   "effect": "可以将特定墙体（以紫门标识）变为黄门或传送阵，或移除冰块。直接撞击对应的墙体或冰块即可。",
   "item": "greenKey",
   "name": "随意门",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_greenPotion": {
+ "h5_greenPotion": {
   "cls": "items",
   "effect": "EXP+5",
   "item": "greenPotion",
   "name": "经验药水",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_hammer": {
+ "h5_hammer": {
   "cls": "tools",
   "effect": "该道具尚未被定义",
   "item": "hammer",
   "name": "圣锤",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_jumpShoes": {
+ "h5_jumpShoes": {
   "cls": "tools",
   "effect": "能跳跃到前方两格处",
   "item": "jumpShoes",
   "name": "跳跃靴",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_lifeWand": {
+ "h5_lifeWand": {
   "cls": "tools",
   "effect": "可以恢复100点生命值",
   "item": "lifeWand",
   "name": "生命魔杖",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_poisonWine": {
+ "h5_poisonWine": {
   "cls": "items",
   "effect": "回复中毒状态",
   "item": "poisonWine",
   "name": "解毒剂",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_redGem": {
+ "h5_redGem": {
   "cls": "items",
   "effect": "2",
   "item": "redGem",
   "name": "红宝石",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_redKey": {
+ "h5_redKey": {
   "cls": "tools",
   "effect": "可以打开一扇红门",
   "item": "redKey",
   "name": "红钥匙",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_redPotion": {
+ "h5_redPotion": {
   "cls": "items",
   "effect": "150",
   "item": "redPotion",
   "name": "伤药",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_shield0": {
+ "h5_shield0": {
   "cls": "items",
   "effect": "防御+0",
   "item": "shield0",
   "name": "破旧的盾",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_shield1": {
+ "h5_shield1": {
   "cls": "items",
   "effect": "防御+10",
   "item": "shield1",
   "name": "铁盾",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_shield2": {
+ "h5_shield2": {
   "cls": "items",
   "effect": "防御+20",
   "item": "shield2",
   "name": "银盾",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_superPotion": {
+ "h5_superPotion": {
   "cls": "items",
   "effect": "体力1.5倍",
   "item": "superPotion",
   "name": "圣水",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_superWine": {
+ "h5_superWine": {
   "cls": "tools",
   "effect": "可以解除所有不良状态",
   "item": "superWine",
   "name": "万能药水",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword0": {
+ "h5_sword0": {
   "cls": "items",
   "effect": "攻击+0",
   "item": "sword0",
   "name": "破旧的剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword1": {
+ "h5_sword1": {
   "cls": "items",
   "effect": "攻击+10",
   "item": "sword1",
   "name": "铁剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword2": {
+ "h5_sword2": {
   "cls": "items",
   "effect": "攻击+20",
   "item": "sword2",
   "name": "银剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword3": {
+ "h5_sword3": {
   "cls": "items",
   "effect": "攻击+40",
   "item": "sword3",
   "name": "骑士剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword4": {
+ "h5_sword4": {
   "cls": "items",
   "effect": "攻击+80",
   "item": "sword4",
   "name": "圣剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_sword5": {
+ "h5_sword5": {
   "cls": "items",
   "effect": "攻击+100",
   "item": "sword5",
   "name": "神圣剑",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_upFly": {
+ "h5_upFly": {
   "cls": "tools",
   "effect": "可以飞往楼上的相同位置",
   "item": "upFly",
   "name": "上楼器",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_weakWine": {
+ "h5_weakWine": {
   "cls": "items",
   "effect": "回复衰弱状态",
   "item": "weakWine",
   "name": "火酒",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_yellowGem": {
+ "h5_yellowGem": {
   "cls": "items",
   "effect": "深呼吸回复的疲劳+2",
   "item": "yellowGem",
   "name": "黄宝石",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_yellowKey": {
+ "h5_yellowKey": {
   "cls": "tools",
   "effect": "可以打开一扇黄门",
   "item": "yellowKey",
   "name": "黄钥匙",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin2_yellowPotion": {
+ "h5_yellowPotion": {
   "cls": "items",
   "effect": "能使用技能的疲劳阈值+2",
   "item": "yellowPotion",
   "name": "能量水",
-  "tower": "xinxin2"
+  "tower": "h5"
  },
- "xinxin_I337": {
+ "rm_I337": {
   "cls": "tools",
   "effect": "虽然失去了全部力量，但是似乎还能在某个地方起效果？",
   "item": "I337",
   "name": "失去力量的神剑之证",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_Lvupfly": {
+ "rm_Lvupfly": {
   "cls": "items",
   "effect": "等级 +1 ( +400 / +5 / +5 )",
   "item": "Lvupfly",
   "name": "跃进之翼",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_agi_fly": {
+ "rm_agi_fly": {
   "cls": "items",
   "effect": "敏捷 +3（当前敏捷：）",
   "item": "agi_fly",
   "name": "加速之翼",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_bigKey": {
+ "rm_bigKey": {
   "cls": "items",
   "effect": "所有钥匙数 +1",
   "item": "bigKey",
   "name": "魔法之钥",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_blueGem": {
+ "rm_blueGem": {
   "cls": "items",
   "effect": "防御力 +2",
   "item": "blueGem",
   "name": "蓝宝石",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_blueKey": {
+ "rm_blueKey": {
   "cls": "tools",
   "effect": "",
   "item": "blueKey",
   "name": "蓝钥匙",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_bluePotion": {
+ "rm_bluePotion": {
   "cls": "items",
   "effect": "体力 +400",
   "item": "bluePotion",
   "name": "高级伤药",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_bomb": {
+ "rm_bomb": {
   "cls": "tools",
   "effect": "可以炸掉勇士四周的怪物",
   "item": "bomb",
   "name": "炸弹",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_centerFly": {
+ "rm_centerFly": {
   "cls": "tools",
   "effect": "可以飞向当前楼层中心对称的位置",
   "item": "centerFly",
   "name": "中心对称飞行器",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_cross": {
+ "rm_cross": {
   "cls": "tools",
   "effect": "死亡复活，体力2000（即生命小于等于0时立即回复到2000）",
   "item": "cross",
   "name": "十字架",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_curseWine": {
+ "rm_curseWine": {
   "cls": "tools",
   "effect": "可以解除诅咒状态",
   "item": "curseWine",
   "name": "解咒药水",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_downFly": {
+ "rm_downFly": {
   "cls": "tools",
   "effect": "可以飞往楼下的相同位置",
   "item": "downFly",
   "name": "下楼器",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_earthquake": {
+ "rm_earthquake": {
   "cls": "tools",
   "effect": "可以破坏当前层的所有墙",
   "item": "earthquake",
   "name": "地震卷轴",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_greenGem": {
+ "rm_greenGem": {
   "cls": "items",
   "effect": "敏捷 +1",
   "item": "greenGem",
   "name": "绿宝石",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_greenKey": {
+ "rm_greenKey": {
   "cls": "tools",
   "effect": "可以打开一扇地下22层的花门",
   "item": "greenKey",
   "name": "宝石锄头",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_greenPotion": {
+ "rm_greenPotion": {
   "cls": "items",
   "effect": "生命+2000",
   "item": "greenPotion",
   "name": "十字架（极速模式被换为血瓶）",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_hammer": {
+ "rm_hammer": {
   "cls": "tools",
   "effect": "可以炸掉勇士面前的怪物",
   "item": "hammer",
   "name": "圣锤",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_icePickaxe": {
+ "rm_icePickaxe": {
   "cls": "tools",
   "effect": "可以破坏一扇绿花门。",
   "item": "icePickaxe",
   "name": "宝石锄头",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_keydoor": {
+ "rm_keydoor": {
   "cls": "tools",
   "effect": "可以将熔岩或脆弱的墙变为黄门。",
   "item": "keydoor",
   "name": "随意门",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_knife": {
+ "rm_knife": {
   "cls": "tools",
   "effect": "将面前的怪物变为绿色史莱姆。",
   "item": "knife",
   "name": "神剑之证",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_moneyPocket": {
+ "rm_moneyPocket": {
   "cls": "items",
   "effect": "金币 +200",
   "item": "moneyPocket",
   "name": "金块",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_pickaxe": {
+ "rm_pickaxe": {
   "cls": "tools",
   "effect": "一个盗贼丢失在塔中的锄头。",
   "item": "pickaxe",
   "name": "锄头",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_poisonWine": {
+ "rm_poisonWine": {
   "cls": "items",
   "effect": "中毒状态解除",
   "item": "poisonWine",
   "name": "抗毒剂",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_redGem": {
+ "rm_redGem": {
   "cls": "items",
   "effect": "攻击力 +2",
   "item": "redGem",
   "name": "红宝石",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_redKey": {
+ "rm_redKey": {
   "cls": "tools",
   "effect": "",
   "item": "redKey",
   "name": "红钥匙",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_redPotion": {
+ "rm_redPotion": {
   "cls": "items",
   "effect": "体力 +150",
   "item": "redPotion",
   "name": "伤药",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_shield1": {
+ "rm_shield1": {
   "cls": "items",
   "effect": "防御力 +13防御临界为",
   "item": "shield1",
   "name": "铁盾",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_shield2": {
+ "rm_shield2": {
   "cls": "items",
   "effect": "防御力 +22防御临界为",
   "item": "shield2",
   "name": "光之盾",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_shield3": {
+ "rm_shield3": {
   "cls": "items",
   "effect": "防御力 +7防御临界为",
   "item": "shield3",
   "name": "皮革之盾",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_shield4": {
+ "rm_shield4": {
   "cls": "items",
   "effect": "防御力 +35防御临界为",
   "item": "shield4",
   "name": "圣光十字盾",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_shield5": {
+ "rm_shield5": {
   "cls": "items",
   "effect": "防御力+50防御临界为",
   "item": "shield5",
   "name": "勇者之盾",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_steelKey": {
+ "rm_steelKey": {
   "cls": "tools",
   "effect": "可以打开一扇铁门",
   "item": "steelKey",
   "name": "铁门钥匙",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_superPotion": {
+ "rm_superPotion": {
   "cls": "items",
   "effect": "体力两倍",
   "item": "superPotion",
   "name": "圣水",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_superWine": {
+ "rm_superWine": {
   "cls": "tools",
   "effect": "可以解除所有不良状态",
   "item": "superWine",
   "name": "万能药水",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_sword1": {
+ "rm_sword1": {
   "cls": "items",
   "effect": "攻击力 +8攻击临界为",
   "item": "sword1",
   "name": "铁剑",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_sword2": {
+ "rm_sword2": {
   "cls": "items",
   "effect": "攻击力 +16攻击临界为",
   "item": "sword2",
   "name": "长剑",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_sword3": {
+ "rm_sword3": {
   "cls": "items",
   "effect": "攻击力 +30攻击临界为",
   "item": "sword3",
   "name": "宝石剑",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_sword4": {
+ "rm_sword4": {
   "cls": "items",
   "effect": "攻击力 +40攻击临界为",
   "item": "sword4",
   "name": "灵光剑",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_sword5": {
+ "rm_sword5": {
   "cls": "items",
   "effect": "攻击力 +50攻击临界为",
   "item": "sword5",
   "name": "勇者之剑",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_upFly": {
+ "rm_upFly": {
   "cls": "tools",
   "effect": "可以飞往楼上的相同位置",
   "item": "upFly",
   "name": "上楼器",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_weakWine": {
+ "rm_weakWine": {
   "cls": "items",
   "effect": "衰弱状态解除",
   "item": "weakWine",
   "name": "火酒",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_yellowGem": {
+ "rm_yellowGem": {
   "cls": "items",
   "effect": "全属性提升",
   "item": "yellowGem",
   "name": "黄宝石",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_yellowKey": {
+ "rm_yellowKey": {
   "cls": "tools",
   "effect": "",
   "item": "yellowKey",
   "name": "黄钥匙",
-  "tower": "xinxin"
+  "tower": "rm"
  },
- "xinxin_yellowPotion": {
+ "rm_yellowPotion": {
   "cls": "items",
   "effect": "生命+500",
   "item": "yellowPotion",
   "name": "黄血瓶",
-  "tower": "xinxin"
+  "tower": "rm"
  }
 }
