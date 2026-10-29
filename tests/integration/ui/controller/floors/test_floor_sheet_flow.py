@@ -96,7 +96,7 @@ def test_item_icon_pick_changes_kind(monkeypatch):
 
     item = _entry(controller)["items"][0]
     assert item["name"] == "铁剑"
-    assert item["icon"] == "xinxin2_sword1"
+    assert item["icon"] == "h5_sword1"
 
 
 def test_floor_memo_field_saves():

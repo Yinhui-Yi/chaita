@@ -3,7 +3,7 @@
     "alternatives": [],
     "effect": "魔防 +2",
     "name": "绿宝石",
-    "source": "xinxin:greenGem"
+    "source": "rm:greenGem"
   },
   "gem_purple": {
     "alternatives": [
@@ -11,7 +11,7 @@
     ],
     "effect": "防御力 +1",
     "name": "蓝宝石",
-    "source": "xinxin:blueGem"
+    "source": "rm:blueGem"
   },
   "gem_red": {
     "alternatives": [
@@ -19,19 +19,19 @@
     ],
     "effect": "攻击力 +1",
     "name": "红宝石",
-    "source": "xinxin:redGem"
+    "source": "rm:redGem"
   },
   "gem_yellow": {
     "alternatives": [],
     "effect": "攻击力 +1 · 防御力 +1 · 魔防 +2",
     "name": "黄宝石",
-    "source": "xinxin:yellowGem"
+    "source": "rm:yellowGem"
   },
   "potion_green": {
     "alternatives": [],
     "effect": "生命 +2000",
     "name": "绿血瓶",
-    "source": "xinxin:greenPotion"
+    "source": "rm:greenPotion"
   },
   "potion_purple": {
     "alternatives": [
@@ -39,7 +39,7 @@
     ],
     "effect": "体力 +400",
     "name": "蓝血瓶",
-    "source": "xinxin:bluePotion"
+    "source": "rm:bluePotion"
   },
   "potion_red": {
     "alternatives": [
@@ -47,12 +47,12 @@
     ],
     "effect": "体力 +150",
     "name": "红血瓶",
-    "source": "xinxin:redPotion"
+    "source": "rm:redPotion"
   },
   "potion_yellow": {
     "alternatives": [],
     "effect": "生命 +500",
     "name": "黄血瓶",
-    "source": "xinxin:yellowPotion"
+    "source": "rm:yellowPotion"
   }
 }

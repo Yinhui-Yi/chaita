@@ -35,9 +35,9 @@ from build_item_effects import expand, objects, read, values_of   # noqa: E402
 
 HOME = os.path.expanduser("~")
 TOWERS = [
-    ("xinxin", os.path.join(HOME, "Downloads", "xinxin",
+    ("rm", os.path.join(HOME, "Downloads", "xinxin",
                             "mota_pack_20260623_204744")),
-    ("xinxin2", os.path.join(HOME, "Downloads", "xinxin2new", "xinxin2")),
+    ("h5", os.path.join(HOME, "Downloads", "xinxin2new", "xinxin2")),
 ]
 CELL = 32
 

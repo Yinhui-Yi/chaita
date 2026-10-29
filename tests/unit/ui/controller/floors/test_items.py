@@ -146,7 +146,7 @@ def test_add_item_full_rejects_blank_name_and_unknown_floor(monkeypatch):
 def test_set_item_kind_replaces_name_icon_effect(monkeypatch):
     import chaita.game.iteminfo as ii
     monkeypatch.setattr(ii, "effect_for", lambda icon, name: "攻击力 +0")
-    monkeypatch.setattr(ii, "icon_for", lambda name: "xinxin2_sword1")
+    monkeypatch.setattr(ii, "icon_for", lambda name: "h5_sword1")
     monkeypatch.setattr(ii, "sort_items", lambda items: items)
     c = make()
     c._map_history[0]["items"][0]["effect_manual"] = True
@@ -155,7 +155,7 @@ def test_set_item_kind_replaces_name_icon_effect(monkeypatch):
 
     row = c._map_history[0]["items"][0]
     assert (row["name"], row["icon"], row["effect"]) == \
-        ("铁剑", "xinxin2_sword1", "攻击力 +0")
+        ("铁剑", "h5_sword1", "攻击力 +0")
     assert "effect_manual" not in row            # 换了种类，手改标记作废
 
 
@@ -166,7 +166,7 @@ def test_set_item_kind_keeps_passed_effect_when_table_has_none(monkeypatch):
     monkeypatch.setattr(ii, "sort_items", lambda items: items)
     c = make()
 
-    c.setItemKind("1层", 0, "黄钥匙", "xinxin2_yellowKey", "可以打开一扇黄门")
+    c.setItemKind("1层", 0, "黄钥匙", "h5_yellowKey", "可以打开一扇黄门")
 
     assert c._map_history[0]["items"][0]["effect"] == "可以打开一扇黄门"
 

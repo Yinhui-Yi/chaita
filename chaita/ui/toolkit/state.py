@@ -58,7 +58,7 @@ def _load_session() -> dict:
                 path = path[1:]
             if not os.path.exists(path):
                 row["url"] = ""
-        cleaned_floors.append(row)
+        cleaned_floors.append(_fix_item_icons(row))
     data["floors"] = cleaned_floors
     data["monsters"] = [_fix_monster_icon(one)
                         for one in monsters[:200] if isinstance(one, dict)]
@@ -74,6 +74,39 @@ def _url_missing(url: str) -> bool:
     if path.startswith(os.sep) and len(path) > 2 and path[2] == ":":
         path = path[1:]
     return not os.path.exists(path)
+
+
+def _fix_item_icons(entry: dict) -> dict:
+    """资源图标改过名（`assets/items` 去掉了别的游戏前缀）—— 老记录要能跟上。
+
+    `xinxin2_sword1` → `h5_sword1`、`xinxin_sword1` → `rm_sword1`：更名规则只有
+    `iteminfo.migrate_icon()` 一份，这里把这一层记录里所有存图标名的地方过一遍
+    （资源行、路线链上每一格），否则老存档的图标会全变成空白。
+    """
+    from ...game import iteminfo
+    row = dict(entry)
+    items = row.get("items")
+    if isinstance(items, list):
+        row["items"] = [dict(one, icon=iteminfo.migrate_icon(one.get("icon")))
+                        if isinstance(one, dict) and one.get("icon") else one
+                        for one in items]
+    routes = row.get("routes")
+    if isinstance(routes, list):
+        fixed_routes = []
+        for route in routes:
+            if not isinstance(route, dict):
+                fixed_routes.append(route)
+                continue
+            cells = route.get("cells")
+            if isinstance(cells, list):
+                route = dict(route)
+                route["cells"] = [
+                    dict(cell, icon=iteminfo.migrate_icon(cell.get("icon")))
+                    if isinstance(cell, dict) and cell.get("icon") else cell
+                    for cell in cells]
+            fixed_routes.append(route)
+        row["routes"] = fixed_routes
+    return row
 
 
 def _fix_monster_icon(entry: dict) -> dict:
