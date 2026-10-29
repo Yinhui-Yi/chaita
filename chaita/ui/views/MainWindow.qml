@@ -832,6 +832,13 @@ Window {
         win.routeSheets[key] = sheet
         win.routeOrder = win.routeOrder.concat([key])
         sheet.place()
+        // 多开时级联：每多开一扇，往下往右错开一点，别全叠在同一个落点
+        var opened = win.routeOrder.length - 1
+        if (opened > 0) {
+            sheet.x = Math.round(sheet.x + opened * 26)
+            sheet.y = Math.round(sheet.y + opened * 26)
+            sheet.clampPos()
+        }
         sheet.show()
         win.routeSync(ctx)
         // 点路线要把它**提到最前面**（用户："我点路线为什么窗口不自动回到最前面"）
