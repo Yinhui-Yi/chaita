@@ -632,7 +632,7 @@ Window {
                  "menu": "", "menuCell": -1, "pickTab": "monster",
                  "pickData": [], "menuX": 0, "menuY": 0,
                  "editLayer": false, "editCell": -1, "editData": ({}),
-                 "editParams": [], "winW": 0, "winH": 0 }
+                 "editParams": [] }
     }
     function routeKey(ctx) {
         return String(ctx.floor || "") + "#" + String(ctx.index)

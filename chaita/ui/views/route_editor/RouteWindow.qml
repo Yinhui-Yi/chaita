@@ -21,6 +21,9 @@ Window {
     property var host
     // 这一扇窗自己的上下文（floor/index/cells/结果/菜单/编辑），多开各管各的
     property var ctx: ({})
+    // 拉过的窗口大小：必须是 QML 属性，拖拽时改它才会触发宽高绑定重算
+    property real winW: 0
+    property real winH: 0
 
     // Ctrl+C 复制路线（和按钮「复制」同一件事，写系统剪贴板）
     Shortcut {
@@ -52,8 +55,8 @@ Window {
         + (ctx.menu !== "" ? 210 : 0))
 
     // 用户："路线图的窗口不能拉伸" —— 宽高都能拉（和伤害计算同一套手柄）
-    width: Math.max(320, ctx.winW > 0 ? ctx.winW : autoW)
-    height: Math.max(170, ctx.winH > 0 ? ctx.winH : autoHeight)
+    width: Math.max(320, routeWin.winW > 0 ? routeWin.winW : autoW)
+    height: Math.max(170, routeWin.winH > 0 ? routeWin.winH : autoHeight)
 
     // 整块钳在屏幕里（拖抬头以后不会掉出去）
     function clampPos() {
@@ -127,7 +130,7 @@ Window {
 
     // ---- 拉大小：四条边 + 四个角都能拉（用户："路线图的窗口不能拉伸"）----
     // 和伤害计算同一套算法（BattleGrip）：位移用**屏幕坐标**，拉出来的尺寸记进
-    // ctx.winW/H —— 窗口宽高是绑定出来的，不记的话绑定会把它顶回去。
+    // routeWin.winW/H —— 窗口宽高是绑定出来的，不记的话绑定会把它顶回去。
     component RouteGrip: Item {
         id: grip
         property bool pullLeft: false
@@ -191,8 +194,8 @@ Window {
                 // 从上边/左边拉：窗口原点跟着动，另一侧才不动
                 var x = grip.pullLeft ? startX + (startW - w) : startX
                 var y = grip.pullTop ? startY + (startH - h) : startY
-                ctx.winW = Math.round(w)
-                ctx.winH = Math.round(h)
+                routeWin.winW = Math.round(w)
+                routeWin.winH = Math.round(h)
                 routeWin.x = Math.round(x)
                 routeWin.y = Math.round(y)
                 routeWin.clampPos()
