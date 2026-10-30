@@ -13,7 +13,7 @@ from .... import helpers
 def _route(cells=None):
     controller, engine, window = helpers.make_controller()
     controller._last_status = {"hp": "1000", "atk": "90", "def": "30",
-                               "mdef": "10"}
+                               "mdef": "0"}
     controller._monsters = [
         {"name": "血蚊", "hp": "1200", "atk": "60", "def": "20"},
         {"name": "铁卫", "hp": "900", "atk": "50", "def": "30"}]

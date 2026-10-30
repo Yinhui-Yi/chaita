@@ -334,6 +334,51 @@ Window {
                         host.gridAssign(row, col, "", "")
                     }
                 }
+                // 路线对比里点了某一行 → 把那一格圈出来（用户："点击后会在地图内高亮"）。
+                // 圈的是 `host.mapHiRow/Col`（哪一层的哪一格由 `mapHiFloor` 认）：
+                // 所以只有这一层的窗会亮，换一层点这个圈就跟着走。
+                // 地图本身花花绿绿，所以是"实心淡黄 + 深琥珀框 + 外面再一圈浅光晕"，
+                // 光是一根细线在这种图上根本看不见。
+                Rectangle {
+                    id: cellHighlight
+                    objectName: "floorCellHighlight"
+                    readonly property real side:
+                        Math.max(6, host.routeCell(sheetRoot.sheetName,
+                                                   shotDrawn.width))
+                    visible: host.mapHiFloor === sheetRoot.sheetName
+                             && Number(host.mapHiRow) >= 0
+                             && Number(host.mapHiCol) >= 0
+                    x: Math.max(0, Math.min(shotDrawn.width - side,
+                                            Number(host.mapHiCol) * side))
+                    y: Math.max(0, Math.min(shotDrawn.height - side,
+                                            Number(host.mapHiRow) * side))
+                    width: side
+                    height: side
+                    radius: 3
+                    color: Qt.rgba(0.95, 0.76, 0.25, 0.28)
+                    border.width: 2
+                    border.color: "#8F5E0C"
+                    opacity: visible ? 1 : 0
+                    // 圈出来这一下淡入：一眼看得出"是这一格"
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    // 外圈白边 + 一圈浅琥珀：地图本身花花绿绿，靠这个把格子"抠"出来
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        radius: 6
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Qt.rgba(1, 1, 1, 0.88)
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        radius: 8
+                        color: "transparent"
+                        border.width: 2
+                        border.color: Qt.rgba(0.71, 0.52, 0.16, 0.60)
+                    }
+                }
             }
             Text {
                 anchors.centerIn: parent
@@ -850,7 +895,7 @@ Window {
                         Text {
                             id: routeName
                             objectName: "routeOpen"
-                            width: 52
+                            width: 44
                             anchors.verticalCenter: parent.verticalCenter
                             text: "路线 " + (index + 1)
                             color: routeMouse.containsMouse ? host.amber : host.ink2
@@ -869,7 +914,7 @@ Window {
                         // 按当前格子实时算（用户："计算部分不再允许修改"）
                         Text {
                             objectName: "routeComputed"
-                            width: 116
+                            width: 150
                             anchors.verticalCenter: parent.verticalCenter
                             text: host.routeStatsFor(sheetRoot.sheetName,
                                                      modelData.index)
@@ -879,7 +924,7 @@ Window {
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            width: parent.width - 52 - 116 - 8
+                            width: parent.width - 44 - 150 - 12 - 16
                             height: 22
                             radius: 5
                             anchors.verticalCenter: parent.verticalCenter
@@ -903,6 +948,25 @@ Window {
                                 text: modelData.memo || ""
                                 onEditingFinished: controller.saveRouteMemo(
                                     sheetRoot.sheetName, modelData.index, text)
+                            }
+                        }
+                        Text {
+                            objectName: "routeRowDelete"
+                            width: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "✕"
+                            color: deleteRouteMouse.containsMouse
+                                    ? host.danger : host.ink3
+                            font.pixelSize: 10
+                            MouseArea {
+                                id: deleteRouteMouse
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: controller.removeRoute(
+                                    sheetRoot.sheetName, modelData.index)
                             }
                         }
                     }

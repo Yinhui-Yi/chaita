@@ -13,9 +13,10 @@ Item {
 
     // 归属：主窗口（状态都在它身上）
     property var host
+    property var ctx: ({})
     objectName: "routeEditLayer"
     anchors.fill: parent
-    visible: host.routeEditLayer
+    visible: ctx.editLayer
     z: 30
 
     Rectangle {
@@ -24,7 +25,7 @@ Item {
         color: Qt.rgba(0.11, 0.10, 0.08, 0.32)
         MouseArea {
             anchors.fill: parent
-            onClicked: host.routeEditLayer = false
+            onClicked: host.routeEditDone(ctx)
         }
     }
 
@@ -46,7 +47,7 @@ Item {
             x: 10
             y: 6
             width: parent.width - 20
-            text: "改参数：" + String((host.routeEditData || {}).name || "")
+            text: "改参数：" + String((ctx.editData || {}).name || "")
             color: host.ink
             font.family: host.uiFont
             font.pixelSize: 11
@@ -101,7 +102,7 @@ Item {
                             font.family: host.monoFont
                             font.pixelSize: 10
                             selectByMouse: true
-                            text: String(Number((host.routeEditData || {}).count || 1))
+                            text: String(Number((ctx.editData || {}).count || 1))
                             onTextChanged: {
                                 var clean = String(text).replace(/[^0-9]/g, "")
                                 if (clean !== String(text)) {
@@ -109,14 +110,14 @@ Item {
                                     return
                                 }
                                 var now = clean === "" ? 1 : Number(clean)
-                                if (now !== Number((host.routeEditData || {}).count || 1))
-                                    host.routeEditSet("count", clean)
+                                if (now !== Number((ctx.editData || {}).count || 1))
+                                    host.routeEditSet(ctx, "count", clean)
                             }
                         }
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (host.routeEditData || {}).kind === "item"
+                        text: (ctx.editData || {}).kind === "item"
                               ? "个" : "只（同样的一只只算）"
                         color: host.ink3
                         font.family: host.uiFont
@@ -128,7 +129,7 @@ Item {
                 Row {
                     width: routeEditCol.width
                     spacing: 6
-                    visible: (host.routeEditData || {}).kind !== "item"
+                    visible: (ctx.editData || {}).kind !== "item"
                     Repeater {
                         model: [["hp", "血量"], ["atk", "攻击"],
                                 ["def", "防御"]]
@@ -161,7 +162,7 @@ Item {
                                     font.family: host.monoFont
                                     font.pixelSize: 9
                                     selectByMouse: true
-                                    text: String(Number((host.routeEditData || {})[modelData[0]] || 0))
+                                    text: String(Number((ctx.editData || {})[modelData[0]] || 0))
                                     onTextChanged: {
                                         var clean = String(text).replace(/[^0-9]/g, "")
                                         if (clean !== String(text)) {
@@ -169,8 +170,8 @@ Item {
                                             return
                                         }
                                         var now = clean === "" ? 0 : Number(clean)
-                                        if (now !== Number((host.routeEditData || {})[modelData[0]] || 0))
-                                            host.routeEditSet(modelData[0], clean)
+                                        if (now !== Number((ctx.editData || {})[modelData[0]] || 0))
+                                            host.routeEditSet(ctx, modelData[0], clean)
                                     }
                                 }
                             }
@@ -182,7 +183,7 @@ Item {
                 Row {
                     width: routeEditCol.width
                     spacing: 6
-                    visible: (host.routeEditData || {}).kind === "item"
+                    visible: (ctx.editData || {}).kind === "item"
                     Text {
                         width: 54
                         height: 20
@@ -198,12 +199,12 @@ Item {
                         fieldName: "routeEditEffect"
                         parts: controller
                                ? controller.itemEffectPartList(
-                                      (host.routeEditData || {}).effect || "")
+                                      (ctx.editData || {}).effect || "")
                                : []
                         onPartChanged: function (partIndex, value) {
-                            host.routeEditSet("effect",
+                            host.routeEditSet(ctx, "effect",
                                 controller.itemEffectWithPart(
-                                    (host.routeEditData || {}).effect || "",
+                                    (ctx.editData || {}).effect || "",
                                     partIndex, value))
                         }
                     }
@@ -211,7 +212,7 @@ Item {
 
                 // 技能参数（破甲的防御百分比、反击的攻击百分比……）
                 Repeater {
-                    model: host.routeEditParams
+                    model: ctx.editParams
                     delegate: Row {
                         width: routeEditCol.width
                         spacing: 4
@@ -255,7 +256,7 @@ Item {
                                         return
                                     }
                                     if (clean !== String(modelData.value))
-                                        host.routeEditSkill(
+                                        host.routeEditSkill(ctx, 
                                             modelData.skillIndex,
                                             modelData.field, clean)
                                 }
@@ -284,7 +285,7 @@ Item {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: host.routeEditSkill(
+                                onClicked: host.routeEditSkill(ctx, 
                                     modelData.skillIndex,
                                     modelData.field,
                                     parent.on ? "" : "true")
@@ -319,7 +320,7 @@ Item {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: host.routeEditSkill(
+                                        onClicked: host.routeEditSkill(ctx, 
                                             choiceRow.param.skillIndex,
                                             choiceRow.param.field,
                                             modelData)
@@ -339,7 +340,7 @@ Item {
 
                 Text {
                     width: routeEditCol.width
-                    visible: ((host.routeEditData || {}).skills || []).length > 0
+                    visible: ((ctx.editData || {}).skills || []).length > 0
                     text: "技能参数就按怪物编辑里填的那份算（改这里只影响这条路线）"
                     color: host.ink3
                     font.family: host.uiFont
@@ -358,7 +359,7 @@ Item {
             objectName: "routeEditDelete"
             danger: true
             label: "删掉这步"
-            onClicked: host.routeEditRemove()
+            onClicked: host.routeEditRemove(ctx)
         }
         Item {
             width: Math.max(0, routeEditCard.width - 20 - 74 - 46 - 12)
@@ -368,7 +369,7 @@ Item {
             objectName: "routeEditDone"
             solid: true
             label: "完成"
-            onClicked: host.routeEditLayer = false
+            onClicked: host.routeEditDone(ctx)
         }
     }
     }

@@ -48,7 +48,7 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
              "battleitemedit", "battlemarks", "route", "routechain",
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
-             "iconscroll3", "queue", "chatlong")
+             "iconscroll3", "queue", "chatlong", "compare", "comparehi")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -153,6 +153,44 @@ def scroll_sheet_to_items(window, name):
     content = float(flick.property("contentHeight") or 0)
     view = float(flick.height() or 0)
     flick.setProperty("contentY", max(0.0, content - view))
+
+
+def _compare_route(monster_first, icon=""):
+    """一条路线的 steps：红头怪 + 小蝙蝠 + 红宝石，宝石放前/放后（掉血不一样）。
+
+    每只怪都带**坐标**（层 + 行列，和这一层 grid 里记的那几格一致）：
+    路线对比表只画「缩略图 + 坐标」，点一行还要在地图上圈出这一格。
+    """
+    monster = {"kind": "monster", "name": "红头怪", "hp": 80,
+               "atk": 25, "def": 1, "count": 1, "skills": [],
+               "icon": icon, "floor": "通天塔1", "row": 5, "col": 5}
+    bat = {"kind": "monster", "name": "小蝙蝠", "hp": 100,
+           "atk": 30, "def": 3, "count": 1, "skills": [],
+           "icon": "", "floor": "通天塔1", "row": 3, "col": 9}
+    gem = {"kind": "item", "name": "红宝石", "effect": "攻击力 +1",
+           "icon": "gem_red", "count": 1}
+    return [monster, gem, bat] if monster_first else [gem, bat, monster]
+
+
+def _compare_scenario(window, controller):
+    """摆三条路线（同一个怪在不同路线的掉血），对比窗贴到主窗口右边。
+
+    缩略图借素材库里一张真图（这一局的怪物手册没裁图），坐标用这一层的
+    grid 里真有的那几格；预览主窗口被挪到 -6000，所以对比窗要跟着挪过去，
+    出图才紧凑（以前没挪，拼出来是 9480×9276 的空画布）。
+    """
+    icon = str(controller.libraryUrl("monster/xinxin_redSlime") or "")
+    window.openCompare()
+    window.compareAdd(_compare_route(True, icon), "路线1")
+    window.compareAdd(_compare_route(False, icon), "路线2")
+    window.compareAdd(_compare_route(True, icon), "路线3")
+    compare = window.property("compareWindow")
+    compare = compare.toQObject() if hasattr(compare, "toQObject") else compare
+    if compare is not None:
+        compare.setX(window.x() + window.width() + 8)
+        compare.setY(window.y() + 40)
+    QGuiApplication.processEvents()
+    return compare
 
 
 def open_battle(window, controller, compute=True, plans=2):
@@ -668,6 +706,26 @@ def main() -> int:
                  "at": "14:31"},
             ]
             controller.chatLogChanged.emit()
+        elif scenario == "compare":
+            # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
+            _compare_scenario(window, controller)
+        elif scenario == "comparehi":
+            # 点对比表里的一行 → 那一层的地图上把这一格圈出来
+            #（用户："最好点击后会在地图内高亮"）
+            compare = _compare_scenario(window, controller)
+            rows = window.compareRows()
+            rows = rows.toVariant() if hasattr(rows, "toVariant") else rows
+
+            def beside_compare(sheet):
+                if compare is not None:
+                    sheet.setX(compare.x() + compare.width() + 8)
+                    sheet.setY(compare.y())
+                sheet.show()
+
+            open_sheet(window, "通天塔1", beside_compare)
+            if rows:
+                window.compareHighlight(rows[0])
+
         elif scenario == "iconpick":
             # 选图界面：素材库里有大量动画帧，这里要看到去重后的样子
             window.openMonster(0)

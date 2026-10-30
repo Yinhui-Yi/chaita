@@ -82,6 +82,23 @@
   （`controller.clipboardCopy`）；伤害计算窗口顶栏「粘贴」（或 Ctrl+V）从
   **系统剪贴板**读回（`controller.clipboardText` + `routeParseClipboard`），
   只认那种 JSON，别的文本不起行。
+- **路线对比**（用户："入口就在伤害计算的右边；把算好的路线复制或拖进来，
+  显示每只怪的掉血，多条路线时对比每只怪在不同路线的掉血"）：导航条 ⚔ 右边
+  的 ⇄ 打开 `views/route_compare/CompareWindow.qml`。一条路线一列、一行一只怪
+  （按「怪名 + 第几只」对齐），底下是各路线总掉血 / 剩血。导入两条路：
+  「粘贴」读同一种 JSON；链窗口抬头的「拖」把手（`routeDragOut`）把同一份
+  JSON 塞进 `Drag.mimeData` 的 `application/x-route-json`，对比窗的 DropArea 收。
+- 对比表的**第一列不写怪名**（用户："不要写怪物名字！！！用缩略图和坐标！！"）：
+  缩略图 + 「第几行第几列」（从 1 数，和「这一层」的「位置 3,4」同一个规矩）。
+  名字只留在数据里做对齐（同一条线上同名的第几只）和没图时的占位首字。
+  缩略图来源和路线链一样：手册裁的图（`icon`）→ 素材库按名字找。
+- 坐标跟着「复制」的 JSON 一起走：`routeStepsFor` 给每一步怪带上
+  `floor/row/col`，`routeStepsJson` 再把同层路线缺的 `floor` 补成路线自己的层。
+- **点一行 = 去地图上圈这一格**（用户："最好点击后会在地图内高亮"）：
+  `compareHighlight` 把 `mapHiFloor/mapHiRow/mapHiCol` 写进主窗口并开那一层的小窗
+  （已开着就提到前面）；小窗里 `floorCellHighlight` 在截图对应的格子上画
+  淡黄底 + 深琥珀框 + 白边光晕。关对比窗（或「清空」）就把它清掉。
+  老路线没有坐标（点之前存下来的 JSON）点了什么都不做。
 - 底栏那**一大块黄底**（纸色 `paperLo` 的合计条）已经从伤害计算和路线图两个窗口删掉，
   不写"点这算那"的提示 —— 结果直接写在各行/链的右边。
 - 链上的怪用 `battleMonsters()` 那份（生命/攻击/防御/技能参数），资源用

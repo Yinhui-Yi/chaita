@@ -118,7 +118,7 @@ Item {
         Item {
             id: battleBtn
             objectName: "battleOpen"
-            anchors.right: closeBtn.left
+            anchors.right: compareBtn.left
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             width: 16
@@ -135,6 +135,31 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: host.openBattle()
+            }
+        }
+
+        // 路线对比：在伤害计算右边（用户："入口就在伤害计算的右边"）。
+        // 把算好的路线粘贴/拖进来，比每只怪掉多少血。
+        Item {
+            id: compareBtn
+            objectName: "compareOpen"
+            anchors.right: closeBtn.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            Text {
+                anchors.centerIn: parent
+                text: "⇄"
+                color: compareMouse.containsMouse ? host.amber : host.ink2
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: compareMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: host.openCompare()
             }
         }
 

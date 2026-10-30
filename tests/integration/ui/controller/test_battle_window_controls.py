@@ -14,7 +14,7 @@ from ... import helpers
 def _open():
     controller, engine, window = helpers.make_controller()
     controller._last_status = {"hp": "1000", "atk": "90", "def": "30",
-                               "mdef": "10"}
+                               "mdef": "0"}
     controller._monsters = [
         {"name": "血蚊", "hp": "1200", "atk": "60", "def": "20",
          "skill_items": [{"name": "先攻", "code": "", "params": {}}]}]

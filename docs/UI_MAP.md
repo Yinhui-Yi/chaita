@@ -5,7 +5,7 @@
 
 ---
 
-## 1. 界面清单（主窗口 1 + 主窗口三块 3 + 子界面 13 = 17 个界面，另有 5 个共用件）
+## 1. 界面清单（主窗口 1 + 主窗口三块 3 + 子界面 14 = 18 个界面，另有 5 个共用件）
 
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
@@ -26,6 +26,7 @@
 | 15 | 路线链 | 真窗口 | `views/route_editor/RouteWindow.qml` | 主窗口 `route*`（哪一层、第几条、格子副本、结果） | 地图上松手 / 点「这一层」清单里的路线 |
 | 16 | 改参数卡片（路线链） | 覆盖层 z=30 | `views/route_editor/edit_card/EditCard.qml` | 主窗口 `routeEdit*` | 点链上缩略图 |
 | 17 | 一格填什么 | 覆盖层 z=20 | `views/route_editor/pick_menu/PickMenu.qml` | 主窗口 `routeMenu/routeMenuCell/routePick*` | 点链上的格子 |
+| 18 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
 
 （1 是主窗口本体，2–4 是它的三块，5 以后是它的子界面。`views/shared/` 那 5 个是共用件，不算界面。）
 
@@ -57,6 +58,7 @@ chaita/ui/
         route_editor/             1092   路线链（RouteWindow 534 + 下面两块）
             edit_card/             355   改参数卡片（路线链版，和伤害计算同一长相）
             pick_menu/             203   一格填什么（怪/资源/门/清空）
+        route_compare/            CompareWindow.qml  路线对比（几条路线并排比每只怪掉血）
         shared/                    383   NumberStepper 188 + EffectEditor 80 + ChainArrow 54 + FlatBtn 38 + Theme 24 + qmldir
     main.py  startup.py  loader.py  constants.py  qt_env.py
                                       入口 / 启动 / 加载(QML_DIR, OVERLAY_QML) / 常量 / Qt 路径
