@@ -31,8 +31,10 @@ Window {
         return Qt.rect(originX, originY, scr.width, scr.height)
     }
     readonly property int maxH: Math.max(220, screenRect.height - 72)
-    // 列宽：怪物名 92、每条路线 66
-    readonly property int nameW: 92
+    // 列宽：格（缩略图 + 坐标）66、每条路线 72
+    readonly property int nameW: 66
+    // 缩略图边长：和「这一层」清单里的缩略图同一条规矩（20 太占，18 刚好）
+    readonly property int thumbSide: 18
     readonly property int routeW: 72
     readonly property int autoW: nameW + (host.compareRoutes || []).length * routeW + 26
     readonly property int autoH: 30 + 22
@@ -247,7 +249,9 @@ Window {
             }
         }
 
-        // ---- 表头：怪 | 路线1 | 路线2 … ----
+        // ---- 表头：格 | 路线1 | 路线2 … ----
+        // 第一列不写怪名（用户："不要写怪物名字！！！用缩略图和坐标！！"），
+        // 所以表头就叫「格」：下面是缩略图 + 第几行第几列。
         Row {
             id: headRow
             x: 10
@@ -256,7 +260,7 @@ Window {
             visible: (host.compareRoutes || []).length > 0
             Text {
                 width: compareWin.nameW
-                text: "怪"
+                text: "格"
                 color: Theme.ink3
                 font.family: Theme.uiFont
                 font.pixelSize: 9
@@ -295,35 +299,109 @@ Window {
 
                 Repeater {
                     model: host.compareRows()
-                    delegate: Row {
+                    // 一行 = 一只怪：**缩略图 + 坐标**（不写名字），点一行就在
+                    // 地图（那一层的小窗）里把这一格圈出来。
+                    delegate: Item {
+                        id: rowItem
                         objectName: "compareRow"
                         width: compareCol.width
-                        height: 20
-                        spacing: 4
+                        height: 22
+                        // 这一行是不是地图上正圈着的那一格（没坐标的行永远不算）
+                        readonly property bool active:
+                            hasSpot
+                            && host.mapHiFloor === modelData.floor
+                            && Number(host.mapHiRow) === Number(modelData.row)
+                            && Number(host.mapHiCol) === Number(modelData.col)
+                        // 先用手册/素材库的图；路线里没带图（手粘的 JSON）
+                        // 就按名字回素材库找一张
+                        readonly property string thumbSource:
+                            String(modelData.icon || "") !== ""
+                            ? String(modelData.icon)
+                            : host.monsterIconNamed(modelData.name)
+                        // 坐标从 1 数，和「这一层」里的「位置 3,4」一致
+                        readonly property bool hasSpot:
+                            Number(modelData.row) >= 0 && Number(modelData.col) >= 0
+
+                        // 底：悬停 / 正圈着才有一点颜色，平时干净
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 3
+                            color: Qt.rgba(0.84, 0.62, 0.18,
+                                           rowItem.active ? 0.18
+                                                          : (rowArea.containsMouse
+                                                             ? 0.12 : 0))
+                        }
+                        MouseArea {
+                            id: rowArea
+                            objectName: "compareRowClick"
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: rowItem.hasSpot ? Qt.PointingHandCursor
+                                                         : Qt.ArrowCursor
+                            onClicked: host.compareHighlight(modelData)
+                        }
+                        Rectangle {
+                            objectName: "compareThumb"
+                            x: 2
+                            width: compareWin.thumbSide
+                            height: compareWin.thumbSide
+                            radius: 3
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Theme.paperLo
+                            clip: true
+                            Image {
+                                id: rowThumb
+                                objectName: "compareThumbImage"
+                                anchors.fill: parent
+                                anchors.margins: 1
+                                source: rowItem.thumbSource
+                                visible: status === Image.Ready
+                                fillMode: Image.PreserveAspectFit
+                                smooth: false
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: rowThumb.status !== Image.Ready
+                                text: String(modelData.name || "") !== ""
+                                      ? String(modelData.name).charAt(0) : "?"
+                                color: Theme.ink3
+                                font.family: Theme.uiFont
+                                font.pixelSize: 9
+                            }
+                        }
                         Text {
-                            width: compareWin.nameW
-                            text: (modelData.occurrence > 1
-                                   ? modelData.name + " #" + modelData.occurrence
-                                   : modelData.name)
-                            color: Theme.ink
-                            font.family: Theme.uiFont
+                            objectName: "compareCoord"
+                            x: 2 + compareWin.thumbSide + 4
+                            width: compareWin.nameW - 2 - compareWin.thumbSide - 4
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: rowItem.hasSpot
+                                  ? (Number(modelData.row) + 1) + ","
+                                    + (Number(modelData.col) + 1)
+                                  : "—"
+                            color: rowItem.active ? Theme.amber : Theme.ink2
+                            font.family: Theme.monoFont
                             font.pixelSize: 9
                             elide: Text.ElideRight
-                            anchors.verticalCenter: parent.verticalCenter
                         }
-                        Repeater {
-                            model: modelData.damages
-                            Text {
-                                width: compareWin.routeW
-                                text: modelData === null ? "—"
-                                      : ("−" + host.fmt(modelData.damage))
-                                color: (modelData === null ? Theme.ink3
-                                       : (modelData.bad || modelData.lethal
-                                          ? Theme.danger : Theme.ink))
-                                font.family: Theme.monoFont
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                                anchors.verticalCenter: parent.verticalCenter
+                        Row {
+                            // 和表头对齐：表头是 Row(spacing 4)，第一列 nameW
+                            x: compareWin.nameW + 4
+                            spacing: 4
+                            anchors.verticalCenter: parent.verticalCenter
+                            Repeater {
+                                model: modelData.damages
+                                Text {
+                                    objectName: "compareDamage"
+                                    width: compareWin.routeW
+                                    text: modelData === null ? "—"
+                                          : ("−" + host.fmt(modelData.damage))
+                                    color: (modelData === null ? Theme.ink3
+                                           : (modelData.bad || modelData.lethal
+                                              ? Theme.danger : Theme.ink))
+                                    font.family: Theme.monoFont
+                                    font.pixelSize: 9
+                                    elide: Text.ElideRight
+                                }
                             }
                         }
                     }
@@ -356,7 +434,7 @@ Window {
             visible: (host.compareRoutes || []).length > 0
             Text {
                 width: compareWin.nameW
-                text: "总掉血 / 剩血"
+                text: "总掉血"
                 color: Theme.ink3
                 font.family: Theme.uiFont
                 font.pixelSize: 9

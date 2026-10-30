@@ -907,6 +907,15 @@ Window {
         return Number((cell || {}).row) + "," + Number((cell || {}).col)
     }
 
+    // 一格在哪儿：层名 + 行列。路线对比表前面那一列只认坐标和缩略图
+    // （用户："不要写怪物名字！！！用缩略图和坐标！！"），点一行还要按它
+    // 在地图上圈出这一格，所以坐标得跟着步骤一起传。
+    function routeCellSpot(cell) {
+        return { "floor": String((cell || {}).floor || ""),
+                 "row": Number((cell || {}).row),
+                 "col": Number((cell || {}).col) }
+    }
+
     // 链上只摆怪/宝石/血瓶：空的走过格、门都不显示（用户："非怪和宝石血瓶不需要显示"）
     function routeShown(cell) {
         var kind = String((cell || {}).kind || "")
@@ -993,7 +1002,10 @@ Window {
                 continue
             }
             seen[key] = true
+            var spot = win.routeCellSpot(cell)
             if (kind === "monster")
+                // 坐标只给怪带：路线对比表一行一只怪，靠它画坐标、点一行去地图上圈格
+                //（资源不进对比表，不带这些字段，复制出去的 JSON 也就不变胖）
                 steps.push({ "kind": "monster",
                              "name": String(cell.name || ""),
                              "hp": Number(cell.hp) || 0,
@@ -1001,7 +1013,10 @@ Window {
                              "def": Number(cell.def) || 0,
                              "icon": String(cell.icon || ""),
                              "count": Math.max(1, Number(cell.count) || 1),
-                             "skills": cell.skills || [] })
+                             "skills": cell.skills || [],
+                             "floor": spot.floor,
+                             "row": spot.row,
+                             "col": spot.col })
             else
                 steps.push({ "kind": "item",
                              "name": String(cell.name || ""),
@@ -1041,12 +1056,18 @@ Window {
     function routeStepsJson(ctx) {
         if (!ctx)
             return ""
+        // 同层路线的格子没记层名（只有跨层的才每格带 floor）：补成这条路线自己的层，
+        // 不然对比表拿到坐标也不知道该开哪一层的地图
+        var floor = String((ctx || {}).floor || "")
         var steps = win.routeSteps(ctx)
         var out = []
         for (var i = 0; i < steps.length; i++) {
             var step = steps[i] || ({})
-            if (String(step.kind || "") !== "empty")
-                out.push(step)
+            if (String(step.kind || "") === "empty")
+                continue
+            if (String(step.floor || "") === "")
+                step.floor = floor
+            out.push(step)
         }
         if (out.length === 0)
             return ""
@@ -1088,7 +1109,11 @@ Window {
                            "def": Number(row.def) || 0,
                            "icon": String(row.icon || ""),
                            "count": Math.max(1, Number(row.count) || 1),
-                           "skills": row.skills || [] })
+                           "skills": row.skills || [],
+                           // 坐标：对比表画「缩略图 + 坐标」、点一行去地图上圈格用
+                           "floor": String(row.floor || ""),
+                           "row": Number(row.row),
+                           "col": Number(row.col) })
             else if (kind === "item")
                 out.push({ "kind": "item",
                            "name": String(row.name || ""),
@@ -1745,6 +1770,11 @@ Window {
     property real compareWinH: 0
     // 每条 = { label, steps, result }（result 是 computeBattle 那一份）
     property var compareRoutes: []
+    // 对比表点了哪一行 → 地图上圈这一格（用户："点击后会在地图内高亮"）。
+    // 三个真属性，不是对象：对象改了不会通知 QML 的绑定（踩过）。
+    property string mapHiFloor: ""
+    property int mapHiRow: -1
+    property int mapHiCol: -1
 
     function openCompare() {
         if (!win.compareWindow) {
@@ -1761,11 +1791,31 @@ Window {
     }
 
     function closeCompare() {
+        win.mapHiFloor = ""
+        win.mapHiRow = -1
+        win.mapHiCol = -1
         if (win.compareWindow) {
             var gone = win.compareWindow
             win.compareWindow = null
             gone.destroy()
         }
+    }
+
+    // 对比表点一行 = 它的坐标：开那一层的小窗（已开着就提到前面）并圈出这一格。
+    // 坐标不全是空的老路线（手粘的 JSON）就什么都不做，返回 false。
+    function compareHighlight(spot) {
+        var at = spot || ({})
+        var floor = String(at.floor || "")
+        var row = Number(at.row)
+        var col = Number(at.col)
+        if (floor === "" || !isFinite(row) || !isFinite(col)
+                || row < 0 || col < 0)
+            return false
+        win.mapHiFloor = floor
+        win.mapHiRow = Math.round(row)
+        win.mapHiCol = Math.round(col)
+        win.openFloorSheet(floor)
+        return true
     }
 
     // 加一条路线（steps 已经是「伤害计算」那套步骤），顺手按当前人物状态算一遍
@@ -1816,9 +1866,14 @@ Window {
 
     function compareClear() {
         win.compareRoutes = []
+        win.mapHiFloor = ""
+        win.mapHiRow = -1
+        win.mapHiCol = -1
     }
 
-    // 对比表：行 = 一只怪（按「名字 + 第几只」对齐），列 = 各路线
+    // 对比表：行 = 一只怪（按「名字 + 第几只」对齐），列 = 各路线。
+    // 行的**显示**只认缩略图 + 坐标（用户："不要写怪物名字！！！用缩略图和坐标！！"），
+    // 名字只留着对齐（同一条路线里可能有两只同名怪）和没图时当占位字。
     function compareRows() {
         var routes = win.compareRoutes || []
         var keys = []
@@ -1830,9 +1885,10 @@ Window {
             var seen = ({})
             var map = ({})
             for (var i = 0; i < steps.length; i++) {
-                if (String((steps[i] || ({})).kind || "") !== "monster")
+                var step = steps[i] || ({})
+                if (String(step.kind || "") !== "monster")
                     continue
-                var name = String((steps[i] || ({})).name || "")
+                var name = String(step.name || "")
                 seen[name] = (seen[name] || 0) + 1
                 var key = name + "#" + seen[name]
                 var row = rows[i] || ({})
@@ -1841,9 +1897,22 @@ Window {
                              "lethal": !!row.lethal,
                              "bad": row.ok === false }
                 if (info[key] === undefined) {
-                    info[key] = { "name": name, "occurrence": seen[name] }
+                    info[key] = { "name": name, "occurrence": seen[name],
+                                  "icon": "", "floor": "",
+                                  "row": -1, "col": -1 }
                     keys.push(key)
                 }
+                // 坐标/图标取**第一条带它们的路线**：同一条路线的同一只怪，
+                // 层和格是同一个；老数据（没坐标）就往后找，找不到就空着
+                var slot = info[key]
+                if (String(slot.icon || "") === "")
+                    slot.icon = String(step.icon || "")
+                if (String(slot.floor || "") === "")
+                    slot.floor = String(step.floor || "")
+                if (Number(slot.row) < 0 && isFinite(Number(step.row)))
+                    slot.row = Math.round(Number(step.row))
+                if (Number(slot.col) < 0 && isFinite(Number(step.col)))
+                    slot.col = Math.round(Number(step.col))
             }
             perRoute.push(map)
         }
@@ -1856,6 +1925,8 @@ Window {
                              ? null : perRoute[c][key2])
             out.push({ "key": key2, "name": info[key2].name,
                        "occurrence": info[key2].occurrence,
+                       "icon": info[key2].icon, "floor": info[key2].floor,
+                       "row": info[key2].row, "col": info[key2].col,
                        "damages": damages })
         }
         return out
