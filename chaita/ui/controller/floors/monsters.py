@@ -67,13 +67,26 @@ class FloorMonstersMixin:
             return
         entry = dict(self._map_history[position])
         mons = list(entry.get("mons") or [])
+        removed = ""
         if 0 <= index < len(mons):
-            mons.pop(index)
+            removed = str((mons.pop(index) or {}).get("name") or "")
         entry["mons"] = mons
+        # 顺手把这只怪在这一层标过的格子清掉：坐标是按**名字**记的，不清的话
+        # 删了再加一只同名的，旧坐标又回来了（用户 2026-10-31：
+        # "我把怪删了重加为什么不是全新的"）。
+        if removed:
+            grid = dict(entry.get("grid") or {})
+            cells = list(grid.get("cells") or [])
+            keep = [cell for cell in cells
+                    if not (str(cell.get("kind") or "") == "monster"
+                            and str(cell.get("name") or "") == removed)]
+            if len(keep) != len(cells):
+                grid["cells"] = keep
+                entry["grid"] = grid
         self._map_history[position] = entry
         self.mapHistoryChanged.emit()
         trace.note("manual.remove_floor_monster", floor=floor_text,
-                   index=index)
+                   index=index, name=removed)
 
     @Slot(str, int, str, str)
     def saveFloorMonsterField(self, floor_text, index, field, text) -> None:

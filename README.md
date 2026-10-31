@@ -14,9 +14,10 @@
 | **读怪物手册** | 怪物栏的「读取」 | 每只怪的生命/攻击/防御/经验 + 技能 + 缩略图（手册数值 × 地图上的只数） |
 | **对话** | 底部输入框说一句，回车发出去 | 能聊天、能问事（"这层有什么"），也能顺手纠正读错的数字（"生命是1200"）；说过的话都留着，下一句记得上一句 |
 | **伤害计算** | 导航条「⚔」 | 按两座塔自己的引擎公式算：打这只怪掉多少血、连续打一串（怪/宝石/血瓶）最后剩多少，算上技能（破甲/反击/连击…） |
-| **这一层** | 点地图栏那张缩略图 | 这一层的怪、资源、状态、路线、备忘；行首方框勾「打过了/拿过了」，也能自己「＋ 加怪」「＋ 加资源」 |
+| **地图** | 就在主界面「地图」那一栏 | 左边侧栏快速切层、右边**这一层的大图**（下层压在后面只露一角，切层有动画）；在这张图上画路线、标楼梯、进编辑模式改坐标 |
+| **这一层** | 点路线行 / `openFloorSheet` | 这一层的怪、资源、状态、路线、备忘（**清单**，地图在大窗口里）；行首方框勾「打过了/拿过了」，也能自己「＋ 加怪」「＋ 加资源」 |
 | **编辑与素材** | 点怪物那一行 / 点怪的头像 / 点「＋ 加技能」 | 改这一行怪的血攻防和技能参数；从素材库挑缩略图；从技能库挑技能 |
-| **路线** | 在这层的图上长按 | 自己画一串格子当路线，记在「这一层」里（只是记录，不规划） |
+| **路线** | 在地图窗口的图上长按 | 自己画一串格子当路线（踩到楼梯会自动换层接着画），记在「这一层」里（只是记录，不规划） |
 
 **不做的事：** 不自动读取、不自动操作游戏、不判断该不该打、不规划路线（路线你自己画，它只记）、不用代码做识别（读图全靠模型，代码只负责裁剪/抠图）。伤害计算只给数字，不给建议。
 
@@ -74,8 +75,8 @@ api_key: "sk-..."
 | 地图栏「读取」 | 读当前画面：层号 + 这层怪 + 资源，并往「读取记录」里记一条 |
 | 怪物栏「读取」 | 读当前手册页：这一页的怪 |
 | 导航条「↻」 | 只重读状态行（血/攻/防/魔防/四色钥匙），比整张图重读快得多 |
-| 地图栏每层行尾「↻」 | 只用那层的截图重读"有哪些怪、各几只"（不碰状态和资源） |
-| 点地图缩略图 | 开「这一层」小窗（可多开，一窗一层） |
+| 点地图那一栏的层号（侧栏） | 切到那一层（大图跟着换，下面压着的那层只露一角，点那一角也能切） |
+| 地图那栏底下的「编辑」/「刷新」 | 进编辑模式（坐标系 + 抓格子改坐标）/ 只用这层的截图重读"有哪些怪、各几只" |
 | 导航条「⚔」 | 开伤害计算小窗 |
 | 行首方框 | 勾「打过了 / 拿过了」 |
 | 「＋ 加怪」/「＋ 加资源」 | 手动加一行（AI 读错时自己补） |
@@ -124,7 +125,8 @@ C:\Users\87790\.conda\envs\chaita\python.exe -m pytest tests/
 C:\Users\87790\.conda\envs\chaita\python.exe -m pytest tests/unit
 ```
 
-- 测试规模：**775 条**（`tests/unit` 636 + `tests/integration` 139）。`unit` 镜像 `chaita/` 的目录结构，`integration` 走真 `Controller` + 真 QML 窗口（桩只替窗口和模型）。
+- 测试规模：**792 条**（`tests/unit` 663 + `tests/integration` 129）。`unit` 镜像 `chaita/` 的目录结构；`integration` 走真 `Controller` + 真 QML 窗口 + **真鼠标/键盘事件**（只桩外部边界：抓游戏窗口、AI 模型、系统剪贴板）。
+  集成测试的判据、允许的豁免、以及"不合格就删"的规矩写在 `tests/integration/README.md`；每条用例的注释都写**测什么**和**交互顺序**（① ② ③）。
 - 覆盖率：`python tools/coverage_report.py`（只统计 `chaita/`，别把 `logs/` 里的旧备份算进分母）。
 - CI 闸门：`.github/workflows/tests.yml` —— PR 到 `dev`/`main` 时在 `windows-latest` 上**按 `environment.yml` 建环境、只跑 `tests/unit`**。
   集成测试不进 CI：`QT_QPA_PLATFORM=offscreen` 下跑全量会中途访问违例，它只能在本机真窗口上跑。
@@ -138,7 +140,7 @@ C:\Users\87790\.conda\envs\chaita\python.exe -m pytest tests/unit
 | 路径 | 作用 |
 |---|---|
 | `run.py` / `启动.vbs` / `拆塔辅助.lnk` | 启动入口（`.vbs` 是为了不闪黑框） |
-| `chaita/ui/views/` | 界面正文：22 个 QML 共 9315 行，**一个界面一个文件夹**。主窗口 `MainWindow.qml`（2512 行）+ 三块（`main_panel` 导航条/抬头/状态行、`main_columns` 三栏、`chat` 底部对话）+ 13 个子界面（`floor_sheet` / `battle_calc` / `route_editor` / `monster_editor` / `icon_picker` / `skill_picker`，各自带自己的 `pick_menu`、`edit_card`、`grid_layer`、`route_layer`）+ `shared` 共用件。结构对照见 `docs/UI_MAP.md` |
+| `chaita/ui/views/` | 界面正文：25 个 QML 共 12006 行，**一个界面一个文件夹**。主窗口 `MainWindow.qml`（3397 行）+ 四块（`main_panel` 导航条/抬头/状态行、`main_columns` 三栏、`chat` 底部对话、`map_view` 地图那一栏）+ 各子界面（`floor_sheet` / `battle_calc` / `route_editor` / `monster_editor` / `icon_picker` / `skill_picker`，各自带自己的 `pick_menu`、`edit_card`、`route_layer`、`grid_layer`）+ `shared` 共用件。结构对照见 `docs/UI_MAP.md` |
 | `chaita/ui/controller/` | 控制器：`controller.py` 组装 + `jobs` / `session` / `window` / `battle` / `chat` / `status`，读取流程在 `reading/`、怪物行在 `monsters/`、层与路线在 `floors/` |
 | `chaita/ui/toolkit/` | 纯函数：`desktop`（光标命中）、`pictures`（截图落盘）、`library`（素材库）、`texts`、`state`（状态文件）、`api`（API key）、`diagnostics`（错误日志） |
 | `chaita/ui/startup.py` | 启动与收尾（崩溃日志、渲染后端、`main()`、单实例锁 `logs/app.lock`） |

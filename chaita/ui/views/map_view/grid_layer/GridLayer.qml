@@ -28,11 +28,6 @@ Item {
     // 这一层 grid 的 cells（画"哪格已经有东西"）
     property var gridCells: []
 
-    // 长按抓起一格开始拖（FloorSheetWindow 接过去开小牌子）
-    signal dragStart(int row, int col)
-    // 短点清掉这一格（编辑模式下删一个坐标）
-    signal cellCleared(int row, int col)
-
     function inside(cell) {
         return !!cell && cell.row !== undefined && cell.col !== undefined
             && Number(cell.row) >= 0 && Number(cell.row) < layer.side
@@ -67,6 +62,11 @@ Item {
     }
     onGridCellsChanged: gridCanvas.requestPaint()
     onEditingChanged: gridCanvas.requestPaint()
+    // 尺寸变了必须重画：这张图现在挂在**可拉伸的地图窗口**上（`anchors.fill`），
+    // 画布一开始是按 0×0 建出来的，不重画就一直是空的（坐标系看不见）
+    onWidthChanged: gridCanvas.requestPaint()
+    onHeightChanged: gridCanvas.requestPaint()
+    onCellChanged: gridCanvas.requestPaint()
 
     Canvas {
         id: gridCanvas
@@ -84,8 +84,10 @@ Item {
             var selected = layer.host ? String(layer.host.gridSelected || "") : ""
 
             // 坐标系：13 条竖线 + 13 条横线
-            ctx.strokeStyle = "rgba(40, 36, 30, 0.28)"
-            ctx.lineWidth = 0.5
+            // 0.5px 的深色线在 1.5 倍屏上会被抗锯齿吃掉（实测**看不见**），
+            // 所以 1px + 深一点的墨色：看得清又不抢地图
+            ctx.strokeStyle = "rgba(30, 26, 20, 0.45)"
+            ctx.lineWidth = 1
             for (var i = 0; i <= n; i++) {
                 var p = i * size
                 ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, n * size)
@@ -108,7 +110,7 @@ Item {
             // 悬停的那一格：描边（正在拖就不画悬停，别两个框叠一起）
             if (hover.row !== undefined && drag.row === undefined) {
                 ctx.strokeStyle = "rgba(214, 158, 46, 0.95)"
-                ctx.lineWidth = 1.5
+                ctx.lineWidth = 1
                 ctx.strokeRect(Number(hover.col) * size + 1,
                                Number(hover.row) * size + 1,
                                size - 2, size - 2)
@@ -126,7 +128,7 @@ Item {
             // 多选勾中的格子：琥珀色细框（和"正在拖"的粗框区分开）
             var multi = (layer.host && layer.host.gridMulti) || []
             ctx.strokeStyle = Theme.amber
-            ctx.lineWidth = 1.5
+            ctx.lineWidth = 1
             for (var m = 0; m < multi.length; m++) {
                 var mc = multi[m] || ({})
                 ctx.strokeRect(Number(mc.col) * size + 2,
@@ -136,74 +138,20 @@ Item {
         }
     }
 
+
+    // 只做悬停高亮：**点击/长按都归路线层**（它是地图上唯一收鼠标的一层）。
+    // 以前这一层自己在上面收点击，编辑模式一开就把长按住吃掉了，路线起不了笔
+    // （用户 2026-10-31："长按拖动也无效"）。
     MouseArea {
         id: gesture
         anchors.fill: parent
         enabled: layer.editing
+        acceptedButtons: Qt.NoButton
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton
-        property point pressAt: Qt.point(0, 0)
-        property bool dragging: false
 
         onPositionChanged: function (mouse) {
-            if (gesture.dragging)
-                return
             layer.host.gridHover = layer.cellAt(mouse.x, mouse.y)
         }
-        onExited: {
-            if (!gesture.dragging)
-                layer.host.gridHover = ({})
-        }
-        onPressed: function (mouse) {
-            gesture.pressAt = Qt.point(mouse.x, mouse.y)
-            // Ctrl+点是"勾选"，不是拖拽：按得再久也不许变成拖。慢点一下就变成
-            // 拖拽会话、这次点击被吞掉，看着就是"勾不上第二格"
-            //（用户："现在ctrl不能连续选中了"）。
-            if (!(mouse.modifiers & Qt.ControlModifier))
-                longPress.restart()
-        }
-        onReleased: function (mouse) {
-            longPress.stop()
-            if (gesture.dragging) {
-                gesture.dragging = false
-                layer.host.gridDrag = ({})
-                return
-            }
-            var cell = layer.cellAt(mouse.x, mouse.y)
-            if (!layer.inside(cell))
-                return                    // 13×13 之外不算格子，什么都不做
-            // Ctrl+点：勾选 / 取消这一格（多选，一次性记给一个词条）
-            //（用户："编辑模式下能不能加一个ctrl加点击多选？一次性添加多个坐标"）
-            if (mouse.modifiers & Qt.ControlModifier) {
-                layer.host.gridMultiToggle(cell.row, cell.col)
-                return
-            }
-            // 短点：已占的格子**一步删掉**（用户："为什么不能删坐标"），
-            // 空格子只是取消选中。选词条改名点词条那一行，不再靠点地图。
-            var owner = layer.host.gridCellName(layer.floorName,
-                                                cell.row, cell.col)
-            if (owner === "")
-                layer.host.gridSelect("")
-            else
-                layer.cellCleared(cell.row, cell.col)
-        }
-        onCanceled: {
-            longPress.stop()
-            gesture.dragging = false
-            layer.host.gridDrag = ({})
-        }
-
-        Timer {
-            id: longPress
-            interval: 500
-            onTriggered: {
-                var cell = layer.cellAt(gesture.pressAt.x, gesture.pressAt.y)
-                if (!layer.inside(cell))
-                    return                // 出界：不起拖拽
-                gesture.dragging = true
-                layer.host.gridDrag = { "row": cell.row, "col": cell.col }
-                layer.dragStart(cell.row, cell.col)
-            }
-        }
+        onExited: layer.host.gridHover = ({})
     }
 }

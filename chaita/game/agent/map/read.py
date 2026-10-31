@@ -54,14 +54,18 @@ GRID_QUESTION = """你在读魔塔游戏**这一层的地图**。只回答一件
 读法：
   · 魔塔这一层是 13×13 的格子（**不用你数行列**）；
   · 行从上往下、列从左往右，都从 1 开始（左上角第一格 = 第 1 行第 1 列）；
-  · 只记三类东西：**怪物**（kind = "monster"，名字照它身上的字写）、
+  · 只记这几类东西：**怪物**（kind = "monster"，名字照它身上的字写）、
     **宝石**（kind = "item"，名字里带"宝石"）、**血瓶**（kind = "item"，
-    名字里带"血瓶/药水"）；武器、防具、钥匙、门、地面都**不记**；
+    名字里带"血瓶/药水"）、**楼梯**（kind = "stair_up" 上楼、
+    kind = "stair_down" 下楼，一格就是一级台阶那种图案，一层可能有**好几个**）；
+  · 武器、防具、钥匙、门、地面都**不记**；楼梯只记它是哪一格、朝哪边，
+    别猜它通到哪一层（那是游戏里的设定，不一定通隔壁层）；
   · 一格只记一样；坐标只能在 1~13 之间，看不清的格子跳过，别瞎填。
 
 只回一行 JSON，不要解释：
 {"cells":[{"row":3,"col":7,"kind":"monster","name":"红头怪"},
-{"row":6,"col":2,"kind":"item","name":"红宝石"}]}"""
+{"row":6,"col":2,"kind":"item","name":"红宝石"},
+{"row":12,"col":12,"kind":"stair_up","name":"上楼梯"}]}"""
 
 
 # 一层里一种东西最多能有几个：超过这个数多半是把血量/效果当成数量读了
@@ -74,8 +78,9 @@ SIDE = 13
 # 一次最多记多少个"格子有什么"：超了说明模型把整张图都当成了资源
 MAX_CELLS = 200
 
-# 格子里记的两类东西（门/楼梯/地面不记；门由用户在路线链里点「门」）
-CELL_KINDS = ("monster", "item")
+# 格子里记的几类东西：怪 / 宝石血瓶（都算 item）/ 上楼梯 / 下楼梯
+# （一层可以有好几个楼梯：用户 2026-10-30 "谁告诉你一层只有一个上楼或下楼的"）
+CELL_KINDS = ("monster", "item", "stair_up", "stair_down")
 
 
 def clean(entries) -> list:
@@ -105,11 +110,14 @@ def clean(entries) -> list:
 
 
 def clean_cells(entries) -> list:
-    """「每格有什么」：只留怪 / 宝石 / 血瓶，坐标框在 1..13 内（换成 0 开始）。
+    """「每格有什么」：只留怪 / 宝石血瓶 / 上楼梯 / 下楼梯，坐标框在 1..13 内（换成 0 开始）。
 
     AI 报的行列是**从 1 开始**的（人话："第 3 行第 7 列"），这里换成**0 开始**——
     地图层画出来的格子坐标就是 0 开始的，存下来两边才对得上。行列数不读 AI，
     固定 13×13（用户拍板），所以越界的格子（模型数出 14 的时候）直接丢掉。
+
+    楼梯那两类**名字可以空着**（模型只说"这里是一级台阶"），补一个统一的名字；
+    通到哪一层模型看不到，留空让人自己选（`stairs` 那摊的事）。
     """
     out = []
     seen = set()
@@ -123,8 +131,15 @@ def clean_cells(entries) -> list:
             continue
         kind = str(entry.get("kind") or "").strip().lower()
         name = str(entry.get("name") or "").strip()
-        if kind not in CELL_KINDS or not name:
+        if kind not in CELL_KINDS:
             continue
+        if not name:
+            if kind == "stair_up":
+                name = "上楼梯"
+            elif kind == "stair_down":
+                name = "下楼梯"
+            else:
+                continue
         if row < 1 or col < 1 or row > SIDE or col > SIDE:
             continue
         if (row, col) in seen:

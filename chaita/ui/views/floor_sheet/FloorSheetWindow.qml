@@ -6,12 +6,13 @@ import ".."
 import "../shared"
 // 它自己的下拉菜单（一个界面一个文件夹）
 import "pick_menu"
-import "route_layer"
-// 格子编辑：编辑模式下的坐标系 + 悬停/长按抓格
-import "grid_layer"
 
 // 「这一层」小窗：这一层有什么怪、哪些资源、各几个；就地改数量、点图标换种类、
-// 刷新本层 / 删除本层 / 写备忘。
+// 刷新本层 / 删除本层 / 写备忘 / 这一层的路线。
+//
+// **这里不画地图**（用户 2026-10-30："地图的整套UI重新设计"）：截图、路线层、
+// 坐标系、对比高亮、楼梯全搬到 `views/map_view/MapWindow.qml` 那一份大图上，
+// 一份地图只在一个地方画，不再两边各一套。这扇窗只剩**清单**。
 //
 // 它是**一扇真窗口**（无边框 + 置顶 + Qt.Tool）：能拖到桌面任何地方、能多开
 // （每层一个），所以和主面板各一份文件（docs/UI_MAP.md 第 2 项）。
@@ -29,6 +30,80 @@ Window {
     // 删本层的两步确认是"每扇窗各自"的
     property bool deleteArm: false
     property string sheetName: ""
+
+    // 拖动"抓一格"时：光标（**全局坐标**）落在哪一行上？
+    // 返回 `{kind, index, name, effect}`；不在任何一行上返回 null。
+    // 用场景坐标比较：把全局坐标减去窗口位置，行自己给的 `mapToItem(null, …)` 也是场景坐标。
+    function rowAt(globalX, globalY) {
+        var x = Number(globalX) - sheetRoot.x
+        var y = Number(globalY) - sheetRoot.y
+        var kinds = [["floorMonRow", "monster"], ["floorItemRow", "item"]]
+        for (var k = 0; k < kinds.length; k++) {
+            var rows = []
+            collectRows(sheetRoot.contentItem, kinds[k][0], rows)
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i]
+                var box = row.mapToItem(null, 0, 0)
+                if (x < box.x || x > box.x + row.width
+                        || y < box.y || y > box.y + row.height)
+                    continue
+                var kind = kinds[k][1]
+                if (kind === "monster") {
+                    // 怪那一行的委托上有个 `mon`（= modelData），名字从它取；
+                    // 直接读 modelData 在委托里拿不到（实测拿到空名字）
+                    var mon = row.mon || ({})
+                    return { "kind": "monster", "index": Number(row.index),
+                             "name": String(mon.name || ""), "effect": "" }
+                }
+                return { "kind": "item", "index": Number(row.index),
+                         "name": String(row.itemName || ""),
+                         "effect": String(row.item ? row.item.effect : "") }
+            }
+        }
+        return null
+    }
+
+    function collectRows(item, name, out) {
+        if (!item)
+            return out
+        var list = item.children || []
+        for (var i = 0; i < list.length; i++) {
+            var child = list[i]
+            if (!child)
+                continue
+            if (child.objectName === name)
+                out.push(child)
+            collectRows(child, name, out)
+        }
+        return out
+    }
+
+    // 点窗口空白时加一：所有开着的输入框收到就各自收起来并生效
+    // （用户 2026-10-31："粘贴完坐标怎么点空白不退出"）
+    property int closeTick: 0
+    // 现在开着的那一格（点别处就收起来；点在它自己身上不算）
+    property var openField: null
+
+    MouseArea {
+        objectName: "sheetBlankTap"
+        anchors.fill: parent
+        z: 900
+        visible: sheetRoot.openField !== null
+        onClicked: function (mouse) {
+            var field = sheetRoot.openField
+            if (field) {
+                // 输入框比那一格宽，可点范围按"它自己的宽度"算，别一碰就收
+                var at = mapToItem(null, mouse.x, mouse.y)
+                var box = field.mapToItem(null, 0, 0, field.width, field.height)
+                var right = box.x + Math.max(box.width, 96) + 8
+                if (at.x >= box.x - 8 && at.x <= right
+                        && at.y >= box.y - 8 && at.y <= box.y + box.height + 8)
+                    return
+            }
+            sheetRoot.closeTick++
+        }
+    }
+
     // 格子编辑模式：只有这一层在编辑时才开（主窗口的 gridEditOn/Floor 是全局一份）
     readonly property bool gridEditActive:
         host.gridEditOn && host.gridEditFloor === sheetRoot.sheetName
@@ -77,10 +152,13 @@ Window {
     height: Math.round(cardBox.sized
                        ? Math.max(180, Math.min(maxH, cardBox.wantedH))
                        : Math.min(maxH,
-                                  26 + sheetShotBox.height + 6
-                                  + Math.min(sheetBody.implicitHeight,
-                                             cardBox.listMax)
-                                  + 34))
+                                  // 地图搬走以后这扇窗只剩清单：太矮的话「加资源」
+                                  // 的下拉只有两行高，下面那几行点不到（实测过），
+                                  // 所以给个下限
+                                  Math.max(240, 26 + 4
+                                          + Math.min(sheetBody.implicitHeight,
+                                                     cardBox.listMax)
+                                          + 34)))
     // 整块钳在屏幕里：拖到屏幕边上就停住，但**不能**把越界的那截攒着 ——
     // 攒着的话往回拖要先"还债"，窗口会卡住/跳（用户："一直在抖动"）。
     // 边也要钳：不然拉大以后右下角的拉大手柄会跑到屏幕外点不到。
@@ -118,13 +196,13 @@ Window {
             sheetRoot.maxW, host.floorW(sheetRoot.sheetName, 300)))
         readonly property real wantedH: Math.max(180, Math.min(
             sheetRoot.maxH, host.floorH(sheetRoot.sheetName, 180)))
-        // 固定件：抬头 26 + 截图 + 间距 6 + 底部 34
-        readonly property int fixedH: 26 + sheetShotBox.height + 6 + 34
+        // 固定件：抬头 26 + 底部 34（地图已经搬到 views/map_view/MapWindow.qml）
+        readonly property int fixedH: 26 + 34
         // 列表能占多高：拉过大小就吃掉剩下的，没拉过最多 150
         readonly property int listMax: sized
             ? Math.max(40, Math.round(wantedH) - fixedH)
-            : Math.max(60, Math.min(150, Math.round(sheetRoot.maxH)
-                                    - 16 - fixedH))
+            : Math.max(120, Math.min(240, Math.round(sheetRoot.maxH)
+                                     - 16 - fixedH))
         radius: 8
         color: host.paperHi
         border.width: 1
@@ -235,179 +313,13 @@ Window {
             }
         }
 
-        // 截图：整张（只缩不放），点开看大图
-        Rectangle {
-            id: sheetShotBox
-            objectName: "floorShotBox"
-            x: 6
-            y: 26
-            width: cardBox.width - 12
-            // 截图区跟着卡片一起变大（用户："放大地图的小窗的时候
-            // 地图不会一起变大"）：
-            //   · 宽度撑满卡片，高度按截图比例算（宽图不再只占中间一小条）；
-            //   · 用户把卡片拉大了，就把"给清单留 60 之外"的高度都给它；
-            //   · 没拉过就按比例撑高，最多 240（别让默认卡片一开就顶满屏）。
-            readonly property real shotW: cardBox.width - 12
-            readonly property real ratio:
-                (shotImage.sourceSize.width > 0
-                 && shotImage.sourceSize.height > 0)
-                ? shotImage.sourceSize.width / shotImage.sourceSize.height
-                : (16 / 9)
-            readonly property real aspectH: shotW / ratio
-            readonly property real maxH: cardBox.sized
-                ? Math.max(64, cardBox.wantedH - 26 - 6 - 34 - 60)
-                : Math.max(64, Math.min(
-                       240, host.height - 8 - 26 - 6 - 34 - 60))
-            height: Math.max(64, Math.min(aspectH, maxH))
-            radius: 8
-            color: host.paperLo
-            border.width: 1
-            border.color: host.hairline
-            clip: true
-
-            // 图实际画出来的那一块：PreserveAspectFit 会按比例缩、居中，
-            // 路线层必须贴着**这一块**（贴外框的话红线和格子对不上，用户："格子会偏"）
-            readonly property real innerW: width - 8
-            readonly property real innerH: height - 8
-            readonly property real drawnW: Math.min(innerW, innerH * ratio)
-            readonly property real drawnH: drawnW / ratio
-
-            Image {
-                id: shotImage
-                objectName: "floorShot"
-                anchors.fill: parent
-                anchors.margins: 4
-                source: host.sheetShot(sheetRoot.sheetName)
-                visible: host.hasUrl(host.sheetShot(sheetRoot.sheetName))
-                fillMode: Image.PreserveAspectFit
-                smooth: false
-                asynchronous: true
-            }
-            // 路线提取：长按玩家起步、拖过相邻格画红线（见 docs/ROUTE.md）。
-            // 一格多大由 AI 读到的行列换算（`host.routeCell`），铺在图上那块矩形里。
-            Item {
-                id: shotDrawn
-                x: 4 + (sheetShotBox.innerW - sheetShotBox.drawnW) / 2
-                y: 4 + (sheetShotBox.innerH - sheetShotBox.drawnH) / 2
-                width: Math.max(1, sheetShotBox.drawnW)
-                height: Math.max(1, sheetShotBox.drawnH)
-
-                RouteLayer {
-                    id: routeLayer
-                    objectName: "routeLayer"
-                    anchors.fill: parent
-                    floorName: sheetRoot.sheetName
-                    cell: host.routeCell(sheetRoot.sheetName, width)
-                    onFinished: function (cells) {
-                        host.storeRoute(sheetRoot.sheetName, cells)
-                        routeLayer.clear()
-                    }
-                }
-                // 格子编辑：编辑模式下盖在路线层上面，画坐标系 + 悬停/长按抓格
-                GridLayer {
-                    id: gridLayer
-                    objectName: "gridLayer"
-                    anchors.fill: parent
-                    host: sheetRoot.host
-                    floorName: sheetRoot.sheetName
-                    cell: host.routeCell(sheetRoot.sheetName, width)
-                    side: host.routeCols
-                    editing: sheetRoot.gridEditActive
-                    gridCells: {
-                        if (!controller)
-                            return []
-                        controller.mapHistory   // 绑一下：assign 后会重取
-                        return controller.gridCells(sheetRoot.sheetName)
-                    }
-                    onDragStart: function (row, col) {
-                        // 有 Ctrl 多选的格子就一起搬过去，否则只搬按住的这一格。
-                        var multi = host.gridMulti || []
-                        var payload = multi.length > 0
-                                ? { "cells": multi }
-                                : { "row": row, "col": col }
-                        gridDragChip.Drag.mimeData = {
-                            "application/x-grid-cell": JSON.stringify(payload) }
-                        gridDragChip.visible = true
-                        gridDragChip.Drag.active = true
-                    }
-                    onCellCleared: function (row, col) {
-                        host.gridAssign(row, col, "", "")
-                    }
-                }
-                // 路线对比里点了某一行 → 把那一格圈出来（用户："点击后会在地图内高亮"）。
-                // 圈的是 `host.mapHiRow/Col`（哪一层的哪一格由 `mapHiFloor` 认）：
-                // 所以只有这一层的窗会亮，换一层点这个圈就跟着走。
-                // 地图本身花花绿绿，所以是"实心淡黄 + 深琥珀框 + 外面再一圈浅光晕"，
-                // 光是一根细线在这种图上根本看不见。
-                Rectangle {
-                    id: cellHighlight
-                    objectName: "floorCellHighlight"
-                    readonly property real side:
-                        Math.max(6, host.routeCell(sheetRoot.sheetName,
-                                                   shotDrawn.width))
-                    visible: host.mapHiFloor === sheetRoot.sheetName
-                             && Number(host.mapHiRow) >= 0
-                             && Number(host.mapHiCol) >= 0
-                    x: Math.max(0, Math.min(shotDrawn.width - side,
-                                            Number(host.mapHiCol) * side))
-                    y: Math.max(0, Math.min(shotDrawn.height - side,
-                                            Number(host.mapHiRow) * side))
-                    width: side
-                    height: side
-                    radius: 3
-                    color: Qt.rgba(0.95, 0.76, 0.25, 0.28)
-                    border.width: 2
-                    border.color: "#8F5E0C"
-                    opacity: visible ? 1 : 0
-                    // 圈出来这一下淡入：一眼看得出"是这一格"
-                    Behavior on opacity { NumberAnimation { duration: 120 } }
-                    // 外圈白边 + 一圈浅琥珀：地图本身花花绿绿，靠这个把格子"抠"出来
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: -3
-                        radius: 6
-                        color: "transparent"
-                        border.width: 2
-                        border.color: Qt.rgba(1, 1, 1, 0.88)
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: -6
-                        radius: 8
-                        color: "transparent"
-                        border.width: 2
-                        border.color: Qt.rgba(0.71, 0.52, 0.16, 0.60)
-                    }
-                }
-            }
-            Text {
-                anchors.centerIn: parent
-                visible: !host.hasUrl(host.sheetShot(sheetRoot.sheetName))
-                text: "这一层还没有截图"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-            }
-            // 格子编辑开关：压在截图右上角（编辑中 = 实心「完成」）
-            FlatBtn {
-                id: gridEditBtn
-                objectName: "floorGridEdit"
-                anchors.right: parent.right
-                anchors.rightMargin: 6
-                anchors.top: parent.top
-                anchors.topMargin: 6
-                solid: sheetRoot.gridEditActive
-                label: sheetRoot.gridEditActive ? "完成" : "编辑"
-                onClicked: host.gridEditToggle(sheetRoot.sheetName)
-            }
-        }
 
         // 清单：怪 / 资源 / 备忘
         Flickable {
             id: sheetFlick
             objectName: "floorFlick"
             x: 6
-            y: sheetShotBox.y + sheetShotBox.height + 6
+            y: 26 + 4
             width: cardBox.width - 12
             height: Math.min(sheetBody.implicitHeight, cardBox.listMax)
             contentWidth: width
@@ -419,6 +331,235 @@ Window {
                 id: sheetBody
                 width: sheetFlick.width
                 spacing: 0
+
+                // ---------- 楼梯 ----------
+                // 用户 2026-10-30："谁告诉你一层只有一个上楼或下楼的？谁告诉你0层就
+                // 一定去1层的？" —— 一行一个楼梯，每行自己带"通哪一层"。
+                // 位置：图上长按抓一格拖到这行上松手；目标层：点一下换一个；
+                // 加行：上楼梯、下楼梯各一个按钮。踩到它就切到它记的那一层。
+                Item {
+                    width: sheetBody.width
+                    height: 22
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "楼梯"
+                        color: host.ink3
+                        font.family: host.uiFont
+                        font.pixelSize: 10
+                        font.letterSpacing: 2
+                    }
+                    Row {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+                        FlatBtn {
+                            objectName: "floorAddStair"
+                            label: "＋ 上楼梯"
+                            onClicked: host.addStairRow(sheetRoot.sheetName,
+                                                        "up")
+                        }
+                        FlatBtn {
+                            objectName: "floorAddStairDown"
+                            label: "＋ 下楼梯"
+                            onClicked: host.addStairRow(sheetRoot.sheetName,
+                                                        "down")
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: host.stairRows(sheetRoot.sheetName)
+                    delegate: Item {
+                        id: stairRow
+                        objectName: "floorStairRow"
+                        width: sheetBody.width
+                        // 两行：第一行缩略图 + 目标层 + ✕，第二行"位置 / 落点"（点着选）
+                        height: 44
+
+                        readonly property color tint:
+                            modelData.dir === "up" ? host.markMdef : host.markDef
+
+                        Row {
+                            id: stairTop
+                            // 右边留出 ✕ 那一列，和怪物行的 ✕ 对齐（用户："删楼梯的按钮
+                            // 怎么UI和其他不一致" —— 它原来跟在"→ 2"后面，不在行尾）
+                            width: parent.width - 20
+                            height: 24
+                            spacing: 5
+
+                            // 左边空出怪物行那个"打过没"的圆圈列，缩略图才对得齐
+                            Item { width: 14; height: 1 }
+
+                            // 缩略图：素材库那张楼梯图，外圈方向色；点它 = 上/下互换
+                            Rectangle {
+                                objectName: "floorStairThumb"
+                                width: sheetRoot.thumbSide
+                                height: sheetRoot.thumbSide
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 4
+                                color: Theme.paperLo
+                                border.width: 1
+                                border.color: stairRow.tint
+                                Image {
+                                    id: stairImage
+                                    objectName: "floorStairThumbImage"
+                                    anchors.fill: parent
+                                    anchors.margins: 1
+                                    source: host.itemIcon(
+                                                modelData.dir === "up"
+                                                ? "stair_up" : "stair_down")
+                                    visible: status === Image.Ready
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: false
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: stairImage.status !== Image.Ready
+                                    text: modelData.dir === "up" ? "↑" : "↓"
+                                    color: stairRow.tint
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                                MouseArea {
+                                    objectName: "floorStairDirPick"
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: host.toggleStairDir(
+                                        sheetRoot.sheetName,
+                                        Number(modelData.index))
+                                }
+                            }
+
+                            // 通哪一层：**点开直接打层号**（"2" = 2层 / 通天塔2）。
+                            // 用户 2026-10-31 骂掉了"点一下换一层"的循环；一千层的塔
+                            // 只能这么选：打 137 回车就到 137 层（没有就建一条空的）。
+                            FloorField {
+                                objectName: "floorStairTarget"
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 62
+                                labelSize: 9
+                                value: String(modelData.to || "")
+                                placeholder: "通到…"
+                                showText: function (text) {
+                                    return String(modelData.to || "") === ""
+                                           ? "" : ("→ " + host.floorShort(text))
+                                }
+                                closeTick: sheetRoot.closeTick
+                                onOpened: function (who) {
+                                    sheetRoot.openField = who
+                                }
+                                onClosed: function (who) {
+                                    if (sheetRoot.openField === who)
+                                        sheetRoot.openField = null
+                                }
+                                onCommitted: function (text) {
+                                    host.setStairTargetByName(
+                                        sheetRoot.sheetName,
+                                        Number(modelData.index), text)
+                                }
+                            }
+                        }
+
+                        // ✕ 删这一行楼梯：位置和怪物/资源行一样 —— 行尾、同一个字号
+                        Text {
+                            objectName: "floorStairClear"
+                            width: 16
+                            height: 16
+                            anchors.right: parent.right
+                            y: 4
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            text: "✕"
+                            color: clearStairMouse.containsMouse
+                                   ? host.danger : host.ink3
+                            font.family: host.uiFont
+                            font.pixelSize: 10
+                            MouseArea {
+                                id: clearStairMouse
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: host.removeStairRow(
+                                    sheetRoot.sheetName,
+                                    Number(modelData.index))
+                            }
+                        }
+
+                        // 第二行：**当前坐标 / 出口坐标**，两个都能点开粘一个坐标进去
+                        // （用户 2026-10-30："楼层位置坐标显示两个当前坐标和出口坐标，
+                        // 可以通过粘贴修改坐标"；2026-10-31："坐标加层数！！！！！！！！"
+                        // —— 左边写本层层号，右边写"→目标层层号"，一眼看出是哪一层的坐标）
+                        CoordField {
+                            objectName: "floorStairPos"
+                            x: 19
+                            y: 25
+                            width: parent.width / 2 - 23
+                            prefix: host.floorShort(sheetRoot.sheetName) + "层 "
+                            placeholder: host.floorShort(sheetRoot.sheetName)
+                                         + "层 没标"
+                            labelSize: 8
+                            row: Number(modelData.row)
+                            col: Number(modelData.col)
+                            closeTick: sheetRoot.closeTick
+                            onOpened: function (who) {
+                                sheetRoot.openField = who
+                            }
+                            onClosed: function (who) {
+                                if (sheetRoot.openField === who)
+                                    sheetRoot.openField = null
+                            }
+                            onCommitted: function (row, col, floorText) {
+                                controller.saveStair(sheetRoot.sheetName,
+                                                     Number(modelData.index),
+                                                     row, col)
+                            }
+                        }
+                        CoordField {
+                            objectName: "floorStairArrive"
+                            x: parent.width / 2
+                            y: 25
+                            width: parent.width / 2 - 12
+                            prefix: String(modelData.to || "") === ""
+                                    ? "出口 "
+                                    : ("→" + host.floorShort(modelData.to) + "层 ")
+                            placeholder: String(modelData.to || "") === ""
+                                         ? "出口 没标"
+                                         : ("→" + host.floorShort(modelData.to)
+                                            + "层 没标")
+                            labelSize: 8
+                            row: Number(modelData.toRow)
+                            col: Number(modelData.toCol)
+                            closeTick: sheetRoot.closeTick
+                            onOpened: function (who) {
+                                sheetRoot.openField = who
+                            }
+                            onClosed: function (who) {
+                                if (sheetRoot.openField === who)
+                                    sheetRoot.openField = null
+                            }
+                            onCommitted: function (row, col, floorText) {
+                                // 粘进来的那截层数就是"通到哪一层"（"→3层 6,7" / "3层 6,7"）；
+                                // 没写层数就只改落点，层不动（用户 2026-10-31：
+                                // "楼梯粘贴出来怎么不带层数？我怎么手动修改？"）
+                                // 序号/层名先拿住：改层会重建这一行，之后再读 modelData 是空
+                                host.setStairArrivalByName(
+                                    sheetRoot.sheetName,
+                                    Number(modelData.index), row, col,
+                                    String(floorText || ""))
+                            }
+                        }
+                    }
+                }
+
+                Item {
+                    width: sheetBody.width
+                    height: 14
+                }
+
 
                 // ---------- 怪 ----------
                 Item {
@@ -524,29 +665,21 @@ Window {
                                     }
                                 }
 
-                                Rectangle {
+                                // 怪名**只读**（用户 2026-10-31："清单界面怪物不需要可以改名"）：
+                                // 名字来自手册/模板，是这只怪的身份，能改就和记录对不上；
+                                // 要换成别的怪就重新「＋ 加怪」挑一只。
+                                Text {
+                                    objectName: "floorMonName"
                                     width: parent.width - 14 - 20 - 34 - 16 - 4 * 5 - 2
                                     height: 22
-                                    radius: 5
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: nameField.activeFocus
-                                           ? host.paperLo : "transparent"
-                                    TextField {
-                                        id: nameField
-                                        objectName: "floorMonName"
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 4
-                                        anchors.rightMargin: 4
-                                        verticalAlignment: TextInput.AlignVCenter
-                                        background: null
-                                        color: host.ink
-                                        font.family: host.uiFont
-                                        font.pixelSize: 10
-                                        selectByMouse: true
-                                        text: monRow.mon.name || ""
-                                        onEditingFinished: controller.saveFloorMonsterField(
-                                            sheetRoot.sheetName, index, "name", text)
-                                    }
+                                    leftPadding: 4
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: monRow.mon.name || ""
+                                    color: host.ink
+                                    font.family: host.uiFont
+                                    font.pixelSize: 10
+                                    elide: Text.ElideRight
                                 }
                                 Rectangle {
                                     width: 34
@@ -872,6 +1005,8 @@ Window {
                                                     String(itemRow.item.effect || ""))
                             }
                         }
+                        // 行尾 ✕：清掉这一行所有的坐标（用户："删坐标功能呢"）
+
                     }
                 }
 
@@ -1066,40 +1201,8 @@ Window {
             }
         }
 
-        // ---- 拖拽时跟着光标的小牌子：长按抓格后浮起来，拖到词条上松手 ----
-        Item {
-            id: gridDragChip
-            visible: false
-            z: 40
-            width: 64
-            height: 22
-            Drag.dragType: Drag.Automatic
-            Drag.hotSpot: Qt.point(10, 11)
-            Drag.mimeData: { "application/x-grid-cell": "" }
-            Drag.onDragFinished: {
-                gridDragChip.visible = false
-                host.gridDrag = ({})
-                host.gridHover = ({})
-            }
-            Rectangle {
-                anchors.fill: parent
-                radius: 4
-                color: Theme.amber
-                Text {
-                    anchors.centerIn: parent
-                    text: (host.gridMulti || []).length > 1
-                          ? (host.gridMulti.length + " 格")
-                          : (host.gridDrag.row !== undefined
-                             ? "格 " + (Number(host.gridDrag.row) + 1) + ","
-                               + (Number(host.gridDrag.col) + 1)
-                             : "")
-                    color: Theme.paperHi
-                    font.family: Theme.uiFont
-                    font.pixelSize: 9
-                    font.bold: true
-                }
-            }
-        }
+        // 拖格子的小牌子跟着地图走了（views/map_view/MapWindow.qml）：
+        // 抓格是在那张大图上抓的，牌子也就长在那扇窗里，这边只负责接住落点。
 
         // ---- 拉大小：四条边 + 四个角都能拉 ----
         // 用户："怎么只有右下角能拉伸窗口" —— 以前只有一个右下角把手。

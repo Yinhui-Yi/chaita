@@ -1,7 +1,11 @@
-"""主面板顶栏与状态行的按钮（真点击）：读状态、开伤害计算、状态锁。
+"""主面板顶栏与状态行的按钮（**集成测试**，只点界面上的东西）。
 
-以前这三处只测过 controller 的 Slot，**按钮到 Slot 那一跳没人跑过**（点错了目标、
-锁图标点在别的地方、开了伤害计算却没建窗口，都测不到）。
+覆盖：状态行的「读状态」、导航条的「伤害计算」、锁图标。以前这三处只测过 controller
+的 Slot，**按钮到 Slot 那一跳没人跑过**（点错了目标、锁图标点在别的地方、开了伤害
+计算却没建窗口，都测不到）。
+
+标准见 `tests/integration/README.md`：抓图/模型/找窗口是外部边界，用替身；
+断言读公开属性（`controller.statusData / statusLocked`、`window.battleWindow / battleRows`）。
 """
 
 import numpy as np
@@ -22,7 +26,11 @@ def _window(monkeypatch=None):
     return controller, engine, window
 
 
-def test_status_refresh_button_reads_person(monkeypatch):
+def test_status_refresh_button_reads_the_person_panel(monkeypatch):
+    """测什么：点状态行那个刷新 → 真的去抓一帧、读人物面板，数值写回状态行。
+
+    走过的界面：主界面 → 状态行右侧的刷新按钮 →（桩）抓图 + 读人物 → 状态行。
+    """
     controller, engine, window = _window()
     controller._start_thread = lambda target, args=(): target(*args)
     img = np.zeros((20, 20, 3), np.uint8)
@@ -37,14 +45,18 @@ def test_status_refresh_button_reads_person(monkeypatch):
 
     helpers.click_item(window, helpers.find_item(window, "statusRefresh"))
     # 读回来的结果走 uiCall（队列连接）排回界面线程：等它落地
-    helpers.wait_for(lambda: controller._last_status.get("hp") == "842",
-                     timeout=2.0)
+    helpers.wait_for(
+        lambda: str(controller.statusData.get("hp") or "") == "842", timeout=2.0)
 
-    assert controller._last_status["hp"] == "842"
-    assert controller._last_status["atk"] == "13"
+    assert str(controller.statusData["hp"]) == "842"
+    assert str(controller.statusData["atk"]) == "13"
 
 
-def test_battle_button_opens_battle_window():
+def test_battle_button_opens_the_battle_window():
+    """测什么：点导航条的 ⚔ → 开出伤害计算窗口，里面已经有一行空计划。
+
+    走过的界面：主界面导航条（伤害计算按钮）→ 伤害计算窗口。
+    """
     controller, engine, window = _window()
     assert window.property("battleWindow") is None
 
@@ -54,13 +66,16 @@ def test_battle_button_opens_battle_window():
     value = window.property("battleWindow")
     value = value.toQObject() if hasattr(value, "toQObject") else value
     assert value is not None
-    # 开出来的窗要真的是"伤害计算"：带着一行空计划
     rows = window.property("battleRows")
     rows = rows.toVariant() if hasattr(rows, "toVariant") else rows
     assert len(rows) == 1 and rows[0]["steps"] == []
 
 
-def test_status_lock_badge_toggles_lock():
+def test_status_lock_badge_toggles_the_lock():
+    """测什么：点状态行那个锁图标 → 锁上；再点一下 → 解锁。
+
+    走过的界面：主界面 → 状态行的锁图标（点两次）。
+    """
     controller, engine, window = _window()
     assert controller.statusLocked is False
 
@@ -69,3 +84,4 @@ def test_status_lock_badge_toggles_lock():
 
     helpers.click_item(window, helpers.find_item(window, "statusLock"))
     assert controller.statusLocked is False
+

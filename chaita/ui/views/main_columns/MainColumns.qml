@@ -2,8 +2,10 @@ import QtQuick
 import QtQuick.Controls.Basic
 // 共用件（配色/按钮）在上一层
 import "../shared"
+// 地图那一栏的卡片（大图在 map_view/MapWindow.qml）
+import "../map_view"
 
-// 中间三栏 + 读取记录：地图（每层一张缩略图）、怪物（手册数值 × 地图数量）、
+// 中间三栏 + 读取记录：地图（只显示选中的那一层）、怪物（手册数值 × 地图数量）、
 // 技能（按地图上出现过的怪统计）、读取记录（每点一次读取一条）。
 //
 // 主窗口的一块（不是覆盖层）。滚动容器是外面那层 `flick`（Flickable），
@@ -18,10 +20,10 @@ Column {
     // 归属：主窗口（列表数据、折叠状态、拖动状态都在它身上）
     property var host
 
-    // 主窗口要量的两处位置（要量就问这里，别跨文件摸 mapGrid / monRep 这些内部 id）
-    // 地图在场景里的下沿：「这一层」小窗默认开在它下面，别盖住地图本身
+    // 主窗口要量的两处位置（要量就问这里，别跨文件摸 mapCard / monRep 这些内部 id）
+    // 地图卡片在场景里的下沿：「这一层」小窗默认开在它下面，别盖住地图本身
     function mapBottom() {
-        return mapGrid.mapToItem(null, 0, mapGrid.height).y
+        return mapCard.mapToItem(null, 0, mapCard.height).y
     }
 
     // 第一行怪在场景里的上沿（-1 = 还没有行）：拖动排序时要把屏幕坐标对上
@@ -219,126 +221,11 @@ Column {
 
     Item { width: body.width; height: 4 }
 
-    // 地图条：一行三个，层多了往下排（整页一起滚，不做嵌套滚动）
-    Grid {
-        id: mapGrid
-        objectName: "mapGrid"
-        width: body.width
-        columns: 3
-        spacing: 8
-        visible: host.floorList.length > 0 && !host.mapCollapsed
-
-        Repeater {
-            model: host.floorList
-            delegate: Rectangle {
-                objectName: "mapTile"
-                width: host.tileW
-                height: 92
-                radius: 8
-                color: mapHover.containsMouse ? host.paperHi : "#FCF8F0"
-                border.width: 1
-                border.color: host.hairline
-                clip: true
-
-                // 缩略图要"整张都看得见"（用户："缩略图怎么不全"）：
-                // 用 PreserveAspectFit，宁可两边留白也不裁掉半张地图
-                Image {
-                    id: shot
-                    objectName: "mapShot"
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 3
-                    height: 58
-                    source: modelData && modelData.url ? modelData.url : ""
-                    visible: host.hasUrl(modelData ? modelData.url : "")
-                    fillMode: Image.PreserveAspectFit
-                    smooth: false
-                    asynchronous: true
-                }
-                Rectangle {
-                    anchors.fill: shot
-                    visible: !shot.visible
-                    color: host.paperLo
-                    Text {
-                        anchors.centerIn: parent
-                        text: "无截图"
-                        color: host.ink3
-                        font.family: host.uiFont
-                        font.pixelSize: 9
-                    }
-                }
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 6
-                    anchors.top: parent.top
-                    anchors.topMargin: 64
-                    width: parent.width - 12
-                    text: modelData && modelData.floor ? modelData.floor : ""
-                    color: host.ink
-                    font.family: host.uiFont
-                    font.pixelSize: 10
-                    font.bold: true
-                    elide: Text.ElideRight
-                }
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 6
-                    anchors.right: parent.right
-                    anchors.rightMargin: 6
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 4
-                    text: host.floorMeta(modelData)
-                    color: host.ink3
-                    font.family: host.uiFont
-                    font.pixelSize: 9
-                    elide: Text.ElideRight
-                }
-                MouseArea {
-                    id: mapHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    // 点一块地图 = 打开这一层的子界面（怪/资源/备忘都在里面）
-                    onClicked: host.openFloorSheet(modelData
-                                                  ? modelData.floor : "")
-                }
-
-                // 这一层刷新：用这层的截图重新数"有哪些怪、各几只、有哪些资源"
-                // （controller.refreshFloorCounts）。放在块右上角，别和整块点击抢。
-                Rectangle {
-                    objectName: "mapRefresh"
-                    width: 20
-                    height: 18
-                    radius: 5
-                    anchors.right: parent.right
-                    anchors.rightMargin: 3
-                    anchors.top: parent.top
-                    anchors.topMargin: 3
-                    color: mapRefreshMouse.containsMouse
-                           ? host.paperHi : Qt.rgba(1, 1, 1, 0.72)
-                    border.width: 1
-                    border.color: host.hairline
-                    readonly property bool busy:
-                        (controller ? controller.countingFloor : "")
-                        === (modelData ? modelData.floor : "")
-                    Text {
-                        anchors.centerIn: parent
-                        text: parent.busy ? "…" : "↻"
-                        color: parent.busy ? host.ink3 : host.ink2
-                        font.pixelSize: 11
-                    }
-                    MouseArea {
-                        id: mapRefreshMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: controller.refreshFloorCounts(
-                            modelData ? modelData.floor : "")
-                    }
-                }
-            }
-        }
+    // 地图只画**这一层**，但画得大：左边侧栏快速切层、右边大图，
+    // 其余层压在大图后面只露一角（用户 2026-10-30）。
+    MapPanel {
+        id: mapCard
+        host: body.host
     }
     Text {
         width: body.width
@@ -870,6 +757,17 @@ Column {
                     fillMode: Image.PreserveAspectCrop
                     smooth: false
                     asynchronous: true
+                }
+                // 点这一小块 = 把这次读的那张图放大看（用户 2026-10-31：
+                // "我现在点队列里的缩略图怎么不放大"）
+                MouseArea {
+                    objectName: "taskThumbClick"
+                    anchors.fill: parent
+                    anchors.margins: -3
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: host.showImagePreview(
+                        host.hasUrl(modelData.src) ? modelData.src
+                                                   : modelData.url)
                 }
             }
             Text {

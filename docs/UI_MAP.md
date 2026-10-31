@@ -1,34 +1,44 @@
 # UI 地图：哪个界面在哪份文件、状态在谁身上
 
-> 界面从「七千多行一个文件」拆到现在：`MainWindow.qml` **2512 行**，一共 22 个 QML 文件
-> （9316 行），一个界面一个文件夹。这一页是拆完后的结构，改代码前对照。
+> 界面从「七千多行一个文件」拆到现在：`MainWindow.qml` **3397 行**，一共 27 个 QML 文件
+> （11936 行），一个界面一个文件夹。这一页是拆完后的结构，改代码前对照。
 
 ---
 
-## 1. 界面清单（主窗口 1 + 主窗口三块 3 + 子界面 14 = 18 个界面，另有 5 个共用件）
+## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 7 个共用件）
 
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
 | 1 | 主窗口 | 真窗口 | `views/MainWindow.qml` | 它自己（`win.*`） | 程序启动 |
 | 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
 | 3 | 三栏 + 读取记录 | 主窗口的一块 | `views/main_columns/MainColumns.qml` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
-| 4 | 底部对话 | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused` | 常驻 |
-| 5 | 「这一层」小窗 | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets` | 点地图块 |
-| 6 | 加怪 / 加资源下拉 | 覆盖层 z=58 | `views/floor_sheet/pick_menu/PickMenu.qml` | 主窗口 `pickMode/pickFloor/pickMenuX/Y`；`sheetName` 由宿主递 | 点「＋ 加怪 / ＋ 加资源」 |
-| 7 | 路线层 | 地图上的覆盖层 | `views/floor_sheet/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；松手交给主窗口 `storeRoute()` | 在「这一层」的图上长按玩家 |
-| 8 | 格子编辑层 | 地图上的覆盖层 | `views/floor_sheet/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells` / `dragging`）；松手把坐标记给宿主 | 「这一层」进编辑模式后在地图上画 13×13、长按抓格子拖到词条上 |
-| 9 | 伤害计算 | 真窗口 | `views/battle_calc/BattleWindow.qml` | 主窗口 `battle*` | 导航条 ⚔ |
-| 10 | 改参数卡片（伤害计算） | 覆盖层 z=30 | `views/battle_calc/edit_card/EditCard.qml` | 主窗口 `battleEdit*` | 点链上缩略图 |
-| 11 | 问号菜单 | 覆盖层 z=20 | `views/battle_calc/pick_menu/PickMenu.qml` | 主窗口 `battleMenu*/battlePick*` | 点问号 / 箭头 |
-| 12 | 怪物编辑 | 覆盖层 z=60 | `views/monster_editor/MonsterEditor.qml` | 主窗口 `monEdit/monDraft/monSkills`；自带 `fill()/commit()/iconAnchorBox()/skillAnchorBox()` | 点怪物那一行 |
-| 13 | 素材库选图 | 覆盖层 z=70 | `views/icon_picker/IconPicker.qml` | 主窗口 `iconPicker/iconQuery/iconMenuX/Y`；搜索框自己清 | 点怪物头像 |
-| 14 | 技能挑选 | 覆盖层 z=72 | `views/skill_picker/SkillPicker.qml` | 主窗口 `skillPicker/skillMenuX/Y`；选中走 `pick()`，摆位走 `placeUnder(box)` | 点「加技能」 |
-| 15 | 路线链 | 真窗口 | `views/route_editor/RouteWindow.qml` | 主窗口 `route*`（哪一层、第几条、格子副本、结果） | 地图上松手 / 点「这一层」清单里的路线 |
-| 16 | 改参数卡片（路线链） | 覆盖层 z=30 | `views/route_editor/edit_card/EditCard.qml` | 主窗口 `routeEdit*` | 点链上缩略图 |
-| 17 | 一格填什么 | 覆盖层 z=20 | `views/route_editor/pick_menu/PickMenu.qml` | 主窗口 `routeMenu/routeMenuCell/routePick*` | 点链上的格子 |
-| 18 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
+| 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
+| 5 | 底部对话 | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused` | 常驻 |
+| 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
+| 7 | 格子编辑层 | 地图上的覆盖层 | `views/map_view/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells`）；单击报 `cellPicked(row,col)`、Ctrl 多选、右键报 `menuRequested(row,col,x,y)` | 地图那栏「编辑」后画 13×13；单击选中、Ctrl 多选、右键出小窗（复制坐标 / 清掉） |
+| 8 | 楼梯层 | 地图上的覆盖层 | `views/map_view/stair_layer/StairLayer.qml` | `stairs` / `cell` / `upSrc` / `downSrc`（**纯显示**，不接管鼠标） | 常驻；要改楼梯去「这一层」清单的楼梯区 |
+| 9 | 「这一层」小窗（清单） | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets` | 点路线行 / `openFloorSheet()`；**不含地图** |
+| 10 | 加怪 / 加资源下拉 | 覆盖层 z=58 | `views/floor_sheet/pick_menu/PickMenu.qml` | 主窗口 `pickMode/pickFloor/pickMenuX/Y`；`sheetName` 由宿主递 | 点「＋ 加怪 / ＋ 加资源」 |
+| 11 | 伤害计算 | 真窗口 | `views/battle_calc/BattleWindow.qml` | 主窗口 `battle*` | 导航条 ⚔ |
+| 12 | 改参数卡片（伤害计算） | 覆盖层 z=30 | `views/battle_calc/edit_card/EditCard.qml` | 主窗口 `battleEdit*` | 点链上缩略图 |
+| 13 | 问号菜单 | 覆盖层 z=20 | `views/battle_calc/pick_menu/PickMenu.qml` | 主窗口 `battleMenu*/battlePick*` | 点问号 / 箭头 |
+| 14 | 怪物编辑 | 覆盖层 z=60 | `views/monster_editor/MonsterEditor.qml` | 主窗口 `monEdit/monDraft/monSkills`；自带 `fill()/commit()/iconAnchorBox()/skillAnchorBox()` | 点怪物那一行 |
+| 15 | 素材库选图 | 覆盖层 z=70 | `views/icon_picker/IconPicker.qml` | 主窗口 `iconPicker/iconQuery/iconMenuX/Y`；搜索框自己清 | 点怪物头像 |
+| 16 | 技能挑选 | 覆盖层 z=72 | `views/skill_picker/SkillPicker.qml` | 主窗口 `skillPicker/skillMenuX/Y`；选中走 `pick()`，摆位走 `placeUnder(box)` | 点「加技能」 |
+| 17 | 路线链 | 真窗口 | `views/route_editor/RouteWindow.qml` | 主窗口 `route*`（哪一层、第几条、格子副本、结果） | 地图上松手 / 点「这一层」清单里的路线 |
+| 18 | 改参数卡片（路线链） | 覆盖层 z=30 | `views/route_editor/edit_card/EditCard.qml` | 主窗口 `routeEdit*` | 点链上缩略图 |
+| 19 | 一格填什么 | 覆盖层 z=20 | `views/route_editor/pick_menu/PickMenu.qml` | 主窗口 `routeMenu/routeMenuCell/routePick*` | 点链上的格子 |
+| 20 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
 
-（1 是主窗口本体，2–4 是它的三块，5 以后是它的子界面。`views/shared/` 那 5 个是共用件，不算界面。）
+（1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那 7 个是共用件，不算界面：
+`Theme` 配色/字体、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`NumberStepper` 加减数、
+`EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
+
+**地图就在主界面那一栏里画**（用户 2026-10-30："把主界面的地图做大！"、"多张地图不要
+重叠显示下层的只留一角！做侧边栏快速切换"）：左边侧栏一层一行（写层号 + 剩几只，点了
+切层），右边一张**大图**只画这一层，其余层压在大图后面、只露右下角一条（`peekMax = 1`，
+用户："不要叠太多"）。截图、路线层、格子编辑层、楼梯、对比高亮都画在这一份上；
+「这一层」小窗只剩清单。
 
 **规矩**：状态都放在**主窗口**（`win.*`）；子界面只画和点，读 `host.xxx`。
 `host` 由宿主写死：主窗口里 `Xxx { host: win }`，伤害计算里 `Xxx { host: battleWin.host }`。
@@ -40,35 +50,38 @@
 
 ```
 chaita/ui/
-    views/                        22 个 QML / 9315 行（+ shared/qmldir），只有界面
-        MainWindow.qml            2512   棋盘/卡片/滚动容器 + win.* 状态和函数
-        main_panel/                290   导航条 + 抬头 + 状态行
-        main_columns/              891   地图/怪物/技能/读取记录（id 仍叫 body）
-        chat/                      163   底部对话（sendChat/scrollChatToEnd/logHeight）
-        monster_editor/            680   怪物编辑（fill/commit/iconAnchorBox/skillAnchorBox）
-        icon_picker/               280   素材库选图
-        skill_picker/              126   技能挑选（pick/placeUnder）
-        floor_sheet/              1510   「这一层」小窗（FloorSheetWindow 1054 + 下面三块）
-            route_layer/           151   地图上的路线提取层（长按/拖动/红底红框）
-            grid_layer/            175   格子编辑层（13×13 坐标线、长按抓格子）
-            pick_menu/             130   加怪/加资源下拉
-        battle_calc/              1388   伤害计算窗口（BattleWindow 843 + 下面两块）
-            edit_card/             363   改参数卡片
-            pick_menu/             182   问号菜单
-        route_editor/             1092   路线链（RouteWindow 534 + 下面两块）
-            edit_card/             355   改参数卡片（路线链版，和伤害计算同一长相）
-            pick_menu/             203   一格填什么（怪/资源/门/清空）
-        route_compare/            CompareWindow.qml  路线对比（几条路线并排比每只怪掉血）
-        shared/                    383   NumberStepper 188 + EffectEditor 80 + ChainArrow 54 + FlatBtn 38 + Theme 24 + qmldir
+    views/                        27 个 QML / 11936 行（+ shared/qmldir），只有界面
+        MainWindow.qml            3397   棋盘/卡片/滚动容器 + win.* 状态和函数
+        main_panel/                357   导航条 + 抬头 + 状态行
+        main_columns/              846   地图那一栏/怪物/技能/读取记录（id 仍叫 body）
+        chat/                      187   底部对话（sendChat/scrollChatToEnd/logHeight）
+        map_view/                 1019   地图（主界面那一栏 + 三个图层）
+            MapPanel.qml           545   侧栏切层 + 单层大图 + 叠在后面的一角 + 编辑/清单
+            stair_layer/            98   楼梯层（一层几个楼梯的徽章，纯显示）
+            route_layer/           215   路线提取层（长按画线/跨层/短按报 tapped）
+            grid_layer/            161   格子编辑层（13×13 坐标线、单击选中、右键小窗）
+        monster_editor/            741   怪物编辑（fill/commit/iconAnchorBox/skillAnchorBox）
+        icon_picker/               312   素材库选图
+        skill_picker/              144   技能挑选（pick/placeUnder）
+        floor_sheet/              1174   「这一层」小窗（FloorSheetWindow + 下拉）
+            pick_menu/             148   加怪/加资源下拉
+        battle_calc/              1507   伤害计算窗口 + 改参数卡片 + 问号菜单
+            edit_card/                  改参数卡片
+            pick_menu/                  问号菜单
+        route_editor/             1241   路线链 + 改参数卡片 + 一格填什么
+            edit_card/                  改参数卡片（路线链版，和伤害计算同一长相）
+            pick_menu/                  一格填什么（怪/资源/门/清空）
+        route_compare/            527   路线对比（几条路线并排比每只怪掉血）
+        shared/                    566   Theme + FlatBtn + TextBtn + NumberStepper + EffectEditor + ChainArrow + CoordField + qmldir
     main.py  startup.py  loader.py  constants.py  qt_env.py
                                       入口 / 启动 / 加载(QML_DIR, OVERLAY_QML) / 常量 / Qt 路径
-    controller/                  30 个文件 / 2963 行，状态和槽（Python）
+    controller/                  31 个文件 / 3714 行，状态和槽（Python）
         controller.py                  Controller 本体：Property + 组合
         jobs.py  window.py  session.py 线程 / 窗口 / 会话
         reading/     tasks deliver scan items common mixin      读图、读手册
         monsters/    read icons edit drag mixin                 怪物记录/图标/增删改/拖动
-        floors/      records items monsters routes feedback common mixin
-                                                       每层记录/资源行/本层的怪/路线链/回执
+        floors/      records items monsters routes grid stairs feedback common mixin
+                                                       每层记录/资源行/怪物/路线/格子/楼梯/回执
         status.py  chat.py  battle.py                           人物面板 / 对话 / 伤害计算数据
     toolkit/                      纯函数小工具（不碰窗口）
 ```
@@ -82,17 +95,18 @@ chaita/ui/
 | `main_panel/` | `status.py`（`StatusMixin`） | `statusText` `attrText` `itemsText` `goldText` `statusData` `updateStatus` |
 | `chat/` | `chat.py`（`ChatMixin`） | `chatLog` `chatReply` `chatting` `errorText`、`sendChat()` |
 | `battle_calc/` | `battle.py`（`BattleMixin`） | `battleHero` `battleMonsters` `battleItems`、`computeBattle()` |
+| `map_view/` | `floors/`（`records/grid/stairs`） | `mapHistory` `gridCells` `assignGridCell(s)` `gridPositions` `stairsOf` `saveStair` `clearStair`、`refreshFloorCounts` |
 | `route_editor/` | `floors/routes.py`（`RoutesMixin`） | 路线的存/改/删（`saveRoute` `saveRouteCell` `removeRoute`）+ 用地图记录预填 |
 | `main_columns/` | `reading/` + `floors/` | 读取记录 / 每层地图和资源 |
 | `monster_editor/` `icon_picker/` `skill_picker/` | `monsters/` | 怪物记录、图标、增删改、拖动 |
 
 一个概念一个文件（status/chat/battle），十几个函数就一个包——只有这一条判断标准。
-`views/MainWindow.qml` 这 2512 行是 `card` 容器、`flick` 滚动容器、各子界面挂载点
+`views/MainWindow.qml` 这 3397 行是 `card` 容器、`flick` 滚动容器、各子界面挂载点
 和 `win.*` 状态/函数，**属于主窗口本体**，不再拆。
 
 **机制**：`tools/check_scenarios.py` 把每个场景渲染一遍、抓 QML 运行期警告
 （`Unable to assign` / `TypeError` / `is not defined`）——`host.xxx` 没定义、跨文件抓 id
-（`mapGrid` / `skillBtn` / `flick.width` 这类拆文件漏下的引用）都会在这儿现形；界面确实能点、
+（`mapCard` / `skillBtn` / `flick.width` 这类拆文件漏下的引用）都会在这儿现形；界面确实能点、
 点出正确结果，由 `tests/integration/` 用真窗口再确认一遍。
 
 ---

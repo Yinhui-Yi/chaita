@@ -1,9 +1,12 @@
-"""伤害计算里「点某一格改参数」的那张卡片（真点击/真打字）。
+"""伤害计算里「点某一格改参数」的那张卡片（**集成测试**，真点击/真打字）。
 
-以前只测到 `battleSetStep` 这类 Slot，**卡片到 Slot 的接线没人跑过**：点图标打开的是
-不是那一格、改数量写回的是不是那一行、点「删除」删的是不是那一格。
+以前只测到 `battleSetStep` 这类 Slot，**卡片到 Slot 的接线没人跑过**：点图标打开的是不是
+那一格、改数量写回的是不是那一行、点「删除」删的是不是那一格。
 
 真值手写：血蚊 1200/60/20，把数量改成 2 → 那一格的 count 变 2，其余不动。
+
+标准见 `tests/integration/README.md`。驱动：点导航条 ⚔ 开窗 → 问号菜单加一步 →
+点那一格的图标开卡片 → 在卡片里改/删/完成。
 """
 
 from ... import helpers
@@ -47,7 +50,13 @@ def _plan_with_step():
     controller._monsters = [
         {"name": "血蚊", "hp": "1200", "atk": "60", "def": "20",
          "skill_items": [{"name": "先攻", "code": "", "params": {}}]}]
-    window.openBattle()
+    controller.statusTextChanged.emit()
+    controller.monstersChanged.emit()
+    helpers.APP.processEvents()
+    # 用户动作：点导航条 ⚔ 开窗
+    helpers.click_item(window, helpers.find_item(window, "battleOpen"))
+    assert helpers.wait_for(
+        lambda: window.property("battleWindow") is not None), "窗口没打开"
     helpers.APP.processEvents()
 
     assert _click_until(window, "battleRowAsk",
