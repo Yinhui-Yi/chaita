@@ -270,6 +270,10 @@ Item {
                             var cell = routeLayer.cellAt(x, y)
                             panel.beginCellDrag(cell.row, cell.col)
                         } else {
+                            // 没在编辑模式：长按是"起一条路线"。记一行日志，
+                            // 免得"拖不动"时查不出是哪一种情况
+                            if (controller)
+                                controller.uiNote("ui.route_start", "not_editing")
                             routeLayer.startAt(x, y)
                         }
                     }
@@ -584,6 +588,11 @@ Item {
         panel.dragRow = Number(row)
         panel.dragCol = Number(col)
         panel.dragging = true
+        // 起手就给一句提示 + 记一行日志：不然"没反应"时什么都查不到
+        panel.host.mapHint = "松手落在「这一层」的怪/资源行上"
+        if (controller)
+            controller.uiNote("ui.cell_drag_start",
+                              String(panel.host.mapFloor) + " " + row + "," + col)
     }
 
     function rowAtGlobal(globalX, globalY) {
@@ -605,6 +614,8 @@ Item {
         var state = controller ? controller.cursorState() : null
         if (!state || state.length < 3) {
             panel.dragging = false
+            if (controller)
+                controller.uiNote("ui.cell_drag_end", "no_cursor")
             return
         }
         var down = !!state[2]
@@ -613,9 +624,14 @@ Item {
         // 松手了：光标底下有行就记格，没有就什么都不做
         panel.dragging = false
         var hit = panel.rowAtGlobal(Number(state[0]), Number(state[1]))
+        if (controller)
+            controller.uiNote("ui.cell_drag_end",
+                              (hit ? "hit " : "miss ")
+                              + Number(state[0]) + "," + Number(state[1]))
         if (hit) {
             panel.host.assignCellToRow(panel.host.mapFloor, hit,
                                        panel.dragRow, panel.dragCol)
+            panel.host.mapHint = ""      // 记上了就把那句提示收掉
         } else {
             panel.host.mapHint = "松开的地方没有行：拖到「这一层」的怪/资源行上再松手"
         }

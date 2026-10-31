@@ -8,6 +8,17 @@ from PySide6.QtGui import QGuiApplication
 from ...toolkit.desktop import _cursor_down, _cursor_pos
 
 class DragMixin:
+    @Slot(str, str)
+    def uiNote(self, tag, detail) -> None:
+        """界面上的关键一步记一行日志（QML 那边出事时没别的办法查）。
+
+        用户 2026-10-31 反复说"还是没法拖动"，而日志里一条相关记录都没有 ——
+        分不清是长按没识别、松手没检测到、还是行没命中。之后每一步都留痕：
+        `ui.cell_drag_start` / `ui.cell_drag_end`（hit/miss）/ `ui.cell_drag_assign`。
+        """
+        from .... import trace
+        trace.note(str(tag or "ui"), detail=str(detail or ""))
+
     @Slot(result="QVariantList")
     def cursorState(self) -> list:
         """`[x, y, down]`：光标在**逻辑像素**下的位置、左键还按着没有。
