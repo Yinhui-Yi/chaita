@@ -48,7 +48,8 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
              "battleitemedit", "battlemarks", "route", "routechain",
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
-             "iconscroll3", "queue", "chatlong", "compare", "comparehi")
+             "iconscroll3", "queue", "chatlong", "compare", "comparehi",
+             "map", "mapedit", "mapstairs", "mapstack", "cellmenu")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -143,6 +144,18 @@ def _route_window(window):
     if hasattr(value, "toQObject"):
         value = value.toQObject()
     return value
+
+
+def _map_panel(window):
+    """主界面那一栏的地图（`views/map_view/MapPanel.qml`）。"""
+    return _find_by_name(window, "mapPanel")
+
+
+def open_map(window):
+    """把地图那一栏露出来（地图现在就在主界面里，不再另开窗）。"""
+    window.showMap()
+    QGuiApplication.processEvents()
+    return _map_panel(window)
 
 
 def scroll_sheet_to_items(window, name):
@@ -356,6 +369,9 @@ def _fake_state():
              "effect": "攻击力 +1 · 防御力 +1 · 魔防 +2", "icon": "gem_yellow"},
             {"name": "铁盾", "count": 1, "effect": "防御力 +0",
              "icon": "shield"},
+            # 名字对不上任何表、只有种类的剑/盾（刷新读进来的就是这种）：
+            # 缩略图按种类兜底到 sword / shield
+            {"name": "钢剑", "count": 1},
         ]},
     ]
     # 手册页上的真数值（`docs/capture/_manual_repro.png`）。
@@ -504,12 +520,17 @@ def main() -> int:
     window.show()
 
     def _walk():
-        stack = list(window.contentItem().childItems())
+        # 主窗口 + 它开出来的子窗口（地图/伤害计算/路线链/对比/这一层）都走一遍
         items = []
-        while stack:
-            node = stack.pop()
-            items.append(node)
-            stack.extend(node.childItems())
+        for host in _host_windows(window):
+            try:
+                stack = list(host.contentItem().childItems())
+            except (AttributeError, RuntimeError):
+                continue
+            while stack:
+                node = stack.pop()
+                items.append(node)
+                stack.extend(node.childItems())
         return items
 
     def _report():
@@ -531,9 +552,14 @@ def main() -> int:
                                          texts.get("skillAgg")))
         print("readTip %r error %r" % (texts.get("readTip"),
                                        texts.get("errorText")))
-        print("tiles %d monsters %d skills %d chats %d"
-              % (names.count("mapTile"), names.count("monRow"),
-                 names.count("skillRow"), names.count("chatRowItem")))
+        print("monsters %d skills %d chats %d"
+              % (names.count("monRow"), names.count("skillRow"),
+                 names.count("chatRowItem")))
+        print("map card %d rail %d stair %d highlight %d sheetMap %d grid %d"
+              % (names.count("mapCardItem"), names.count("floorRailRow"),
+                 names.count("stairMarkUp") + names.count("stairMarkDown"),
+                 names.count("floorCellHighlight"),
+                 names.count("floorShotBox"), names.count("gridLayer")))
 
     def _start():
         if scenario in ("collapsed", "collapsed-empty"):
@@ -674,6 +700,66 @@ def main() -> int:
             # 格子编辑模式：地图盖 13×13 坐标系，词条下面标"位置 x,y"
             window.gridEditToggle("通天塔1")
             open_sheet(window, "通天塔1")
+            open_map(window)
+        elif scenario == "map":
+            # 地图（就在主界面那一栏）：左边侧栏切层、右边这一层的大图
+            open_map(window)
+        elif scenario == "mapstack":
+            # 多张地图堆叠：上面的整张、下层的只露一角（用户 2026-10-30 的要求）
+            base = controller._map_history[0]
+            shot = base.get("url") or ""
+            rows = []
+            for n in (1, 2, 3, 4):
+                row = dict(base)
+                row["floor"] = "通天塔%d" % n
+                row["url"] = shot
+                row["mons"] = [{"name": "红头怪", "count": 5 - n}]
+                row["items"] = []
+                rows.append(row)
+            controller._map_history = rows
+            controller.mapHistoryChanged.emit()
+            window.selectFloor("通天塔4")
+            open_map(window)
+        elif scenario == "mapstairs":
+            # 一层两个上楼梯、去不同的层（用户："谁告诉你一层只有一个上楼或下楼的"）
+            index = controller.addStair("通天塔1", "up")
+            controller.saveStair("通天塔1", index, 1, 11)
+            controller.setStairTarget("通天塔1", index, "通天塔2")
+            index = controller.addStair("通天塔1", "up")
+            controller.saveStair("通天塔1", index, 4, 5)
+            controller.setStairTarget("通天塔1", index, "通天塔3")
+            index = controller.addStair("通天塔2", "down")
+            controller.saveStair("通天塔2", index, 2, 6)
+            controller.setStairTarget("通天塔2", index, "通天塔1")
+            controller.mapHistoryChanged.emit()
+            open_map(window)
+        elif scenario == "mapedit":
+            # 清单里的楼梯行（一行一个楼梯：目标层 + 位置 + ✕）
+            index = controller.addStair("通天塔1", "up")
+            controller.saveStair("通天塔1", index, 1, 11)
+            controller.setStairTarget("通天塔1", index, "通天塔2")
+            index = controller.addStair("通天塔1", "down")
+            controller.setStairTarget("通天塔1", index, "通天塔0")
+            window.openMapSheet()
+            open_map(window)
+            QGuiApplication.processEvents()
+            # 预览把主窗口挪到了屏幕外，小窗会被 clamp 拉回屏幕里 → 拼图会散开，
+            # 这里把它摆回主窗口右边（和真实用法一样）
+            for other in QGuiApplication.topLevelWindows():
+                if other.objectName() == "floorSheetWindow":
+                    other.setX(int(window.x() + window.width() + 8))
+                    other.setY(int(window.y() + 40))
+            QGuiApplication.processEvents()
+        elif scenario == "cellmenu":
+            # 编辑模式右键小窗：格子编号单独一行 + 两个动作
+            window.gridEditToggle("通天塔1")
+            _p = open_map(window)
+            if _p is not None:
+                _p.setProperty("menuRow", 2)
+                _p.setProperty("menuCol", 3)
+                _p.setProperty("menuX", 60)
+                _p.setProperty("menuY", 70)
+            QGuiApplication.processEvents()
         elif scenario == "monedit":
             # 怪物编辑界面：开骷髅人（它带"破甲"这种有数值参数的技能）
             window.openMonster(1)
@@ -710,21 +796,14 @@ def main() -> int:
             # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
             _compare_scenario(window, controller)
         elif scenario == "comparehi":
-            # 点对比表里的一行 → 那一层的地图上把这一格圈出来
-            #（用户："最好点击后会在地图内高亮"）
-            compare = _compare_scenario(window, controller)
+            # 点对比表里的一行 → 地图那一栏切到那一层、把这一格圈出来
+            #（用户："最好点击后会在地图内高亮"；地图就在主界面里）
+            _compare_scenario(window, controller)
             rows = window.compareRows()
             rows = rows.toVariant() if hasattr(rows, "toVariant") else rows
-
-            def beside_compare(sheet):
-                if compare is not None:
-                    sheet.setX(compare.x() + compare.width() + 8)
-                    sheet.setY(compare.y())
-                sheet.show()
-
-            open_sheet(window, "通天塔1", beside_compare)
             if rows:
                 window.compareHighlight(rows[0])
+            QGuiApplication.processEvents()
 
         elif scenario == "iconpick":
             # 选图界面：素材库里有大量动画帧，这里要看到去重后的样子
@@ -752,9 +831,16 @@ def main() -> int:
                 flick.setProperty("contentY", view * _offset)
 
             QTimer.singleShot(200, scroll)
-        QTimer.singleShot(800, _grab)
+        QTimer.singleShot(1400, _grab)
 
     def _grab():
+        # 子窗口是**另开的真窗口**（这一层 / 地图 / 伤害计算 / 路线链 / 对比），
+        # 有的要等下一轮事件循环才 show 出来：先跑一轮事件，再抓第二次，
+        # 不然拼出来的图只有主窗口那么大（漏了小窗）。
+        QGuiApplication.processEvents()
+        QTimer.singleShot(120, _grab_now)
+
+    def _grab_now():
         shot = _grab_all(window)
         shot.save(out, "PNG")
         _report()

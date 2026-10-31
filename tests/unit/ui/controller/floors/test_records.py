@@ -51,5 +51,23 @@ def test_fill_item_display_keeps_manual_effect():
     assert item["effect"] == "攻击力 +9"
 
 
+def test_floor_history_is_not_capped():
+    """层记录**不设上限**：一千层的塔读满 1000 层也不许把早层删掉。
+
+    用户 2026-10-31："我1000层魔塔怎么办" —— 以前 `MAP_HISTORY_LIMIT = 30`，
+    读满 30 层就把最早那条整条删掉（地图/怪/资源/路线/楼梯一起没）。
+    """
+    history = [{"floor": "通天塔%d" % n} for n in range(1, 41)]
+    c = FakeRecords(history)
+    # 建一条新层（读不到图时会走这里），老的 40 层必须一条不少
+    assert c.ensureFloor("通天塔41") is True
+    assert len(c._map_history) == 41
+    names = [entry["floor"] for entry in c._map_history]
+    assert "通天塔1" in names and "通天塔41" in names
+    # 已经有的层不重复建
+    assert c.ensureFloor("通天塔1") is False
+    assert len(c._map_history) == 41
+
+
 def c_fill_item(item):
     return FakeRecords([])._fill_item_display(item)

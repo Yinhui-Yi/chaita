@@ -6,10 +6,50 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import Slot
 
-from ...constants import MAP_HISTORY_LIMIT, TASK_LIMIT
+from ...constants import TASK_LIMIT
 from ...toolkit.pictures import _save_temp
 
 from .common import _align_grid_names, _dead_icon_file
+from .stairs import _stairs_list
+
+
+def _stairs_from_grid(cells) -> list:
+    """从"每格有什么"里挑出楼梯：`[{row, col, dir, to:""}]`（通哪层留空给人选）。
+
+    用户 2026-10-30："谁告诉你一层只有一个上楼或下楼的？谁告诉你0层就一定去1层的？"
+    —— 模型只认得出"这格是级台阶、朝上还是朝下"，通到哪一层是游戏设定，它看不到，
+    所以 `to` 留空，界面上那一行点一下自己选。
+    """
+    out = []
+    for cell in cells or []:
+        if not isinstance(cell, dict):
+            continue
+        kind = str(cell.get("kind") or "")
+        if kind not in ("stair_up", "stair_down"):
+            continue
+        try:
+            row = int(cell.get("row"))
+            col = int(cell.get("col"))
+        except (TypeError, ValueError):
+            continue
+        out.append({"row": row, "col": col,
+                    "dir": "up" if kind == "stair_up" else "down", "to": ""})
+    return out
+
+
+def _merge_stairs(old, from_grid) -> list:
+    """AI 读到的楼梯并进已有的：同一个格子保留用户选过的目标层。"""
+    merged = [dict(one) for one in (old or [])]
+    for fresh in from_grid or []:
+        hit = None
+        for one in merged:
+            if (int(one.get("row", -1)) == fresh["row"]
+                    and int(one.get("col", -1)) == fresh["col"]):
+                hit = one
+                break
+        if hit is None:
+            merged.append(dict(fresh))
+    return merged
 
 
 class RecordsMixin:
@@ -52,17 +92,44 @@ class RecordsMixin:
             if url:
                 entry["url"] = url
             if grid:
-                entry["grid"] = _align_grid_names(grid, self._monsters)
+                aligned = _align_grid_names(grid, self._monsters)
+                entry["grid"] = aligned
+                # 读地图顺带读到的楼梯：并进这一层（同格保留用户选过的目标层）
+                found = _stairs_from_grid(aligned.get("cells") or [])
+                if found:
+                    entry["stairs"] = _merge_stairs(
+                        _stairs_list(entry.get("stairs")), found)
             self._map_history[index] = entry
         else:
-            self._map_history.insert(0, {"id": entry_id, "floor": floor_text,
-                                         "url": url, "mons": here,
-                                         "items": items or [],
-                                         "grid": _align_grid_names(
-                                             grid or {}, self._monsters)})
-            del self._map_history[MAP_HISTORY_LIMIT:]
+            aligned = _align_grid_names(grid or {}, self._monsters)
+            new_entry = {"id": entry_id, "floor": floor_text,
+                         "url": url, "mons": here,
+                         "items": items or [], "grid": aligned}
+            found = _stairs_from_grid(aligned.get("cells") or [])
+            if found:
+                new_entry["stairs"] = _merge_stairs([], found)
+            self._map_history.insert(0, new_entry)
         self.mapHistoryChanged.emit()
         self.statusTextChanged.emit()
+
+    @Slot(str, result=bool)
+    def ensureFloor(self, floor_text) -> bool:
+        """这一层还没有记录就建一条空的（楼梯通到"还没读过"的那层也切得过去）。
+
+        用户："路线移到楼梯要换层！！！！" —— 只读到 1 层时，踩上楼梯没地方可切，
+        看着就是"切层失败"。建一条空记录（无截图、无怪）就够了：地图那边显示
+        "这一层还没有截图"，路线照样接着画。
+        """
+        floor_text = str(floor_text or "").strip()
+        if not floor_text:
+            return False
+        if self._find_floor(floor_text) >= 0:
+            return False
+        self._map_history.insert(0, {"floor": floor_text, "url": "",
+                                     "mons": [], "items": [],
+                                     "grid": {"cells": []}, "routes": []})
+        self.mapHistoryChanged.emit()
+        return True
 
     @Slot(str)
     def removeFloor(self, floor_text) -> None:
@@ -140,9 +207,12 @@ class RecordsMixin:
             self.tasksChanged.emit()
             trace.note("scan.blocked", floor=floor_text, reason="no_shot")
             return
+        # 这一行的缩略图 = 这一层已经有的那张截图（用户 2026-10-31：
+        # "刷新的时候怎么也没缩略图" —— 以前这条任务没带 url，左边永远是空的）
         self._tasks.insert(0, {"id": task_id, "seq": self._map_seq,
-                               "state": "running",
+                               "state": "running", "mode": "map",
                                "text": "读 %s 的地图…" % label,
+                               "url": url,
                                "started": started})
         del self._tasks[TASK_LIMIT:]
         self.tasksChanged.emit()

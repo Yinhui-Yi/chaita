@@ -24,7 +24,6 @@ from .constants import (  # noqa: F401
     HERO_ICON,
     ICON_BASE,
     ITEM_BASE,
-    MAP_HISTORY_LIMIT,
     MARGIN,
     MON_DRAG_INTERVAL_MS,
     SESSION_PATH,

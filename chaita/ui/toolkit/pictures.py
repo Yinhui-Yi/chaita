@@ -22,9 +22,23 @@ def _save_temp(bgr, path_stem: str) -> str:
     if bgr is None:
         return ""
     directory = os.path.join(tempfile.gettempdir(), "chaita")
-    os.makedirs(directory, exist_ok=True)
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError:
+        return ""
     path = os.path.join(directory, "%s_%s.png" % (_SESSION, path_stem))
-    cv2.imwrite(path, bgr)
+    # 先编码再自己写字节：`cv2.imwrite` 遇到非 ASCII 路径会**静默失败**（返回 False，
+    # 但文件根本没写），界面那边拿到一个 file:// URL 却打不开图，看起来就是
+    # "读取记录里没有缩略图"（用户 2026-10-31）。写不成一律返回空串，
+    # 让调用方知道没有图，别塞一个坏 URL 进去。
+    ok, buffer = cv2.imencode(".png", bgr)
+    if not ok:
+        return ""
+    try:
+        with open(path, "wb") as handle:
+            handle.write(buffer.tobytes())
+    except OSError:
+        return ""
     return "file:///" + path.replace("\\", "/")
 
 def _save_thumb(bgr, stem: str, width: int = 150) -> str:

@@ -8,6 +8,35 @@ from PySide6.QtGui import QGuiApplication
 from ...toolkit.desktop import _cursor_down, _cursor_pos
 
 class DragMixin:
+    @Slot(result="QVariantList")
+    def cursorState(self) -> list:
+        """`[x, y, down]`：光标在**逻辑像素**下的位置、左键还按着没有。
+
+        给"编辑模式抓一格拖到「这一层」某一行上"用：跨窗口的真拖放（QDrag）会进模态
+        循环，无头环境和某些机器上根本拖不动，所以那一处改成**QML 定时轮询光标**。
+
+        **必须除掉 devicePixelRatio**：`_cursor_pos()` 给的是物理像素，而 QML 那边
+        比的是窗口/场景坐标（逻辑像素）。150% 缩放下差 1.5 倍，行永远命中不了 ——
+        拖到行上松手却"什么都没记"就是这么来的（用户 2026-10-31 "还是没法拖动"）。
+        读不到光标就当没按着（一次失败不能把拖拽卡住）。
+        """
+        try:
+            x, y = _cursor_pos()
+        except Exception:
+            return [0, 0, False]
+        try:
+            down = bool(_cursor_down())
+        except Exception:
+            down = False
+        try:
+            screen = QGuiApplication.primaryScreen()
+            scale = float(screen.devicePixelRatio()) if screen else 1.0
+        except Exception:
+            scale = 1.0
+        if scale <= 0:
+            scale = 1.0
+        return [int(round(x / scale)), int(round(y / scale)), down]
+
     @Slot(int, float, float, int)
     def monDragStart(self, index, top_y, row_height, count) -> None:
         """开始拖某一行。

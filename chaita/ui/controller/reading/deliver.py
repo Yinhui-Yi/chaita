@@ -9,7 +9,7 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import Slot
 
-from ...constants import MAP_HISTORY_LIMIT, TASK_LIMIT
+from ...constants import TASK_LIMIT
 from ...toolkit.api import _api_key
 from ...toolkit.diagnostics import _write_error_log
 from ...toolkit.library import _fill_skill_codes, _skill_items_from_text
@@ -143,7 +143,6 @@ class ReadingDeliverMixin:
             else:
                 self._map_history.insert(0, {"floor": floor_text, "url": url,
                                              "mons": [], "items": []})
-                del self._map_history[MAP_HISTORY_LIMIT:]
             self.mapHistoryChanged.emit()
             self._set_task(task_id, state="running", text=floor_text)
 
