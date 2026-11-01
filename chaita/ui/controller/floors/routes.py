@@ -37,7 +37,10 @@ MAX_ROUTES = 20
 
 
 def _clean_cells(cells) -> list:
-    """地图层交上来的格子：只要行列（都是整数），顺序原样保留。"""
+    """地图层交上来的格子：行列（整数）+ 可选楼层，顺序原样保留。
+
+    跨层路线里每格记着它画在哪一层（`floor`）；同层路线没有这个字段。
+    """
     out = []
     for cell in cells or []:
         if not isinstance(cell, dict):
@@ -47,7 +50,11 @@ def _clean_cells(cells) -> list:
             col = int(cell.get("col"))
         except (TypeError, ValueError):
             continue
-        out.append({"row": row, "col": col})
+        one = {"row": row, "col": col}
+        floor = str(cell.get("floor") or "").strip()
+        if floor:
+            one["floor"] = floor
+        out.append(one)
     return out
 
 
@@ -139,7 +146,12 @@ class RoutesMixin:
 
     @Slot(str, int, int, "QVariantMap", result=bool)
     def saveRouteCell(self, floor_text, route_index, cell_index, fill) -> bool:
-        """给链上第 cell_index 格填内容；空的 fill = 清掉这一格的内容。"""
+        """给链上第 cell_index 格填内容；空的 fill = 清掉这一格的内容。
+
+        写完打上 `manual`：**这一格以后按链上这份显示**，不再被这一层地图记录
+        同坐标的内容盖掉（用户 2026-10-31："链上改的那一份优先 但不会影响到其他地方"）。
+        只动这条路线的这一格，`grid` 不碰。
+        """
         position, entry, routes = self._floor_routes(floor_text)
         if not self._valid_cell(routes, route_index, cell_index):
             return False
@@ -147,7 +159,10 @@ class RoutesMixin:
         route = dict(routes[route_index])
         cells = [dict(cell) for cell in route.get("cells") or []]
         base = {"row": cells[cell_index]["row"],
-                "col": cells[cell_index]["col"]}
+                "col": cells[cell_index]["col"], "manual": True}
+        floor = str(cells[cell_index].get("floor") or "")
+        if floor:
+            base["floor"] = floor
         base.update(content)
         cells[cell_index] = base
         route["cells"] = cells
@@ -187,6 +202,14 @@ class RoutesMixin:
 
     # ---- 上面三件事共用的那一套：取出那一层的路线 → 改副本 → 写回去 ----
 
+    def _entry_for(self, floor_text):
+        """按层名找那一层的记录（跨层路线预填时要读别层的 grid）。"""
+        target = str(floor_text or "")
+        for entry in self._map_history:
+            if str((entry or {}).get("floor") or "") == target:
+                return entry
+        return None
+
     def _map_content(self, entry) -> dict:
         """刷新地图时记下来的"每一格有什么"：`(row, col)` → `{kind, name}`。
 
@@ -220,14 +243,32 @@ class RoutesMixin:
         不然链上一排"黄/铁/书"既看不懂又和掉血无关。
         找不到记录（老截图、AI 没读到这一格）就只留坐标 —— 用户点一下自己填。
         """
-        found = self._map_content(entry)
-        if not found:
-            return cells
+        route_floor = str((entry or {}).get("floor") or "")
+        # 跨层路线：每一格的内容从**它自己那一层**的地图记录里取
+        cache = {}
+
+        def content_of(floor_text):
+            if floor_text not in cache:
+                target = floor_text or route_floor
+                if target == route_floor:
+                    cache[floor_text] = self._map_content(entry)
+                else:
+                    cache[floor_text] = self._map_content(
+                        self._entry_for(target))
+            return cache[floor_text]
+
         monsters = {row.get("name"): row for row in self.battleMonsters()}
         out = []
         for cell in cells:
             data = dict(cell)
-            hit = found.get((cell["row"], cell["col"]))
+            # **链上亲手改过的那一格优先**（`manual`）：不再被这一层的地图记录盖掉。
+            # 用户 2026-10-31："链上改的那一份优先 但不会影响到其他地方" ——
+            # 只影响这一条路线的这一格，地图记录（`grid`）一个字节都不动。
+            if data.get("manual"):
+                out.append(data)
+                continue
+            hit = content_of(str(cell.get("floor") or "")).get(
+                (cell["row"], cell["col"]))
             if hit is None:
                 out.append(data)
                 continue

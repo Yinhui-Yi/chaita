@@ -60,6 +60,7 @@ Item {
         }
 
         Flickable {
+            objectName: "pickFlick"
             x: 4
             y: 26
             width: pickCard.width - 8

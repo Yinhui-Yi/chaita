@@ -7,7 +7,7 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import Slot
 
-from ...constants import MAP_HISTORY_LIMIT, TASK_LIMIT
+from ...constants import TASK_LIMIT
 from ...toolkit.api import _api_key
 from ...toolkit.diagnostics import _write_error_log
 from ...toolkit.library import _fill_skill_codes, _skill_items_from_text

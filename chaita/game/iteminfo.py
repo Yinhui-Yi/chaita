@@ -209,19 +209,23 @@ def _cls_of(item: dict) -> str:
     return str(entry.get("cls") or "")
 
 
-def icon_for(name: str) -> str:
-    """按名字挑图标：用户指定 → 全部道具表 → 颜色+种类规则。
+def _named_icon(name: str) -> str:
+    """用户指定（`assets/items/map.json`）→ 全部道具表，**按名字精确对上**才算。
 
-    （用户："资源里资源种类不全怎么没有武器和防具还有钥匙" —— 塔里的道具表现在
-    全导进来了，改名/加资源时按名字就能找到钥匙、剑、盾的图。）
+    返回空串 = 名字这两张表里都没有（后面还有颜色规则 / 种类兜底）。
+    表里的图可能已经被清掉了（`assets/items/` 只留了用得到的那几张），
+    没有文件就当没查到 —— 否则界面上会去开一张 404 的图，等于没图。
     """
     text = str(name or "").strip()
     picked = icon_map().get(text, "")
     if picked and icon_exists(picked):
         return picked
-    stem = catalog_by_name().get(text, "")
-    if stem:
-        return stem
+    stem = catalog_by_name().get(text, "") or ""
+    return stem if stem and icon_exists(stem) else ""
+
+
+def _colour_icon(text: str) -> str:
+    """只有"颜色 + 种类"的名字（红药水 / 蓝宝石）：按颜色给图，认不出给空串。"""
     palette = (("红", "red"), ("赤", "red"), ("蓝", "purple"), ("紫", "purple"),
                ("绿", "green"), ("青", "green"), ("黄", "yellow"), ("金", "yellow"))
     color = ""
@@ -238,17 +242,46 @@ def icon_for(name: str) -> str:
     return ""
 
 
+# 只有种类、名字对不上任何表时的兜底图（两座塔里剑/盾各一张语义图）
+_KIND_ICONS = {1: "sword", 2: "shield"}
+
+
+def icon_for(name: str) -> str:
+    """按名字挑图标：用户指定 → 全部道具表 → 颜色规则 → **种类兜底**。
+
+    （用户："资源里资源种类不全怎么没有武器和防具还有钥匙" —— 塔里的道具表现在
+    全导进来了，改名/加资源时按名字就能找到钥匙、剑、盾的图。）
+
+    种类兜底是给"表里没有的剑/盾"用的：模型读出来是「长剑」「钢盾」「剑」「盾」
+    这种没颜色、道具表里也没有的名字，以前一律空图（用户："我用刷新读取的剑和
+    盾怎么没有缩略图"）。有剑/盾的语义图就先用上，数值仍然留给人自己改。
+    """
+    text = str(name or "").strip()
+    picked = _named_icon(text)
+    if picked:
+        return picked
+    coloured = _colour_icon(text)
+    if coloured:
+        return coloured
+    fallback = _KIND_ICONS.get(kind_rank(text), "")
+    return fallback if fallback and icon_exists(fallback) else ""
+
+
 def key_for(name: str) -> str:
     """同一种资源的"身份"：能查到图标就按图标，否则按名字。
 
     用户："我二次刷新时，地图的怪和资源会累计" —— 模型这次叫「红药水」、
     下次叫「红血瓶」，其实都是 potion_red 那一瓶；按名字合并就会越刷越多。
     按图标归一以后，同一瓶只占一行，数量按这次读到的更新。
+
+    **种类兜底那张图不参与归一**：长剑和钢剑都兜底成 `sword`，但它们是两件东西，
+    按图合并会把两把剑并成一行、数量也串（和"红药水=红血瓶"不是一回事）。
+    所以这里只认"名字精确对上"和"颜色规则"这两条。
     """
     text = str(name or "").strip()
     if not text:
         return ""
-    stem = icon_for(text)
+    stem = _named_icon(text) or _colour_icon(text)
     if stem:
         return "icon:" + stem
     return "name:" + "".join(text.split())

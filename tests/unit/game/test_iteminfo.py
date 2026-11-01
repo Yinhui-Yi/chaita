@@ -35,6 +35,32 @@ def test_icon_for():
     assert iteminfo.icon_for("不知道") == ""
 
 
+def test_icon_for_gives_weapons_and_shields_a_picture_even_without_a_table_entry():
+    """表里没有的剑/盾也要有缩略图（用户："我用刷新读取的剑和盾怎么没有缩略图"）。
+
+    规则：名字精确对上用户指定表 / 全道具表 → 用那张；没对上就按**种类**兜底
+    （武器 → sword，防具 → shield）。兜底那张图必须真在盘上。
+    """
+    for name in ("钢剑", "长剑", "圣剑", "剑", "屠龙刀"):
+        stem = iteminfo.icon_for(name)
+        assert stem == "sword", (name, stem)
+        assert iteminfo.icon_exists(stem), stem
+    for name in ("钢盾", "铁甲", "盾"):
+        stem = iteminfo.icon_for(name)
+        assert stem == "shield", (name, stem)
+        assert iteminfo.icon_exists(stem), stem
+    # 和种类无关的名字仍然不给图（别瞎贴一张剑）
+    assert iteminfo.icon_for("木棍") == ""
+    assert iteminfo.icon_for("普通石头") == ""
+
+
+def test_kind_fallback_does_not_merge_two_different_swords():
+    """兜底成同一张图**不代表是同一件东西**：长剑和钢剑各占一行。"""
+    assert iteminfo.key_for("长剑") == "name:长剑"
+    assert iteminfo.key_for("钢剑") == "name:钢剑"
+    assert iteminfo.key_for("长剑") != iteminfo.key_for("钢剑")
+
+
 def test_migrate_icon_renames_old_game_prefix():
     """老存档里带别的游戏/塔前缀的图标名，要换成现在的语义名。"""
     assert iteminfo.migrate_icon("xinxin2_sword1") == "sword"

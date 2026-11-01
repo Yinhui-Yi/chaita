@@ -115,6 +115,12 @@ class StatusMixin:
                 self._post(lambda: self._finish(
                     "抓不到画面", "游戏窗口可能最小化了", task_id=task_id))
                 return
+            # 这一行的缩略图：抓到的这一刻就挂上去（用户 2026-10-31：
+            # "读任务状态的时候怎么没有缩略图" —— 以前这条任务从来没设过 url）
+            from ..toolkit.pictures import _save_thumb
+            thumb = _save_thumb(image, "status_%s" % (task_id or 0), width=900)
+            if thumb:
+                self._post(lambda: self._set_task(task_id, url=thumb))
 
             status = game_read.read_person(image, api_key=_api_key())
             trace.note("update.done", tower=target.name,

@@ -69,6 +69,70 @@ def test_remove_route():
     assert len(c._map_history[0]["routes"]) == 1
 
 
+# ---- 链上亲手改过的那一格优先（用户 2026-10-31）----
+
+def _one_cell_route():
+    """一格路线，且这一层的地图记录里同一坐标写着"血蚊"。"""
+    monsters = [{"name": "血蚊", "hp": "1200", "atk": "60", "def": "20"}]
+    history = [{"floor": "1层",
+                "grid": {"cells": [{"row": 0, "col": 0, "kind": "monster",
+                                    "name": "血蚊"}]}}]
+    c = FakeRoutes(history, monsters)
+    index = c.saveRoute("1层", [{"row": 0, "col": 0}])
+    return c, index
+
+
+def test_manual_cell_beats_the_map_record():
+    """链上改一格之后，显示的是链上那份，不是地图记录那份。"""
+    c, index = _one_cell_route()
+    assert c.routeCells("1层", index)[0]["name"] == "血蚊"
+
+    assert c.saveRouteCell("1层", index, 0,
+                           {"kind": "item", "name": "红宝石",
+                            "effect": "攻击力 +1"})
+    cell = c.routeCells("1层", index)[0]
+    assert (cell["kind"], cell["name"]) == ("item", "红宝石")
+
+
+def test_manual_cell_does_not_touch_the_map_record():
+    """改链上那一格不许动这一层的地图记录。"""
+    c, index = _one_cell_route()
+    before = [dict(cell) for cell in c._map_history[0]["grid"]["cells"]]
+
+    c.saveRouteCell("1层", index, 0, {"kind": "item", "name": "红宝石"})
+
+    assert c._map_history[0]["grid"]["cells"] == before
+
+
+def test_manual_cell_does_not_touch_other_routes():
+    """同层另一条路线的同一格还是照地图记录显示。"""
+    c, index = _one_cell_route()
+    other = c.saveRoute("1层", [{"row": 0, "col": 0}])
+
+    c.saveRouteCell("1层", index, 0, {"kind": "item", "name": "红宝石"})
+
+    assert c.routeCells("1层", other)[0]["name"] == "血蚊"
+
+
+def test_clearing_a_cell_sticks_even_if_the_map_record_has_something():
+    """链上把一格清空 → 就是空的，不会被地图记录又填回来。"""
+    c, index = _one_cell_route()
+    assert c.saveRouteCell("1层", index, 0, {})
+
+    cell = c.routeCells("1层", index)[0]
+    assert not cell.get("kind")
+    assert not cell.get("name")
+
+
+def test_untouched_cell_still_follows_the_map_record():
+    """没亲手改过的格子仍然跟着地图记录实时变（原来那条规矩不变）。"""
+    c, index = _one_cell_route()
+    c._map_history[0]["grid"]["cells"][0]["name"] = "铁卫"
+    # 换成手册里也有的怪，链上跟着变
+    c._monsters = [{"name": "铁卫", "hp": "900", "atk": "50", "def": "30"}]
+    assert c.routeCells("1层", index)[0]["name"] == "铁卫"
+
+
 # ---- 边角：序号过期/空输入都不许炸 ----
 
 def test_save_route_without_cells_or_floor():
@@ -219,3 +283,38 @@ def test_clean_fill_drops_bad_skills():
                        "effect": ""})
     assert out["skills"] == [{"name": "先攻", "code": "7", "params": {"a": 1}}]
     assert "effect" not in out
+
+# ---- 跨层路线：每格记着它画在哪一层 ----
+
+def test_clean_cells_keeps_floor():
+    from chaita.ui.controller.floors.routes import _clean_cells
+    cells = _clean_cells([{"row": 1, "col": 2, "floor": "1层"},
+                          {"row": 3, "col": 4}])
+    assert cells == [{"row": 1, "col": 2, "floor": "1层"}, {"row": 3, "col": 4}]
+
+
+def test_route_prefill_uses_each_cell_own_floor(monkeypatch):
+    """某格标的层不是路线起始层：内容从**那一层**的 grid 取，不是起始层。"""
+    import chaita.game.iteminfo as ii
+    monkeypatch.setattr(ii, "icon_for", lambda name: "gem_red")
+    monkeypatch.setattr(ii, "effect_for", lambda icon, name: "攻击力 +1")
+    c = FakeRoutes([
+        {"floor": "1层", "grid": {"cells": [
+            {"row": 0, "col": 0, "kind": "item", "name": "红宝石"}]}},
+        {"floor": "2层", "grid": {"cells": [
+            {"row": 0, "col": 0, "kind": "item", "name": "蓝宝石"}]}}])
+
+    cells = c._with_map_content(c._map_history[0], [
+        {"row": 0, "col": 0, "floor": "1层"},
+        {"row": 0, "col": 0, "floor": "2层"}])
+
+    assert cells[0]["name"] == "红宝石"
+    assert cells[1]["name"] == "蓝宝石"
+
+
+def test_route_save_keeps_floor_of_each_cell():
+    c = FakeRoutes([{"floor": "1层", "grid": {}}])
+    index = c.saveRoute("1层", [{"row": 0, "col": 0, "floor": "1层"},
+                                {"row": 0, "col": 1, "floor": "2层"}])
+    stored = c._map_history[0]["routes"][index]["cells"]
+    assert [one.get("floor") for one in stored] == ["1层", "2层"]

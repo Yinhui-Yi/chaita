@@ -29,6 +29,8 @@ import "battle_calc"
 import "floor_sheet"
 import "route_editor"
 import "route_compare"
+import "map_view"
+import "preview"
 
 Window {
     id: win
@@ -55,6 +57,10 @@ Window {
     readonly property color amber: Theme.amber
     readonly property color amberInk: Theme.amberInk
     readonly property color danger: Theme.danger
+    // 效果标记三色（上/下楼梯也用它俩：↑ 绿、↓ 蓝）
+    readonly property color markAtk: Theme.markAtk
+    readonly property color markDef: Theme.markDef
+    readonly property color markMdef: Theme.markMdef
 
     // ---- 尺寸 ----
     readonly property int padH: 12
@@ -606,6 +612,8 @@ Window {
         win.monAgg = win.monSummary(win.monRows)
         win.skillAgg = win.skillSummary(win.skills)
         win.floorList = win.floorEntries()
+        // 地图窗口现在看的是哪一层：层被删了/刚读完，这里把它摆正
+        win.ensureMapFloor()
         win.tower = win.towerName()
         win.notice = win.noticeText()
         win.readTip = win.readHint()
@@ -678,6 +686,8 @@ Window {
     property var gridMulti: []
     // 当前选中的怪/资源名（空 = 没选）：图上只有它的格子是黄的
     property string gridSelected: ""
+    // 编辑模式下**左键单击选中的那一格**（`{row, col}`，空 = 没选）
+    property var gridPicked: ({})
 
     // Ctrl+点一格：勾上 / 取消（同一个格子再点一次就取消）
     function gridMultiToggle(row, col) {
@@ -708,6 +718,54 @@ Window {
         win.gridDrag = ({})
         win.gridSelected = ""
         win.gridMulti = []
+    }
+
+    // 左键单击某一格 = 选中它（右键菜单的"复制坐标"用的就是这一格）
+    function gridPickCell(row, col) {
+        win.gridPicked = { "row": Number(row), "col": Number(col) }
+    }
+
+    // 层名只写层号（"通天塔3" → "3"、"0层" → "0"）；没有数字就原样
+    function floorShort(floorText) {
+        var text = String(floorText || "")
+        var tail = /(\d+)\s*$/.exec(text)
+        if (tail)
+            return tail[1]
+        var head = /^(\d+)/.exec(text)
+        if (head)
+            return head[1]
+        return text
+    }
+
+    // 一格的人话写法：**带层数**（用户 2026-10-31："坐标加层数！！！！！！！！"）。
+    // 坐标一律从 1 数；层号只写数字 —— 用户自己说的就是"0层""2层"这种叫法。
+    function cellText(floorText, row, col) {
+        var name = String(floorText || "")
+        var head = name === "" ? "" : (win.floorShort(name) + "层 ")
+        return head + (Number(row) + 1) + "," + (Number(col) + 1)
+    }
+
+    // 复制选中那一格的坐标（"2层 3,4"：和图上/清单里的写法一致，带层数）
+    function gridCopyPicked() {
+        var cell = win.gridPicked || ({})
+        if (cell.row === undefined || !controller)
+            return ""
+        var text = win.cellText(win.gridEditFloor !== ""
+                                ? win.gridEditFloor : win.mapFloor,
+                                cell.row, cell.col)
+        controller.clipboardCopy(text)
+        win.notice = "坐标 " + text + " 已复制"
+        return text
+    }
+
+    // 清掉选中那一格的坐标（右键菜单）
+    function gridClearPicked() {
+        var cell = win.gridPicked || ({})
+        if (cell.row === undefined)
+            return false
+        win.gridAssign(Number(cell.row), Number(cell.col), "", "")
+        win.gridPicked = ({})
+        return true
     }
 
     // 选中/取消选中一个词条（再点同一个 = 取消）
@@ -779,8 +837,7 @@ Window {
     }
 
     // 松手生成一条路线：存进那一层，并且马上把这条链摆出来（交互路线）
-    function storeRoute(floorText, cells) {
-        if (!controller)
+    function storeRoute(floorText, cells) {        if (!controller)
             return
         var floor = String(floorText || "")
         var index = controller.saveRoute(floor, cells || [])
@@ -789,6 +846,14 @@ Window {
         // 备注不再往里写"计算值"：计算那部分由界面实时算、只读显示；
         // 备注只留用户手写的话（用户："备注改成两部分，计算和手写"）。
         win.openRoute(floor, index)
+    }
+
+    // 地图上松手：一条路线存在**起点那一层**（跨层路线也是起点层的主人，
+    // 每格各自带 floor —— 不然后半段会把路线存到别的层去）
+    function storeRouteCells(cells) {
+        var list = cells || []
+        var start = list.length > 0 ? String((list[0] || {}).floor || "") : ""
+        win.storeRoute(start !== "" ? start : win.mapFloor, list)
     }
 
     // 一条路线**当前**的计算值（走完之后的血/攻/防/魔防，只读显示）
@@ -902,9 +967,10 @@ Window {
         win.routeNotify(ctx)
     }
 
-    // 一格的唯一 key（行列）：判断"这一格是不是又走了一遍"
+    // 一格的唯一 key（层 + 行列）：跨层路线里同一 row,col 不是同一格
     function routeCellKey(cell) {
-        return Number((cell || {}).row) + "," + Number((cell || {}).col)
+        return String((cell || {}).floor || "") + ","
+               + Number((cell || {}).row) + "," + Number((cell || {}).col)
     }
 
     // 一格在哪儿：层名 + 行列。路线对比表前面那一列只认坐标和缩略图
@@ -1496,6 +1562,28 @@ Window {
         win.tasksView = win.taskRows()
     }
 
+    // ---- 看大图：点读取记录里那张缩略图 ----
+    // 用户 2026-10-31："我现在点队列里的缩略图怎么不放大"。
+    // url 用这次读的原图（src），没有原图才退到缩略图；**不放大**，只按屏幕缩。
+    property var previewWindow: null
+
+    function showImagePreview(url) {
+        var text = String(url || "")
+        if (text === "")
+            return false
+        if (!win.previewWindow) {
+            win.previewWindow = previewComp.createObject(null, { "host": win })
+            if (win.previewWindow) {
+                win.previewWindow.dismissed.connect(function () {
+                    win.previewWindow = null
+                })
+            }
+        }
+        if (!win.previewWindow)
+            return false
+        return win.previewWindow.open(text)
+    }
+
     // ---- 地图的子界面：这一层到底有什么 ----
     function floorEntry(floorText) {
         if (!floorText)
@@ -1541,15 +1629,12 @@ Window {
             positions[key] = win.floorPositions[key]
         // 只有"从没开过、也没存过位置"才给默认位置；关掉再开要回到上次的位置
         if (positions[name] === undefined) {
-            // 默认贴着"地图块下沿"往下开、按顺序错开一点：上面那排地图块要留出来，
-            // 不然第一扇窗一开就把地图盖住，第二块永远点不到（也就没法多开）。
-            // 小窗现在是**真窗口**，坐标要换成屏幕坐标：主窗口在哪就开在它旁边。
-            var offset = Math.min(3, rows.length - 1) * 10
-            var bottom = win.mapGridBottom()
-            var fallback = Math.max(8, win.height - 404)
-            positions[name] = { x: Math.round(win.x + 8 + offset),
-                                y: Math.round(win.y
-                                    + Math.max(8, Math.min(bottom + 8, fallback))) }
+            // 开在**主窗口右边**：地图现在就在主界面里，小窗开在下面会压住地图，
+            // 而"长按图上格子 → 拖到词条上"要两头都看得见（坐标就是这么加的）。
+            // 多开时依次往右下错开一点，别叠成一张。
+            var offset = Math.min(4, rows.length - 1) * 14
+            positions[name] = { x: Math.round(win.x + win.width + 8 + offset),
+                                y: Math.round(win.y + 40 + offset) }
         }
         win.floorPositions = positions
         win.floorWindows = rows
@@ -1569,6 +1654,9 @@ Window {
 
     function closeFloorSheet(floorText) {
         var name = String(floorText || win.openFloor || "")
+        // 关掉的正是"跟着切层"的那扇：别再让下一次切层去追一个已经关了的窗
+        if (win.mapSheetFloor === name)
+            win.mapSheetFloor = ""
         var rows = []
         for (var i = 0; i < win.floorWindows.length; i++) {
             var item = String(win.floorWindows[i] || "")
@@ -1676,6 +1764,470 @@ Window {
                 return
             }
         }
+    }
+
+    // 上一层 / 下一层：按楼层号排（+1 = 楼层号更大的那一层），到头返回空串
+    function adjacentFloor(floorText, delta) {
+        var floors = win.mapFloors()
+        var current = -1
+        for (var i = 0; i < floors.length; i++) {
+            if (String(floors[i].floor) === String(floorText || "")) {
+                current = i
+                break
+            }
+        }
+        if (current < 0)
+            return ""
+        var next = current + Number(delta)
+        if (next < 0 || next >= floors.length)
+            return ""
+        return String(floors[next].floor || "")
+    }
+
+    // ---- 地图（就在主界面那一栏里画，用户 2026-10-30："把主界面的地图做大！、
+    //      "多张地图不要重叠显示下层的只留一角"、"做侧边栏快速切换"）----
+    // 现在看的是哪一层（空 = 还没选）
+    property string mapFloor: ""
+    // 地图那一条底下的提示（楼梯没标、到头了这类），不占通知那条的位置
+    property string mapHint: ""
+
+    // 楼层的先后：按层名末尾的数字排（"通天塔3" < "通天塔10"），数字一样按名字。
+    // 这个顺序就是"下 → 上"：轨道把它倒过来显示，+1 = 楼层号更大的那一层。
+    function floorRank(floorText) {
+        var digits = /(\d+)\s*$/.exec(String(floorText || ""))
+        return digits ? parseInt(digits[1], 10) : Number.MAX_SAFE_INTEGER
+    }
+
+    // 读到的层，按楼层号从小到大
+    function mapFloors() {
+        var rows = []
+        var list = (controller ? controller.mapHistory : null) || []
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && list[i].floor)
+                rows.push(list[i])
+        }
+        rows.sort(function (a, b) {
+            var left = win.floorRank(a.floor)
+            var right = win.floorRank(b.floor)
+            if (left !== right)
+                return left - right
+            var la = String(a.floor)
+            var lb = String(b.floor)
+            return la < lb ? -1 : (la > lb ? 1 : 0)
+        })
+        return rows
+    }
+
+    function mapEntry(floorText) {
+        var list = (controller ? controller.mapHistory : null) || []
+        for (var i = 0; i < list.length; i++) {
+            if (String((list[i] || {}).floor || "") === String(floorText || ""))
+                return list[i]
+        }
+        return ({})
+    }
+
+    // 这一层的一句话：还剩几只怪 · 几种资源
+    function mapMeta(floorText) {
+        var entry = win.mapEntry(floorText)
+        if (!entry.floor)
+            return ""
+        var mons = entry.mons || []
+        var left = 0
+        for (var i = 0; i < mons.length; i++) {
+            var row = mons[i] || {}
+            var count = parseInt(row.count, 10)
+            if (isNaN(count) || count < 0)
+                count = 0
+            if (!row.done)
+                left += count
+        }
+        var parts = []
+        if (left > 0)
+            parts.push("剩 " + left + " 只怪")
+        parts.push((entry.items || []).length + " 种资源")
+        return parts.join(" · ")
+    }
+
+    // 现在这一层还算数吗（还没选过 / 那层被删了 → 重新选一层）
+    function ensureMapFloor() {
+        var floors = win.mapFloors()
+        if (floors.length === 0) {
+            win.mapFloor = ""
+            return
+        }
+        for (var i = 0; i < floors.length; i++) {
+            if (String(floors[i].floor) === win.mapFloor)
+                return
+        }
+        // 没选过就选**刚读到的**那一层（mapHistory 第一条就是最后读的）
+        var raw = (controller ? controller.mapHistory : null) || []
+        win.mapFloor = raw.length > 0
+                ? String((raw[0] || {}).floor || "")
+                : String(floors[0].floor || "")
+    }
+
+    function selectFloor(floorText) {
+        var name = String(floorText || "")
+        if (name === "")
+            return
+        win.mapHint = ""
+        win.mapFloor = name
+        win.followMapSheet(name)
+    }
+
+    // ---- 从「清单」打开的清单窗跟着切层 ----
+    // 用户："我切层怎么清单不一起切"。这扇窗开着的时候，地图那栏换层它就换成那一层
+    // （位置、大小照抄，别让它跳走）。从路线行/「＋」打开的窗是**钉在自己那层**的，
+    // 不受影响 —— 那是多开对照用的。
+    property string mapSheetFloor: ""
+
+    function openMapSheet() {
+        win.ensureMapFloor()
+        win.mapCollapsed = false
+        // 开清单就是为了改东西（加怪 / 加资源 / 拖坐标 / 标楼梯）：顺手把编辑模式
+        // 打开，不然"长按图上格子拖到行上"这个手势在路线层那边，拖不出小牌子。
+        if (!win.gridEditOn || win.gridEditFloor !== win.mapFloor) {
+            win.gridEditOn = true
+            win.gridEditFloor = win.mapFloor
+            win.gridHover = ({})
+            win.gridDrag = ({})
+            win.gridSelected = ""
+            win.gridMulti = []
+        }
+        win.openFloorSheet(win.mapFloor)
+        win.mapSheetFloor = win.mapFloor
+    }
+
+    function followMapSheet(floorText) {
+        var name = String(floorText || "")
+        if (name === "" || win.mapSheetFloor === ""
+                || win.mapSheetFloor === name)
+            return
+        var old = win.floorSheetOf(win.mapSheetFloor)
+        win.mapSheetFloor = name
+        if (!old)
+            return
+        // 位置和大小照抄过来（不然每切一层窗就跳个地方、变个大小）
+        var positions = {}
+        for (var posKey in win.floorPositions)
+            positions[posKey] = win.floorPositions[posKey]
+        positions[name] = { x: old.x, y: old.y }
+        win.floorPositions = positions
+        var sizes = {}
+        for (var sizeKey in win.floorSizes)
+            sizes[sizeKey] = win.floorSizes[sizeKey]
+        sizes[name] = { w: old.width, h: old.height }
+        win.floorSizes = sizes
+        win.closeFloorSheet(old.sheetName)
+        win.openFloorSheet(name)
+    }
+
+    // 上/下一层：delta +1 = 楼层号更大的那一层（轨道上更靠上）
+    function stepFloor(delta) {
+        var target = win.adjacentFloor(win.mapFloor, delta)
+        if (target === "") {
+            win.mapHint = Number(delta) > 0 ? "已经是最上面一层" : "已经是最下面一层"
+            return
+        }
+        win.selectFloor(target)
+    }
+
+    // 把地图那一栏露出来（折叠着就展开）：地图就在主界面里，不再另开窗
+    function showMap() {
+        win.ensureMapFloor()
+        win.mapCollapsed = false
+    }
+
+    // ---- 楼梯：踩到才换层，去**它自己记的目标层** ----
+    // 用户 2026-10-30："我设想的换层是将人物移动到楼梯才上层或下层"、
+    // "谁告诉你一层只有一个上楼或下楼的？谁告诉你0层就一定去1层的？"
+    // 所以：一层可以有好几行，每行自己带 `to`（通到哪一层），跟层号顺序无关。
+    function stairsOf(floorText) {
+        return (controller ? controller.stairsOf(String(floorText || ""))
+                           : null) || []
+    }
+
+    // 清单里「楼梯」那一段要画的行：一行一个楼梯
+    function stairRows(floorText) {
+        if (!controller)
+            return []
+        controller.mapHistory        // 绑一下：加行/标位置/选目标层立刻更新
+        var rows = win.stairsOf(floorText)
+        var out = []
+        for (var i = 0; i < rows.length; i++) {
+            var one = rows[i] || {}
+            var row = Number(one.row)
+            var col = Number(one.col)
+            var toRow = Number(one.toRow === undefined ? -1 : one.toRow)
+            var toCol = Number(one.toCol === undefined ? -1 : one.toCol)
+            out.push({ "index": i,
+                       "dir": String(one.dir || "up"),
+                       "to": String(one.to || ""),
+                       "row": row, "col": col,
+                       "toRow": toRow, "toCol": toCol,
+                       "labeled": row >= 0 && col >= 0,
+                       "posText": (row >= 0 && col >= 0)
+                                  ? ("位置 " + (row + 1) + "," + (col + 1))
+                                  : "位置：点这里再点图上一格",
+                       "arriveText": (toRow >= 0 && toCol >= 0)
+                                  ? ("落点 " + (toRow + 1) + "," + (toCol + 1))
+                                  : "落点：点这里再点图上一格" })
+        }
+        return out
+    }
+
+    // 加一行楼梯（先加行，位置拖上去、目标层点一下选）
+    function addStairRow(floorText, direction) {
+        if (!controller)
+            return -1
+        return controller.addStair(String(floorText || ""),
+                                   String(direction || "up"))
+    }
+
+    function setStairTarget(floorText, index, target) {
+        if (!controller)
+            return false
+        return controller.setStairTarget(String(floorText || ""), Number(index),
+                                         String(target || ""))
+    }
+
+    function removeStairRow(floorText, index) {
+        if (!controller)
+            return false
+        return controller.removeStair(String(floorText || ""), Number(index))
+    }
+
+    // 点楼梯那张图 = 上/下互换（AI 认错方向时自己改过来）
+    function toggleStairDir(floorText, index) {
+        if (!controller)
+            return false
+        var rows = win.stairsOf(floorText)
+        var current = String(((rows[Number(index)] || ({}))).dir || "up")
+        return controller.setStairDirection(
+                    String(floorText || ""), Number(index),
+                    current === "up" ? "down" : "up")
+    }
+
+    // 按层号推相邻那一层的名字："通天塔1" + 1 → "通天塔2"（没有数字就推不出）
+    function nextFloorName(floorText, delta) {
+        var text = String(floorText || "")
+        var digits = /(\d+)\s*$/.exec(text)
+        if (!digits)
+            return ""
+        var number = parseInt(digits[1], 10) + Number(delta)
+        if (!(number > 0))
+            return ""
+        var head = text.substring(0, digits.index)
+        return head + number
+    }
+
+    // 层名在不在读到过的层里（楼梯那行手填/读错时兜底用）
+    function floorKnown(floorText) {
+        var name = String(floorText || "")
+        if (name === "")
+            return false
+        var floors = win.mapFloors()
+        for (var i = 0; i < floors.length; i++) {
+            if (String((floors[i] || {}).floor || "") === name)
+                return true
+        }
+        return false
+    }
+
+    // 这一格上的楼梯（当前层的楼梯列表 + "每格有什么"里读到的楼梯标记）。
+    // 没有就返回 null。**换层的两条路（拖着走过去 / 直接点一下）共用它**。
+    function stairAtCell(cell) {
+        var rows = win.stairsOf(win.mapFloor)
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i] || {}
+            if (Number(row.row) === Number(cell.row)
+                    && Number(row.col) === Number(cell.col))
+                return row
+        }
+        // 这一格在"每格有什么"里标着是楼梯（读地图读到的），但还没有对应的楼梯行
+        // （老数据 / 还没加行）：按方向现补一条
+        var grid = controller ? controller.gridCells(win.mapFloor) : []
+        for (var g = 0; g < grid.length; g++) {
+            var marked = grid[g] || {}
+            var kind = String(marked.kind || "")
+            if (kind !== "stair_up" && kind !== "stair_down")
+                continue
+            if (Number(marked.row) !== Number(cell.row)
+                    || Number(marked.col) !== Number(cell.col))
+                continue
+            return { "row": Number(marked.row), "col": Number(marked.col),
+                     "dir": kind === "stair_up" ? "up" : "down",
+                     "to": "", "toRow": -1, "toCol": -1 }
+        }
+        return null
+    }
+
+    // 打进来的层号/层名 → 完整层名。**"通到…"和"跳到…"共用这一份**：
+    //   "2"        → 已知层里层号是 2 的那层（2层 / 通天塔2 都认）；找不到就按本层
+    //                的写法把最后一个数字换成 2（通天塔1 → 通天塔2、0层 → 2层）
+    //   "通天塔137" → 原样用（没有就建一条空的）
+    //   ""         → 没选
+    // 用户 2026-10-31："循环你妈个逼"（点一下换一层点不过来）、"我1000层魔塔怎么办"
+    function resolveFloorName(fromFloorText, typed) {
+        var text = String(typed || "").trim()
+        if (text === "")
+            return ""
+        var floors = win.mapFloors()
+        // "3" / "3层" / "3楼" 都当"第3层"看（粘坐标带出来的就是这几种写法）
+        var digits = /^(\d+)\s*[层楼]?$/.exec(text)
+        if (!digits)
+            return text                       // 敲的就是层名
+        var wanted = digits[1]
+        for (var i = 0; i < floors.length; i++) {
+            var name = String((floors[i] || {}).floor || "")
+            var tail = /(\d+)\s*$/.exec(name)
+            if (tail && tail[1] === wanted)
+                return name
+        }
+        // 读到过的层里没有这个层号：照本层的写法换掉那个数字
+        var from = String(fromFloorText || "")
+        var at = /(\d+)(?!.*\d)/.exec(from)
+        if (at)
+            return from.substring(0, at.index) + wanted
+                    + from.substring(at.index + at[1].length)
+        return text
+    }
+
+    // 「通到…」里打完回车：把这一行楼梯的目标层定下来（打自己这层 = 没选）
+    function setStairTargetByName(floorText, index, typed) {
+        if (!controller)
+            return false
+        var floor = String(floorText || "")
+        var name = win.resolveFloorName(floor, typed)
+        if (name === floor)
+            name = ""
+        if (name !== "") {
+            controller.ensureFloor(name)      // 没有这层就建一条空的
+            win.ensureMapFloor()
+        }
+        return win.setStairTarget(floor, index, name)
+    }
+
+    // 抓一格的拖动松手落在某一行上：把这一格记给那一行。
+    // 和 DropArea 落格走**同一个** `gridAssignMany`（一处规则，别写第二份）。
+    function assignCellToRow(floorText, hit, row, col) {
+        if (!controller || !hit)
+            return false
+        win.gridAssignMany([{ "row": Number(row), "col": Number(col) }],
+                           String(hit.kind || ""),
+                           String(hit.name || ""),
+                           String(hit.effect || ""))
+        return true
+    }
+
+    // 「出口」格粘了一个坐标：**层数（如果有）+ 落点一次改完**
+    // 分两次调的话第一次就重建了这一行，第二次拿到的是已经销毁的委托
+    // （实测：`ReferenceError: host is not defined`）
+    function setStairArrivalByName(floorText, index, row, col, typedFloor) {
+        if (!controller)
+            return false
+        var floor = String(floorText || "")
+        var typed = String(typedFloor || "")
+        if (typed === "") {
+            // 没带层数：只改落点，**这一行原来选的层不许被清掉**
+            return controller.setStairArrival(floor, Number(index),
+                                              Number(row), Number(col))
+        }
+        var target = win.resolveFloorName(floor, typed)
+        if (target === floor)
+            target = ""
+        if (target !== "") {
+            controller.ensureFloor(target)
+            win.ensureMapFloor()
+        }
+        return controller.setStairArrivalWithTarget(floor, Number(index),
+                                                    Number(row), Number(col),
+                                                    target)
+    }
+
+    // 这个楼梯通到哪一层（"" = 这一层上/下没有层了）。规则只有这一份：
+    // 选的目标层不是本层就按它走（**没读过也用**，`ensureFloor` 会建一条空的，
+    // 用户："0层跳2层怎么办"）；没选才按方向上/下翻相邻那一层。
+    // 用户："路线移到楼梯要换层！！！！"、"我标了！！！！"、"现在地图上点击楼梯也要能换层"
+    function stairTargetFloor(one) {
+        if (!one)
+            return ""
+        var up = String(one.dir || "up") === "up"
+        var target = String(one.to || "")
+        if (target === win.mapFloor)
+            target = ""
+        if (target !== "" && !win.floorKnown(target) && controller) {
+            controller.ensureFloor(target)    // 手打/手标的层还没读过：建一条空的
+            win.ensureMapFloor()
+        }
+        if (target === "")
+            target = win.adjacentFloor(win.mapFloor, up ? 1 : -1)
+        if (target === "") {
+            // 读到过的层里没有相邻那一层：按层号推一个（通天的层名末尾是数字）
+            var guess = win.nextFloorName(win.mapFloor, up ? 1 : -1)
+            if (guess !== "" && controller) {
+                controller.ensureFloor(guess)   // 没这层就建一条空的
+                win.ensureMapFloor()
+                target = guess
+            }
+        }
+        if (target === "")
+            win.mapHint = "这一层" + (up ? "上面" : "下面") + "没有层了"
+        return target
+    }
+
+    // 地图上**点**一格：点的是楼梯就换到它通的那一层（不画路线、不挪落点）。
+    // 用户 2026-10-31："现在地图上点击楼梯也要能换层"。
+    function tapMapCell(cell) {
+        if (!controller || !cell)
+            return false
+        var target = win.stairTargetFloor(win.stairAtCell(cell))
+        if (target === "")
+            return false
+        win.selectFloor(target)
+        win.mapHint = ""
+        return true
+    }
+
+    // 路线走进一格：踩到楼梯就换到**这一格记的那一层**，
+    // 并落到那层里"通回本层"的那个楼梯上；没标就落原坐标 + 说一句。
+    function routeEnterCell(layer, cell) {
+        var one = win.stairAtCell(cell)
+        if (one === null)
+            return false
+        var target = win.stairTargetFloor(one)
+        if (target === "")
+            return false
+        // 落脚点：这一行自己记的"落点"最准；没记就找目标层里通回本层的那行
+        var toRow = Number(one.toRow === undefined ? -1 : one.toRow)
+        var toCol = Number(one.toCol === undefined ? -1 : one.toCol)
+        var landing = ({})
+        if (!(toRow >= 0 && toCol >= 0)) {
+            var back = win.stairsOf(target)
+            for (var j = 0; j < back.length; j++) {
+                var other = back[j] || {}
+                if (String(other.to || "") === win.mapFloor
+                        && Number(other.row) >= 0) {
+                    landing = other
+                    break
+                }
+            }
+        }
+        win.selectFloor(target)
+        if (toRow >= 0 && toCol >= 0) {
+            layer.jumpTo(target, toRow, toCol)
+            win.mapHint = ""
+        } else if (landing.row !== undefined) {
+            layer.jumpTo(target, landing.row, landing.col)
+            win.mapHint = ""
+        } else {
+            layer.jumpTo(target, cell.row, cell.col)
+            win.mapHint = "「" + target + "」还没标那个楼梯，先落在第 "
+                    + (Number(cell.row) + 1) + " 行第 "
+                    + (Number(cell.col) + 1) + " 列"
+        }
+        return true
     }
 
     function closeTopFloorWindow() {
@@ -1801,7 +2353,7 @@ Window {
         }
     }
 
-    // 对比表点一行 = 它的坐标：开那一层的小窗（已开着就提到前面）并圈出这一格。
+    // 对比表点一行 = 它的坐标：地图窗口切到那一层、圈出这一格。
     // 坐标不全是空的老路线（手粘的 JSON）就什么都不做，返回 false。
     function compareHighlight(spot) {
         var at = spot || ({})
@@ -1814,7 +2366,8 @@ Window {
         win.mapHiFloor = floor
         win.mapHiRow = Math.round(row)
         win.mapHiCol = Math.round(col)
-        win.openFloorSheet(floor)
+        win.selectFloor(floor)
+        win.showMap()
         return true
     }
 
@@ -3210,6 +3763,13 @@ Window {
         Component {
             id: routeWindowComp
             RouteWindow { host: win }
+        }
+
+        // ============ 看大图 ============
+        // 点读取记录里那张缩略图 = 把这次读的那张图放大看（不放大，只按屏幕缩）。
+        Component {
+            id: previewComp
+            PreviewWindow { host: win }
         }
     }
 }

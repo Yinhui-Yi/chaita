@@ -46,6 +46,26 @@ def test_clean_cells_drops_duplicate():
     assert cells == [{"row": 2, "col": 2, "kind": "monster", "name": "丙"}]
 
 
+def test_clean_cells_keeps_every_stair_of_the_floor():
+    """一层可以有好几个楼梯（用户："谁告诉你一层只有一个上楼或下楼的？"）。
+
+    模型报 `stair_up` / `stair_down` 时名字可以空着，补一个统一的名字；
+    通到哪一层它看不到，这里也不瞎填。
+    """
+    cells = map_read.clean_cells([
+        {"row": 1, "col": 12, "kind": "stair_up"},
+        {"row": 4, "col": 5, "kind": "stair_up", "name": "上楼梯"},
+        {"row": 12, "col": 1, "kind": "stair_down", "name": "下楼梯"},
+        {"row": 13, "col": 13, "kind": "stair_up"},
+    ])
+    assert cells == [
+        {"row": 0, "col": 11, "kind": "stair_up", "name": "上楼梯"},
+        {"row": 3, "col": 4, "kind": "stair_up", "name": "上楼梯"},
+        {"row": 11, "col": 0, "kind": "stair_down", "name": "下楼梯"},
+        {"row": 12, "col": 12, "kind": "stair_up", "name": "上楼梯"},
+    ]
+
+
 def test_clean_layout():
     assert map_read.clean_layout({}) == {}
     assert map_read.clean_layout({"cells": []}) == {}
