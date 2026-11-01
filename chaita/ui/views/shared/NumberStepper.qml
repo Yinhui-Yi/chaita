@@ -100,7 +100,7 @@ Item {
         radius: Theme.radius
         color: (field.activeFocus || hover.hovered) ? Theme.paperLo : "transparent"
         border.width: 1
-        border.color: field.activeFocus ? Theme.amber : Theme.hairline
+        border.color: field.activeFocus ? Theme.accent : Theme.hairline
         Behavior on border.color { ColorAnimation { duration: 100 } }
         Behavior on color { ColorAnimation { duration: 100 } }
     }
@@ -167,7 +167,7 @@ Item {
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
-                    ctx.fillStyle = upArea.containsMouse ? Theme.amber : Theme.ink3
+                    ctx.fillStyle = upArea.containsMouse ? Theme.accent : Theme.ink3
                     ctx.beginPath()
                     ctx.moveTo(0, height)
                     ctx.lineTo(width, height)
@@ -203,7 +203,7 @@ Item {
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
-                    ctx.fillStyle = downArea.containsMouse ? Theme.amber : Theme.ink3
+                    ctx.fillStyle = downArea.containsMouse ? Theme.accent : Theme.ink3
                     ctx.beginPath()
                     ctx.moveTo(0, 0)
                     ctx.lineTo(width, 0)

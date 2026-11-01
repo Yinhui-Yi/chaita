@@ -193,7 +193,7 @@ Window {
                 width: 11
                 height: 1
                 color: gripMouse.containsMouse
-                       ? host.amber : host.ink3
+                       ? host.accent : host.ink3
                 opacity: 0.6
                 x: grip.width - width - 1
                 y: grip.height - modelData
@@ -389,7 +389,7 @@ Window {
                         color: heroField.activeFocus ? Theme.paper : Theme.tile
                         border.width: 1
                         border.color: heroField.activeFocus
-                                      ? Theme.amber : "transparent"
+                                      ? Theme.accent : "transparent"
                         Image {
                             id: heroIcon
                             x: 8
@@ -732,12 +732,12 @@ Window {
                                                ? host.paperLo : "transparent"
                                         border.width: 1
                                         border.color: askMouse.containsMouse
-                                                      ? host.amber : host.ink3
+                                                      ? host.accent : host.ink3
                                         Text {
                                             anchors.centerIn: parent
                                             text: "?"
                                             color: askMouse.containsMouse
-                                                   ? host.amber : host.ink3
+                                                   ? host.accent : host.ink3
                                             font.family: host.uiFont
                                             font.pixelSize: 11
                                         }
@@ -779,7 +779,7 @@ Window {
                                     width: parent.width
                                     horizontalAlignment: Text.AlignRight
                                     text: host.battlePlanTotal(plan.index)
-                                    color: best ? host.amber : host.ink
+                                    color: best ? host.accent : host.ink
                                     font.family: host.monoFont
                                     font.pixelSize: 11
                                     font.bold: best

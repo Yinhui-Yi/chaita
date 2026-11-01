@@ -16,7 +16,7 @@ Rectangle {
     implicitWidth: label.implicitWidth + 14
     implicitHeight: 20
     radius: height / 2
-    color: chip.tone === "accent" ? Theme.amberSoft
+    color: chip.tone === "accent" ? Theme.accentSoft
          : (chip.tone === "muted" ? "transparent" : Theme.chip)
     border.width: chip.tone === "muted" ? 1 : 0
     border.color: Theme.hairline
@@ -25,7 +25,7 @@ Rectangle {
         id: label
         anchors.centerIn: parent
         text: chip.text
-        color: chip.tone === "accent" ? Theme.amber
+        color: chip.tone === "accent" ? Theme.accent
              : (chip.tone === "muted" ? Theme.ink3 : Theme.ink2)
         font.family: chip.mono ? Theme.monoFont : Theme.uiFont
         font.pixelSize: chip.fontSize

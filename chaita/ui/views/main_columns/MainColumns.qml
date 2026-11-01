@@ -41,7 +41,7 @@ Column {
         width: body.width
         height: 32
         radius: 8
-        color: Theme.amberSoft
+        color: Theme.accentSoft
         visible: host.sessionHint !== ""
 
         Text {
@@ -63,7 +63,7 @@ Column {
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: "恢复"
-            color: restoreMouse.containsMouse ? Theme.amberHover : Theme.amber
+            color: restoreMouse.containsMouse ? Theme.accentHover : Theme.accent
             font.family: Theme.uiFont
             font.pixelSize: 11
             font.bold: true

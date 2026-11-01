@@ -77,7 +77,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 12
             text: host.chatCollapsed ? "▸" : "▾"
-            color: headMouse.containsMouse ? Theme.amber : Theme.ink3
+            color: headMouse.containsMouse ? Theme.accent : Theme.ink3
             font.pixelSize: 10
         }
         Text {
@@ -100,7 +100,7 @@ Rectangle {
             width: 7
             height: 7
             radius: 3.5
-            color: Theme.amber
+            color: Theme.accent
         }
         Text {
             anchors.right: parent.right
@@ -167,7 +167,7 @@ Rectangle {
                         width: Math.max(say.width, stamp.implicitWidth) + 24
                         height: bubbleCol.implicitHeight + 12
                         radius: 10
-                        color: msg.mine ? Theme.amberSoft : Theme.tile
+                        color: msg.mine ? Theme.accentSoft : Theme.tile
 
                         Column {
                             id: bubbleCol
@@ -234,7 +234,7 @@ Rectangle {
             radius: height / 2
             color: Theme.tile
             border.width: 1
-            border.color: chatInput.activeFocus ? Theme.amber : "transparent"
+            border.color: chatInput.activeFocus ? Theme.accent : "transparent"
             Behavior on border.color { ColorAnimation { duration: 100 } }
 
             TextInput {
@@ -269,8 +269,8 @@ Rectangle {
                 height: 24
                 radius: 12
                 color: !sendBtn.ready ? Theme.hover
-                     : (sendMouse.pressed ? Theme.amberPress
-                        : (sendMouse.containsMouse ? Theme.amberHover : Theme.amber))
+                     : (sendMouse.pressed ? Theme.accentPress
+                        : (sendMouse.containsMouse ? Theme.accentHover : Theme.accent))
                 Behavior on color { ColorAnimation { duration: 100 } }
 
                 Canvas {
@@ -278,7 +278,7 @@ Rectangle {
                     anchors.centerIn: parent
                     width: 14
                     height: 14
-                    property color ink: sendBtn.ready ? Theme.amberInk : Theme.ink3
+                    property color ink: sendBtn.ready ? Theme.accentInk : Theme.ink3
                     onInkChanged: requestPaint()
                     onPaint: {
                         var ctx = getContext("2d")

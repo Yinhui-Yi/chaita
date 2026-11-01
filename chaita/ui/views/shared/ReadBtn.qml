@@ -19,14 +19,14 @@ Rectangle {
     width: 48
     height: 22
     radius: Theme.radius
-    color: mouse.pressed ? Theme.amberPress
-         : (mouse.containsMouse ? Theme.amberHover : Theme.amber)
+    color: mouse.pressed ? Theme.accentPress
+         : (mouse.containsMouse ? Theme.accentHover : Theme.accent)
     Behavior on color { ColorAnimation { duration: 100 } }
 
     Text {
         anchors.centerIn: parent
         text: "读取"
-        color: Theme.amberInk
+        color: Theme.accentInk
         font.family: Theme.uiFont
         font.pixelSize: 11
     }
@@ -40,7 +40,7 @@ Rectangle {
         radius: 4
         color: Theme.paper
         border.width: 2
-        border.color: Theme.amber
+        border.color: Theme.accent
         SequentialAnimation on opacity {
             running: btn.busy > 0
             loops: Animation.Infinite

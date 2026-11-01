@@ -70,7 +70,7 @@ Item {
             width: modelData.size
             height: modelData.size
             radius: 3
-            color: Qt.rgba(1, 1, 1, 0.16)
+            color: Theme.mapBadgeFill
             border.width: 2
             border.color: modelData.color
             // 图上就是素材库那张楼梯（和清单里同一张），外圈颜色只区分上/下

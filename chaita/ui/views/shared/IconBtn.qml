@@ -9,7 +9,7 @@ Rectangle {
     property string glyph: ""
     property int glyphSize: 13
     // 悬停时字的颜色（默认强调蓝；关闭键传 Theme.danger）
-    property color hoverInk: Theme.amber
+    property color hoverInk: Theme.accent
     // 悬停时的底（默认浅灰；关闭键传 Theme.dangerSoft）
     property color hoverBack: Theme.hover
     // 常亮（比如"正在刷新"）：字用次要色

@@ -35,7 +35,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             width: 12
             text: head.collapsed ? "▸" : "▾"
-            color: toggleMouse.containsMouse ? Theme.amber : Theme.ink3
+            color: toggleMouse.containsMouse ? Theme.accent : Theme.ink3
             font.pixelSize: 10
         }
         Text {

@@ -54,7 +54,7 @@ Window {
     // 暖纸底 + 墨字 + 一点琥珀金这套已经换了：现在是冷灰白底 + 近黑字 + 一个强调蓝。
     // 三档文字明度拉开层次，不靠边框堆。
     // 配色和字体只有一处定义（Theme.qml），这里留同名别名：
-    // 这份文件里 5000 行都写 `win.amber`，不为了搬家去改它们；子界面直接用 Theme。
+    // 这份文件里 5000 行都写 `win.ink` 这类，不为了搬家去改它们；子界面直接用 Theme。
     readonly property string uiFont: Theme.uiFont
     readonly property string monoFont: Theme.monoFont
     readonly property color paper: Theme.paper
@@ -65,8 +65,8 @@ Window {
     readonly property color ink: Theme.ink
     readonly property color ink2: Theme.ink2
     readonly property color ink3: Theme.ink3
-    readonly property color amber: Theme.amber
-    readonly property color amberInk: Theme.amberInk
+    readonly property color accent: Theme.accent
+    readonly property color accentInk: Theme.accentInk
     readonly property color danger: Theme.danger
     // 效果标记三色（上/下楼梯也用它俩：↑ 绿、↓ 蓝）
     readonly property color markAtk: Theme.markAtk
@@ -3844,7 +3844,7 @@ Window {
             anchors.rightMargin: 1
             height: 2
             color: win.barFlash === "err" ? win.danger
-                 : (win.barFlash === "ok" ? win.amber : "transparent")
+                 : (win.barFlash === "ok" ? win.accent : "transparent")
             Behavior on color { ColorAnimation { duration: 120 } }
         }
 
@@ -3900,7 +3900,7 @@ Window {
             visible: !win.collapsed && flick.contentHeight > flick.height + 1
             width: 2
             radius: 1
-            color: win.amber
+            color: win.accent
             opacity: 0.32
             x: card.width - 5
             y: flick.y + flick.visibleArea.yPosition * flick.height

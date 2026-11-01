@@ -1,6 +1,6 @@
 import QtQuick
 // 先看 docs/UI_MAP.md：哪份文件画哪个界面、状态在谁身上、objectName 怎么起。
-// 这一份 = 一个扁按钮（描边 / 实心 amber / 危险三种），两个窗口共用。
+// 这一份 = 一个扁按钮（描边 / 实心 accent / 危险三种），两个窗口共用。
 // 配色/字体在上一层：qml/Theme.qml（qmldir 里注册成单例）
 import ".."
 
@@ -19,8 +19,8 @@ Rectangle {
     implicitHeight: Theme.controlH
     radius: Theme.radius
     color: flat.solid
-           ? (flatMouse.pressed ? Theme.amberPress
-              : (flatMouse.containsMouse ? Theme.amberHover : Theme.amber))
+           ? (flatMouse.pressed ? Theme.accentPress
+              : (flatMouse.containsMouse ? Theme.accentHover : Theme.accent))
            : (flatMouse.pressed ? Theme.hover
               : (flatMouse.containsMouse
                  ? (flat.danger ? Theme.dangerSoft : Theme.paperLo) : Theme.paper))
@@ -31,7 +31,7 @@ Rectangle {
         id: flatText
         anchors.centerIn: parent
         text: flat.label
-        color: flat.solid ? Theme.amberInk
+        color: flat.solid ? Theme.accentInk
              : (flat.danger ? Theme.danger : Theme.ink)
         font.family: Theme.uiFont
         font.pixelSize: 11

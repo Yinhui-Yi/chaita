@@ -122,7 +122,7 @@ Item {
                 anchors.topMargin: 1
                 anchors.bottomMargin: 1
                 radius: Theme.radius
-                color: Theme.amberSoft
+                color: Theme.accentSoft
                 visible: parent.active
             }
             Text {
@@ -131,7 +131,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 24
                 text: String((modelData || {}).label || "")
-                color: parent.active ? Theme.amber : Theme.ink2
+                color: parent.active ? Theme.accent : Theme.ink2
                 font.family: Theme.monoFont
                 font.pixelSize: 12
                 font.bold: parent.active
@@ -336,9 +336,9 @@ Item {
                     width: side
                     height: side
                     radius: 2
-                    color: Qt.rgba(0.84, 0.62, 0.18, 0.14)
+                    color: Theme.mapPickFill
                     border.width: 2
-                    border.color: Theme.amber
+                    border.color: Theme.accent
                 }
 
                 // 路线对比点了某一行 → 这一格圈出来
@@ -357,16 +357,16 @@ Item {
                     width: side
                     height: side
                     radius: 3
-                    color: Qt.rgba(0.95, 0.76, 0.25, 0.28)
+                    color: Theme.mapMarkFill
                     border.width: 2
-                    border.color: "#8F5E0C"
+                    border.color: Theme.mapMarkRing
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: -3
                         radius: 6
                         color: "transparent"
                         border.width: 2
-                        border.color: Qt.rgba(1, 1, 1, 0.88)
+                        border.color: Theme.mapMarkHalo
                     }
                 }
             }
@@ -450,7 +450,7 @@ Item {
             height: 16
             verticalAlignment: Text.AlignVCenter
             text: "复制坐标"
-            color: copyMouse.containsMouse ? Theme.amber : Theme.ink2
+            color: copyMouse.containsMouse ? Theme.accent : Theme.ink2
             font.family: Theme.uiFont
             font.pixelSize: 9
             MouseArea {
@@ -538,7 +538,7 @@ Item {
                      : ((panel.entry.floor || "") + " · "
                         + host.mapMeta(host.mapFloor)))
             color: host.mapHint !== "" ? Theme.danger
-                 : (!panel.hasStairs && !panel.editing ? Theme.amber
+                 : (!panel.hasStairs && !panel.editing ? Theme.accent
                                                        : Theme.ink3)
             font.family: Theme.uiFont
             font.pixelSize: 11
@@ -564,7 +564,7 @@ Item {
                 objectName: "mapGridEdit"
                 pill: true
                 text: panel.editing ? "完成" : "编辑"
-                accent: Theme.amber
+                accent: Theme.accent
                 active: panel.editing
                 onClicked: panel.host.gridEditToggle(panel.host.mapFloor)
             }
@@ -572,7 +572,7 @@ Item {
                 objectName: "mapRefresh"
                 pill: true
                 text: "刷新"
-                accent: Theme.amber
+                accent: Theme.accent
                 onClicked: controller.refreshFloorCounts(panel.host.mapFloor)
             }
         }

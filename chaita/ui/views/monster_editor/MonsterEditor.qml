@@ -191,7 +191,7 @@ Item {
                 radius: 6
                 color: headerName.activeFocus ? host.paperLo : "transparent"
                 border.width: 1
-                border.color: headerName.activeFocus ? host.amber
+                border.color: headerName.activeFocus ? host.accent
                                                      : host.hairline
                 Behavior on border.color {
                     ColorAnimation { duration: 120 }
@@ -280,7 +280,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         color: inner.activeFocus ? host.paperLo : "transparent"
                         border.width: 1
-                        border.color: inner.activeFocus ? host.amber
+                        border.color: inner.activeFocus ? host.accent
                                                         : host.hairline
                         Behavior on border.color {
                             ColorAnimation { duration: 120 }
@@ -432,7 +432,7 @@ Item {
                                                        : "transparent"
                             border.width: skillRowItem.custom ? 1 : 0
                             border.color: skillNameField.activeFocus
-                                          ? host.amber : host.hairline
+                                          ? host.accent : host.hairline
                             Behavior on border.color {
                                 ColorAnimation { duration: 120 }
                             }
@@ -513,7 +513,7 @@ Item {
                                     radius: 4
                                     border.width: 1
                                     border.color: skillEffectField.activeFocus
-                                                  ? host.amber : host.hairline
+                                                  ? host.accent : host.hairline
                                 }
                                 wrapMode: TextArea.Wrap
                                 placeholderText: "写这个技能的介绍（可不填）"
@@ -563,7 +563,7 @@ Item {
                                             color: host.paperLo
                                             border.width: 1
                                             border.color: paramField.activeFocus
-                                                          ? host.amber : host.hairline
+                                                          ? host.accent : host.hairline
                                             TextField {
                                                 id: paramField
                                                 objectName: "monSkillParam"
@@ -609,10 +609,10 @@ Item {
                                             height: 18
                                             radius: 4
                                             color: paramCell.current
-                                                   ? host.amber : host.paperLo
+                                                   ? host.accent : host.paperLo
                                             border.width: 1
                                             border.color: paramCell.current
-                                                          ? host.amber : host.hairline
+                                                          ? host.accent : host.hairline
                                             Text {
                                                 anchors.centerIn: parent
                                                 visible: !!paramCell.current
@@ -641,10 +641,10 @@ Item {
                                                     height: 18
                                                     radius: 4
                                                     color: paramCell.current === modelData
-                                                           ? host.amber : host.paperLo
+                                                           ? host.accent : host.paperLo
                                                     border.width: 1
                                                     border.color: paramCell.current === modelData
-                                                                  ? host.amber : host.hairline
+                                                                  ? host.accent : host.hairline
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: modelData

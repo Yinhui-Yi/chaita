@@ -20,7 +20,7 @@ z: 30
 Rectangle {
     anchors.fill: parent
     radius: 10
-    color: Qt.rgba(0.11, 0.10, 0.08, 0.32)
+    color: Theme.scrim
     MouseArea {
         anchors.fill: parent
         onClicked: host.battleEditLayer = false
@@ -90,7 +90,7 @@ Rectangle {
                     color: host.paperLo
                     border.width: 1
                     border.color: countField.activeFocus
-                                  ? host.amber : host.hairline
+                                  ? host.accent : host.hairline
                     TextField {
                         id: countField
                         objectName: "battleEditCount"
@@ -150,7 +150,7 @@ Rectangle {
                             color: host.paperLo
                             border.width: 1
                             border.color: statField.activeFocus
-                                          ? host.amber : host.hairline
+                                          ? host.accent : host.hairline
                             TextField {
                                 id: statField
                                 objectName: "battleEdit" + modelData[0]
@@ -241,7 +241,7 @@ Rectangle {
                         color: host.paperLo
                         border.width: 1
                         border.color: paramField.activeFocus
-                                      ? host.amber : host.hairline
+                                      ? host.accent : host.hairline
                         TextField {
                             id: paramField
                             objectName: "battleEditParam"
@@ -278,9 +278,9 @@ Rectangle {
                         readonly property bool on:
                             String(modelData.value) === "true"
                             || String(modelData.value) === "1"
-                        color: on ? host.amber : host.paperLo
+                        color: on ? host.accent : host.paperLo
                         border.width: 1
-                        border.color: on ? host.amber : host.hairline
+                        border.color: on ? host.accent : host.hairline
                         Text {
                             anchors.centerIn: parent
                             visible: parent.on
@@ -311,9 +311,9 @@ Rectangle {
                                 radius: 4
                                 readonly property bool on:
                                     String(modelData) === String(choiceRow.param.value)
-                                color: on ? host.amber : host.paperLo
+                                color: on ? host.accent : host.paperLo
                                 border.width: 1
-                                border.color: on ? host.amber
+                                border.color: on ? host.accent
                                                  : host.hairline
                                 Text {
                                     anchors.centerIn: parent

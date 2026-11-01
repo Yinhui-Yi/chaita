@@ -238,7 +238,7 @@ Window {
                 anchors.rightMargin: 2
                 anchors.verticalCenter: parent.verticalCenter
                 text: "粘贴"
-                accent: Theme.amber
+                accent: Theme.accent
                 onClicked: host.comparePaste()
             }
         }
@@ -329,7 +329,7 @@ Window {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: rowItem.active ? Theme.amberSoft
+                            color: rowItem.active ? Theme.accentSoft
                                    : (rowArea.containsMouse ? Theme.tile
                                                             : "transparent")
                         }
@@ -380,7 +380,7 @@ Window {
                                   ? (Number(modelData.row) + 1) + ","
                                     + (Number(modelData.col) + 1)
                                   : "—"
-                            color: rowItem.active ? Theme.amber : Theme.ink2
+                            color: rowItem.active ? Theme.accent : Theme.ink2
                             font.family: Theme.monoFont
                             font.pixelSize: 11
                             elide: Text.ElideRight

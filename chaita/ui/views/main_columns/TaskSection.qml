@@ -52,7 +52,7 @@ Card {
                 x: 2
                 anchors.verticalCenter: parent.verticalCenter
                 text: "●"
-                color: modelData.state === "running" ? Theme.amber
+                color: modelData.state === "running" ? Theme.accent
                      : (modelData.state === "failed" ? Theme.danger
                      : (modelData.state === "done" ? Theme.ink2 : Theme.ink3))
                 font.pixelSize: 9
@@ -151,7 +151,7 @@ Card {
                     visible: modelData.canRetry
                     text: "重试"
                     color: taskRetryMouse.containsMouse
-                           ? Theme.amber : Theme.ink2
+                           ? Theme.accent : Theme.ink2
                     font.family: Theme.uiFont
                     font.pixelSize: 11
                     MouseArea {

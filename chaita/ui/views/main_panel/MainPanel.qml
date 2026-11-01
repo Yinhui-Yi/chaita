@@ -109,7 +109,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             pill: true
             text: "置顶"
-            accent: Theme.amber
+            accent: Theme.accent
             active: host.pinned
             onClicked: controller.setPinned(!host.pinned)
         }
@@ -351,16 +351,16 @@ Item {
         height: 22
         radius: Theme.radius
         color: controller && controller.statusLocked
-               ? Theme.amberSoft
+               ? Theme.accentSoft
                : (lockMouse.containsMouse ? Theme.hover : "transparent")
         border.width: 1
         border.color: controller && controller.statusLocked
-                      ? Theme.amber : Theme.edge
+                      ? Theme.accent : Theme.edge
         Text {
             anchors.centerIn: parent
             text: "锁"
             color: controller && controller.statusLocked
-                   ? host.amber : host.ink3
+                   ? host.accent : host.ink3
             font.family: host.uiFont
             font.pixelSize: 11
         }

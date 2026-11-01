@@ -36,7 +36,7 @@ Item {
             x: 1; y: parent.height / 2 - 0.8
             width: 7; height: 1.6; radius: 0.8
             color: arrow.clickable && arrowMouse.containsMouse
-                   ? Theme.amber : Theme.ink2
+                   ? Theme.accent : Theme.ink2
             transform: Rotation {
                 origin.x: 7; origin.y: 0.8; angle: -35
             }
@@ -46,7 +46,7 @@ Item {
             x: 1; y: parent.height / 2 - 0.8
             width: 7; height: 1.6; radius: 0.8
             color: arrow.clickable && arrowMouse.containsMouse
-                   ? Theme.amber : Theme.ink2
+                   ? Theme.accent : Theme.ink2
             transform: Rotation {
                 origin.x: 7; origin.y: 0.8; angle: 35
             }

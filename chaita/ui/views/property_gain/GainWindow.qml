@@ -449,7 +449,7 @@ Window {
                 model: [["atk", "攻", Theme.markAtk],
                         ["def", "防", Theme.markDef],
                         ["mdef", "魔防", Theme.markMdef],
-                        ["cap", "上界", Theme.amber]]
+                        ["cap", "上界", Theme.accent]]
                 delegate: Row {
                     spacing: 4
                     Text {
@@ -466,7 +466,7 @@ Window {
                         color: gainField.activeFocus ? Theme.paperHi
                                                      : Theme.tile
                         border.width: 1
-                        border.color: gainField.activeFocus ? Theme.amber
+                        border.color: gainField.activeFocus ? Theme.accent
                                                            : Theme.hairline
                         TextField {
                             id: gainField
@@ -822,7 +822,7 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 verticalAlignment: Text.AlignVCenter
                 text: gainWin.totalText()
-                color: (gainWin.result || {}).capped ? Theme.amber : Theme.ink
+                color: (gainWin.result || {}).capped ? Theme.accent : Theme.ink
                 font.family: Theme.uiFont
                 font.pixelSize: 12
                 font.bold: true

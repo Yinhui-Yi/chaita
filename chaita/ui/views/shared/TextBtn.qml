@@ -12,7 +12,7 @@ Item {
 
     // 文字
     property string text: ""
-    // 亮起来的颜色（默认悬停变墨色；传 Theme.amber 这类就一直是那个颜色）
+    // 亮起来的颜色（默认悬停变墨色；传 Theme.accent 这类就一直是那个颜色）
     property color accent: "transparent"
     // 常亮（比如"正在编辑"这种状态）：文字用 accent 色
     property bool active: false
@@ -34,7 +34,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: btn.pill && btn.active ? Theme.amberSoft
+        color: btn.pill && btn.active ? Theme.accentSoft
              : (btn.pill && mouse.containsMouse ? Theme.hover : "transparent")
         Behavior on color { ColorAnimation { duration: 100 } }
     }

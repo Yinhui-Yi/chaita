@@ -115,7 +115,7 @@ Card {
                 height: 26
                 radius: 13
                 width: skillInner.width + 20
-                color: chip.open ? Theme.amberSoft
+                color: chip.open ? Theme.accentSoft
                      : (chipMouse.containsMouse ? Theme.hover : Theme.tile)
                 Behavior on color { ColorAnimation { duration: 100 } }
 
@@ -136,7 +136,7 @@ Card {
                         objectName: "skillLeft"
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData ? modelData.left + "/" + modelData.total : ""
-                        color: modelData && modelData.left > 0 ? Theme.amber : Theme.ink3
+                        color: modelData && modelData.left > 0 ? Theme.accent : Theme.ink3
                         font.family: Theme.monoFont
                         font.pixelSize: 11
                         font.bold: true
@@ -265,7 +265,7 @@ Card {
                         objectName: "skillIntroRestore"
                         visible: !!section.introInfo.edited
                         text: "恢复原话"
-                        accent: Theme.amber
+                        accent: Theme.accent
                         onClicked: {
                             controller.setSkillNote(section.introSkill, "")
                             section.refreshIntro()
@@ -291,7 +291,7 @@ Card {
                     radius: 6
                     color: Theme.tile
                     border.width: 1
-                    border.color: noteEdit.activeFocus ? Theme.amber : "transparent"
+                    border.color: noteEdit.activeFocus ? Theme.accent : "transparent"
                 }
                 // 改完点别处就存
                 onActiveFocusChanged: if (!activeFocus) section.commitIntro()
@@ -331,7 +331,7 @@ Card {
                                 visible: !!modelData.value
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.value
-                                color: Theme.amber
+                                color: Theme.accent
                                 font.family: Theme.monoFont
                                 font.pixelSize: 11
                             }

@@ -606,7 +606,7 @@ Window {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: Theme.amberSoft
+                            color: Theme.accentSoft
                             visible: monDrop.containsDrag
                         }
 
@@ -623,7 +623,7 @@ Window {
                                     anchors.verticalCenter: parent.verticalCenter
                                     horizontalAlignment: Text.AlignHCenter
                                     text: monRow.mon.done ? "●" : "○"
-                                    color: monRow.mon.done ? host.amber : host.ink3
+                                    color: monRow.mon.done ? host.accent : host.ink3
                                     font.pixelSize: 11
                                     MouseArea {
                                         anchors.fill: parent
@@ -740,7 +740,7 @@ Window {
                                     return sheetRoot.gridPosText(monRow.mon.name)
                                 }
                                 color: String(host.gridSelected || "") === monRow.mon.name
-                                       ? host.amber : host.ink3
+                                       ? host.accent : host.ink3
                                 font.family: host.uiFont
                                 font.pixelSize: 8
                                 elide: Text.ElideRight
@@ -826,7 +826,7 @@ Window {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: Theme.amberSoft
+                            color: Theme.accentSoft
                             visible: itemDrop.containsDrag
                         }
 
@@ -843,7 +843,7 @@ Window {
                                     anchors.verticalCenter: parent.verticalCenter
                                     horizontalAlignment: Text.AlignHCenter
                                     text: itemRow.item.done ? "●" : "○"
-                                    color: itemRow.item.done ? host.amber : host.ink3
+                                    color: itemRow.item.done ? host.accent : host.ink3
                                     font.pixelSize: 11
                                     MouseArea {
                                         anchors.fill: parent
@@ -980,7 +980,7 @@ Window {
                                                                  itemRow.item.effect)
                                 }
                                 color: String(host.gridSelected || "") === itemRow.itemName
-                                       ? host.amber : host.ink3
+                                       ? host.accent : host.ink3
                                 font.family: host.uiFont
                                 font.pixelSize: 8
                                 elide: Text.ElideRight
@@ -1036,7 +1036,7 @@ Window {
                             width: 44
                             anchors.verticalCenter: parent.verticalCenter
                             text: "路线 " + (index + 1)
-                            color: routeMouse.containsMouse ? host.amber : host.ink2
+                            color: routeMouse.containsMouse ? host.accent : host.ink2
                             font.family: host.uiFont
                             font.pixelSize: 9
                             MouseArea {
@@ -1070,7 +1070,7 @@ Window {
                                    ? host.paperLo : "transparent"
                             border.width: 1
                             border.color: memoField.activeFocus
-                                          ? host.amber : host.hairline
+                                          ? host.accent : host.hairline
                             TextField {
                                 id: memoField
                                 objectName: "routeMemo"
@@ -1135,7 +1135,7 @@ Window {
                                ? Theme.paper : Theme.tile
                         border.width: 1
                         border.color: memoField.activeFocus
-                                      ? Theme.amber : Theme.hairline
+                                      ? Theme.accent : Theme.hairline
                         TextField {
                             id: memoField
                             objectName: "floorMemo"
@@ -1228,7 +1228,7 @@ Window {
                     width: 11
                     height: 1
                     color: gripMouse.containsMouse
-                           ? host.amber : host.ink3
+                           ? host.accent : host.ink3
                     opacity: 0.6
                     x: grip.width - width - 1
                     y: grip.height - modelData

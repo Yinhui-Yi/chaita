@@ -155,7 +155,7 @@ Window {
             delegate: Rectangle {
                 width: 11
                 height: 1
-                color: gripMouse.containsMouse ? Theme.amber : Theme.ink3
+                color: gripMouse.containsMouse ? Theme.accent : Theme.ink3
                 opacity: 0.6
                 x: grip.width - width - 1
                 y: grip.height - modelData
@@ -315,7 +315,7 @@ Window {
                 anchors.rightMargin: 2
                 anchors.verticalCenter: parent.verticalCenter
                 text: "复制"
-                accent: Theme.amber
+                accent: Theme.accent
                 onClicked: host.routeCopy(ctx)
             }
             // 拖拽入口：按住「拖」把这条路线拖到「路线对比」窗口上松手
@@ -334,7 +334,7 @@ Window {
                     id: dragOutText
                     anchors.centerIn: parent
                     text: "拖"
-                    color: dragOutMouse.containsMouse ? Theme.amber : Theme.ink2
+                    color: dragOutMouse.containsMouse ? Theme.accent : Theme.ink2
                     font.family: Theme.uiFont
                     font.pixelSize: 11
                 }
@@ -368,7 +368,7 @@ Window {
                 Rectangle {
                     anchors.fill: parent
                     radius: 4
-                    color: Theme.amber
+                    color: Theme.accent
                     Text {
                         anchors.centerIn: parent
                         text: "路线"

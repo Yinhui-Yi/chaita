@@ -82,7 +82,7 @@ Card {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: 2
-                color: Theme.amber
+                color: Theme.accent
                 visible: modelData && modelData.dbIndex >= 0
                          && controller
                          && controller.monDragFrom >= 0

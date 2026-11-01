@@ -75,7 +75,7 @@ Item {
         visible: !editor.visible
         verticalAlignment: Text.AlignVCenter
         text: field.display() !== "" ? field.display() : field.placeholder
-        color: field.display() !== "" ? Theme.ink : Theme.amber
+        color: field.display() !== "" ? Theme.ink : Theme.accent
         font.family: Theme.uiFont
         font.pixelSize: field.labelSize
         font.bold: field.display() !== ""
@@ -100,7 +100,7 @@ Item {
         selectByMouse: true
         verticalAlignment: TextInput.AlignVCenter
         background: Rectangle { color: Theme.paperHi; radius: 4
-                                border.width: 1; border.color: Theme.amber }
+                                border.width: 1; border.color: Theme.accent }
         color: Theme.ink
         font.family: Theme.uiFont
         font.pixelSize: field.labelSize

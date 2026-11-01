@@ -165,7 +165,7 @@ Item {
             radius: 14
             color: host.paperLo
             border.width: 1
-            border.color: iconSearch.activeFocus ? host.amber : host.hairline
+            border.color: iconSearch.activeFocus ? host.accent : host.hairline
             Behavior on border.color { ColorAnimation { duration: 120 } }
             // 放大镜（QQ 的搜索框左边就是这个）
             Item {
@@ -277,7 +277,7 @@ Item {
                                     radius: 6
                                     // 照 QQ：格子上不画框，只有"选中的那张"和鼠标下面有点底色
                                     color: host.monIconId === modelData.id
-                                           ? Theme.amberSoft
+                                           ? Theme.accentSoft
                                            : (cellMouse.containsMouse
                                               ? Theme.hover : "transparent")
 
