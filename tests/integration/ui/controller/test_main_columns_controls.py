@@ -336,6 +336,32 @@ def test_地图_怪物_技能三张卡竖排_不重叠_间距一致():
     assert [round(g) for g in gaps] == [window.property("gapB")] * 2
 
 
+def test_窗口拉高后内容区跟着变高_不留空白():
+    """测什么：内容比较长时，把窗口拉到比"自动高度"更高 → 内容区吃满剩余空间
+    （窗口高度 − 固定部分），不被 `middleCap()` 卡在一个小数上，上面不空出一大块。
+
+    走过的界面：主窗口拉高后的内容区（Flickable）。
+    """
+    controller, engine, window = _window()
+    controller._monsters = [
+        {"name": "怪%d" % i, "hp": "100", "atk": "10", "def": "5"}
+        for i in range(14)]
+    controller.monstersChanged.emit()
+    _floors(controller)
+    helpers.APP.processEvents()
+
+    tall = 1500
+    window.setProperty("height", tall)
+    helpers.APP.processEvents()
+
+    flick = helpers.find_item(window, "contentFlick")
+    room = tall - window.property("chromeH")
+    assert flick.property("contentHeight") > window.property("chromeH")
+    assert round(flick.height()) == round(min(flick.property("contentHeight"), room))
+    # 比原来那个封顶值大，才说明它不再被封顶卡住
+    assert flick.height() > 560
+
+
 def test_导航条五个图标按钮同尺寸_同一条水平线():
     """测什么：导航条上的刷新 / ＋ / ⚔ / ⇄ / ✕ 是同一种图标按钮——一样大、纵向中心一致，
     从右到左依次排开不重叠。

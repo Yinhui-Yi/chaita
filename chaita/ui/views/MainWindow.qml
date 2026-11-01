@@ -3879,9 +3879,12 @@ Window {
             x: win.padH
             y: panel.chromeBottom + win.gapA
             width: win.bodyW
-            // 内容区高度：内容多少、封顶、以及"窗口被拉矮了"三者取最小 ——
-            // 用户把窗口拉矮时不该把列表裁掉，而是让它在里面滚
-            height: Math.max(60, Math.min(contentHeight, win.middleCap(),
+            // 内容区高度：内容多少 和 窗口给它留了多少（窗口高度 − 固定部分）取小。
+            // 不再单独套 middleCap()：那个上限只管"没人拉过窗口时，窗口自动长多高"
+            // （见 refreshExpanded / contentHeight，窗口高度本身已经被它封顶了）；
+            // 套在这里的话，用户把窗口拉高了内容区也不跟着变大，上面就空出一大块
+            // （屏幕不高、状态卡和对话区又占得多时，它会被压到最小的 180）。
+            height: Math.max(60, Math.min(contentHeight,
                                           win.height - win.chromeH))
             visible: !win.collapsed
             contentWidth: width
