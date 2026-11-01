@@ -7,7 +7,7 @@ from .. import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import QAbstractNativeEventFilter
 
-from ..constants import APP_TITLE, _BORDER, _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT, _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT
+from ..constants import APP_TITLE, _BORDER, _BORDER_OUTSIDE, _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT, _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT
 
 # ShowWindow / SetWindowPos 的参数（只用到这几个）
 _SW_RESTORE = 9
@@ -162,6 +162,13 @@ class NativeHitTest(QAbstractNativeEventFilter):
                     pass
             return False, 0
 
+    def _inset(self, dpr: float) -> int:
+        """窗口最外圈透明投影边的宽度（物理像素）。窗口没有 `inset` 属性就是 0。"""
+        try:
+            return max(0, int(float(self._window.property("inset")) * dpr))
+        except (AttributeError, TypeError, ValueError):
+            return 0
+
     def _handle(self, message):
         ptr = int(message)
         if not ptr:
@@ -179,16 +186,21 @@ class NativeHitTest(QAbstractNativeEventFilter):
         y = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
 
         geometry = self._window.geometry()
-        left = geometry.x() * dpr
-        top = geometry.y() * dpr
-        right = (geometry.x() + geometry.width()) * dpr
-        bottom = (geometry.y() + geometry.height()) * dpr
+        # 窗口最外圈是透明的投影边：热区按**可见卡片**的边算（没有这个属性的窗口 = 0）
+        inset = self._inset(dpr)
+        left = geometry.x() * dpr + inset
+        top = geometry.y() * dpr + inset
+        right = (geometry.x() + geometry.width()) * dpr - inset
+        bottom = (geometry.y() + geometry.height()) * dpr - inset
         border = max(5, int(_BORDER * dpr))
+        outside = min(inset, int(_BORDER_OUTSIDE * dpr))
 
-        on_left = x < left + border
-        on_right = x >= right - border
-        on_top = y < top + border
-        on_bottom = y >= bottom - border
+        within_v = top - outside <= y < bottom + outside
+        within_h = left - outside <= x < right + outside
+        on_left = within_v and left - outside <= x < left + border
+        on_right = within_v and right - border <= x < right + outside
+        on_top = within_h and top - outside <= y < top + border
+        on_bottom = within_h and bottom - border <= y < bottom + outside
 
         if on_top and on_left:
             return True, _HTTOPLEFT

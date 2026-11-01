@@ -40,15 +40,45 @@ class _Window:
         return _Geo(100, 100, 400, 400)
 
 
-def _handle(x, y, message=0x0084, hwnd=0x1234):
+class _InsetWindow(_Window):
+    """主窗口的样子：最外圈有一圈透明投影边（QML 的 inset 属性）。"""
+
+    def property(self, name):
+        return {"inset": 10}[name]
+
+
+def _handle(x, y, message=0x0084, hwnd=0x1234, window=None):
     hit = desk.NativeHitTest.__new__(desk.NativeHitTest)
-    hit._window = _Window()
+    hit._window = window or _Window()
     hit._hwnd = 0x1234
     msg = wintypes.MSG()
     msg.message = message
     msg.hWnd = hwnd
     msg.lParam = (y << 16) | x
     return hit._handle(ctypes.addressof(msg))
+
+
+def test_有投影边时热区跟着可见卡片的边走():
+    """窗口 100..500，投影边 10 → 可见卡片 110..490。
+    卡片外 4px 到卡片内 6px 都能拉；再往外（透明边里）不接管。"""
+    win = _InsetWindow()
+    assert _handle(112, 300, window=win) == (True, desk._HTLEFT)     # 卡片内 2px
+    assert _handle(107, 300, window=win) == (True, desk._HTLEFT)     # 卡片外 3px
+    assert _handle(488, 300, window=win) == (True, desk._HTRIGHT)
+    assert _handle(300, 112, window=win) == (True, desk._HTTOP)
+    assert _handle(300, 492, window=win) == (True, desk._HTBOTTOM)
+    assert _handle(108, 108, window=win) == (True, desk._HTTOPLEFT)
+    assert _handle(491, 491, window=win) == (True, desk._HTBOTTOMRIGHT)
+
+
+def test_有投影边时透明边外圈和卡片内部都不接管():
+    win = _InsetWindow()
+    assert _handle(103, 300, window=win) == (False, 0)   # 卡片外 7px：透明边深处
+    assert _handle(300, 101, window=win) == (False, 0)
+    assert _handle(300, 300, window=win) == (False, 0)   # 卡片中间
+    assert _handle(118, 300, window=win) == (False, 0)   # 卡片内 8px：已过热区
+    # 卡片上沿的外面、但横向已经在卡片左右之外：不算顶边
+    assert _handle(50, 108, window=win) == (False, 0)
 
 
 def test_hit_corners():

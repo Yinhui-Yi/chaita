@@ -46,7 +46,10 @@ MON_DRAG_INTERVAL_MS = 40
 # 无边框窗口（Qt.FramelessWindowHint）会让 Windows 失去边缘缩放与光标反馈。
 # 自己在 WM_NCHITTEST 里回答"鼠标在哪个部位"，系统就会把缩放、光标形状、
 # 双击标题栏、贴边这些原生行为全都装回来 —— 和普通窗口完全一致。
-_BORDER = 6  # 边缘判定宽度（物理像素）
+_BORDER = 6  # 边缘判定宽度（物理像素），从**可见卡片**的边往里量
+# 主窗口最外圈有一圈透明的投影边（QML 里的 `inset`），可见卡片的边在窗口边的里面。
+# 热区必须跟着可见的边走，再往外让出这么多逻辑像素（光标刚碰到卡片外沿就能拉）。
+_BORDER_OUTSIDE = 4
 
 _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT = 10, 11, 12, 13, 14
 _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT = 15, 16, 17
