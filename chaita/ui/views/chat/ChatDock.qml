@@ -314,8 +314,10 @@ Rectangle {
         chatFlick.contentY = chatFlick.contentHeight - chatFlick.height
     }
 
-    // 空的不发；发完清空输入框（回复由 controller 的 chatLog 推回来）
+    // 空的不发；正在等上一句的回复也不发（字留在输入框里，别丢）；发完清空输入框
+    // （回复由 controller 的 chatLog 推回来）
     function sendChat() {
+        if (controller.chatting) return
         var text = chatInput.text
         if (!text || text.trim() === "") return
         controller.sendChat(text)

@@ -194,6 +194,30 @@ def test_chat_send_button_sends(monkeypatch):
     assert helpers.find_item(window, "chatInput").property("text") == ""
 
 
+def test_等回复时按发送键_字留在输入框里_不重复发(monkeypatch):
+    """测什么：上一句还没回复（`chatting`）时，打字、点发送 → 不发第二句，字也还在输入框里
+    （发出去前清掉就丢字了）；回复到了再点就能发。
+
+    走过的界面：输入栏里的发送键。
+    """
+    controller, engine, window = _window(monkeypatch, reply="好")
+    controller._chatting = True
+    field = helpers.find_item(window, "chatInput")
+    field.setProperty("text", "再问一句")
+    helpers.APP.processEvents()
+
+    helpers.click_item(window, helpers.find_item(window, "chatSend"))
+
+    assert controller.chatReply == ""
+    assert field.property("text") == "再问一句"
+
+    controller._chatting = False
+    controller.chattingChanged.emit()
+    helpers.click_item(window, helpers.find_item(window, "chatSend"))
+    assert controller.chatReply == "好"
+    assert field.property("text") == ""
+
+
 def test_empty_chat_is_not_sent(monkeypatch):
     """测什么：只打空格回车 → 不发给模型（没有回复、也没进"正在想"）。
 

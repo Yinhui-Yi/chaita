@@ -377,7 +377,7 @@ def main() -> int:
 
         返回恢复函数（跑完要还原，别影响后面的真实点击检查）。
         """
-        from chaita.ui.controller import monsters as monsters_mod
+        from chaita.ui.controller.monsters import drag as monsters_mod
 
         screen = QGuiApplication.primaryScreen()
         dpr = screen.devicePixelRatio() if screen else 1.0
@@ -451,9 +451,10 @@ def main() -> int:
               "labels=%r" % ([x for x in labels if x in ("地图", "怪物", "技能")],))
         check("没有资源分区（用户：不需要资源）", "资源" not in labels)
         check("底下有对话卡", find_object("chatBar") is not None)
-        # 导航条（软件名 + 关闭）和状态行（数值 + 钥匙）分开：用户嫌"血量钥匙"位置不合理
+        # 导航条（工具图标）和状态卡（数值 + 钥匙）分开：用户嫌"血量钥匙"位置不合理
         nav = texts_inside("topBar")
-        check("导航条上有软件名", any("拆塔辅助" in t for t in nav),
+        check("导航条上有五个工具图标和「置顶」",
+              all(x in nav for x in ("↻", "＋", "⚔", "⇄", "✕", "置顶")),
               "topBar=%r" % (nav,))
         check("导航条不再混进钥匙/血量",
               not any(x in " ".join(nav) for x in ("1200", "9800")),
@@ -498,20 +499,28 @@ def main() -> int:
               % (scene_y(find_object("statusRow")),
                  scene_y(find_object("header"))))
 
+        def inside(box, item):
+            """item 是不是 box 的子孙。"""
+            node = item
+            while node is not None:
+                if node is box:
+                    return True
+                node = node.parentItem()
+            return False
+
         map_btn = find_object("readMap")
         mon_btn = find_object("readMon")
         dock = find_object("chatBar")
-        mon_row = find_object("monRow")
         check("地图栏和怪物栏各有一个「读取」",
               map_btn is not None and mon_btn is not None)
-        if map_btn is not None and mon_btn is not None and dock is not None \
-                and mon_row is not None:
-            check("两个「读取」都在对话卡之外，地图那个在怪物行上方",
-                  scene_y(map_btn) < scene_y(mon_row) < scene_y(dock)
+        if map_btn is not None and mon_btn is not None and dock is not None:
+            # 窗口矮、内容在里面滚，按钮的屏幕位置会跑到对话卡下面去，所以不比 y，
+            # 比"是不是在对话卡里面"（用户："不要放在对话框里"）
+            check("两个「读取」都不在对话卡里，地图那个在怪物那个上方",
+                  not inside(dock, map_btn) and not inside(dock, mon_btn)
                   and scene_y(map_btn) < scene_y(mon_btn),
-                  "map=%.0f mon=%.0f row=%.0f dock=%.0f"
-                  % (scene_y(map_btn), scene_y(mon_btn), scene_y(mon_row),
-                     scene_y(dock)))
+                  "map=%.0f mon=%.0f dock=%.0f"
+                  % (scene_y(map_btn), scene_y(mon_btn), scene_y(dock)))
 
         # 对话区不许有"默认提示"（用户："默认提示都删掉，真low"）
         labels_join = " ".join(labels)
@@ -554,6 +563,10 @@ def main() -> int:
 
     # ---------------- 2. 怪物：一行一个、塔级汇总 ----------------
     def step_monsters():
+        # 窗口矮、地图展开时怪物行/读取按钮会被滚到屏幕外（合成点击点不到）：
+        # 先把地图折起来，后面的怪物/技能/读取各步才点得到
+        window.setProperty("mapCollapsed", True)
+        app.processEvents()
         rows = find_all("monRow")
         check("怪物一行一个（手册读到的 + 地图上有的）", len(rows) == 4,
               "rows=%d" % len(rows))
@@ -561,11 +574,11 @@ def main() -> int:
         check("手册里读到、地图上还没记的怪也列出来", "手册怪" in names,
               "texts=%r" % (names,))
         joined = " ".join(" ".join(row_texts(row)) for row in rows)
-        check("怪物行有 ×N（整塔总只数）", "×4" in joined and "×1" in joined,
-              "text=%r" % (joined,))
         check("怪物行有「剩 N」", "剩 4" in joined and "剩 2" in joined,
               "text=%r" % (joined,))
-        check("怪物行有生命/攻/防", "生命 80" in joined and "攻 25" in joined,
+        # 用户："只要显示剩几只，不要别的"：列表里不再有生命/攻防、技能、总数
+        check("怪物行只有名字和「剩 N」（没有生命/攻/防、×N、技能）",
+              not any(x in joined for x in ("生命", "攻 ", "防 ", "×", "/")),
               "text=%r" % (joined,))
         check("怪物行不带层号", "通天塔" not in joined and "层" not in joined,
               "text=%r" % (joined,))
@@ -624,22 +637,22 @@ def main() -> int:
               "names=%r" % ([m["name"] for m in controller._monsters],))
         next_step(150, step_skills)
 
-    # ---------------- 3. 技能：一行一个、不列怪名 ----------------
+    # ---------------- 3. 技能：一排胶囊、不列怪名 ----------------
     def step_skills():
         rows = find_all("skillRow")
-        check("技能一行一个", len(rows) == 2, "rows=%d" % len(rows))
+        check("技能一颗胶囊一个", len(rows) == 2, "rows=%d" % len(rows))
         first = row_texts(rows[0]) if rows else []
-        count_texts = [t for t in first if "只" in t and "剩" in t]
+        count_texts = [t for t in first if "/" in t]
         name_texts = [t for t in first if t and t not in count_texts]
-        check("技能行只有「名字 + N 只 · 剩 M」",
+        check("技能胶囊只有「名字 + 剩余/总数」",
               len(count_texts) == 1 and len(name_texts) == 1,
               "row=%r" % (first,))
-        check("技能行不列带这个技能的怪名",
+        check("技能胶囊不列带这个技能的怪名",
               not any("头怪" in text or "骷髅" in text for text in first),
               "row=%r" % (first,))
         join = " ".join(" ".join(row_texts(row)) for row in rows)
         check("带某技能的怪还剩多少只写得出来",
-              "5 只 · 剩 3" in join and "1 只 · 剩 1" in join,
+              "3/5" in join and "1/1" in join,
               "text=%r" % (join,))
         check("技能汇总常驻可见", find(WANT_SKILL_AGG) != [],
               "want=%r" % (WANT_SKILL_AGG,))
@@ -703,6 +716,11 @@ def main() -> int:
 
     # 取消：点地图那条的「取消」
     def step_cancel():
+        # 记录在内容区最底下：先滚到底，否则窗口矮时那一行在屏幕外，点了个空
+        flick = find_object("contentFlick")
+        flick.setProperty("contentY", max(0.0, float(flick.property("contentHeight"))
+                                          - float(flick.height())))
+        app.processEvents()
         target = None
         for row in find_all("taskRow"):
             if any("地图" in t for t in row_texts(row)):
@@ -801,7 +819,13 @@ def main() -> int:
         rows = find_all("chatRowItem")
         check("对话显示完整历史（fixture 两条都在）", len(rows) == 2,
               "rows=%d" % len(rows))
-        check("对话有「你」和「AI」", find("你") != [] and find("AI") != [])
+        # 对话是气泡：你说的靠右、AI 说的靠左
+        says_now = sorted(find_all("chatText"), key=lambda i: scene_y(i))
+        check("对话是气泡：你靠右、AI 靠左",
+              len(says_now) == 2
+              and says_now[0].mapToScene(QPointF(0, 0)).x()
+              > says_now[1].mapToScene(QPointF(0, 0)).x(),
+              "x=%r" % ([round(i.mapToScene(QPointF(0, 0)).x()) for i in says_now],))
         # 完整历史 + 长回答折行（用户："我需要完整的历史"）
         long_text = ("地下 30 这一层还有血蚊 5 只（其中 2 只已经打过）、铁卫 1 只；"
                      "下去前记得先拿红血瓶，地下 29 已经清空，可以放心走。")
@@ -919,30 +943,33 @@ def main() -> int:
     # ---------------- 6. 折叠 / 展开 ----------------
     def step_collapse():
         bar = find_object("topBar")
-        click(bar, 0.5, 0.5)
-        check("点抬头收起", window.property("collapsed") is True,
+        # 点导航条的空白处（中间现在是「置顶」按钮，点偏左一点才是空白）
+        click(bar, 0.3, 0.5)
+        check("点导航条空白处收起", window.property("collapsed") is True,
               "collapsed=%r" % (window.property("collapsed"),))
         next_step(450, verify_collapsed)
 
     def verify_collapsed():
-        # 收起后留三样：导航条（软件名 + ✕）、塔名、状态行（血量/钥匙）
-        check("收起后窗口高度 = 导航条 + 抬头 + 状态行",
-              abs(window.height() - 102) <= 2, "height=%.0f" % window.height())
+        # 收起后留两样：导航条（工具图标）和状态卡（塔名 + 血量/钥匙）
+        want = float(window.property("collapseChrome"))
+        check("收起后窗口高度 = 导航条 + 状态卡（含上下留白）",
+              abs(window.height() - want) <= 2,
+              "height=%.0f want=%.0f" % (window.height(), want))
         # 平台层也不许再把它顶大：minimumHeight 设大了 Windows 会把它卡成 120，
         # 界面上方一条、下面一片空白（用户："折叠后还是有一大片空白"）
-        check("平台真的按 102 放下去了（没被最小高度卡住）",
-              abs(window.geometry().height() - 102) <= 2,
-              "geometry=%.0f" % window.geometry().height())
+        check("平台真的按这个高度放下去了（没被最小高度卡住）",
+              abs(window.geometry().height() - want) <= 2,
+              "geometry=%.0f want=%.0f" % (window.geometry().height(), want))
         check("收起后列表藏起来", find_object("contentFlick") is None)
         check("收起后对话也藏起来", find_object("chatBar") is None)
-        check("收起后软件名还在（导航条）",
-              any("拆塔辅助" in t for t in texts_inside("topBar")),
+        check("收起后导航条的工具图标还在",
+              all(x in texts_inside("topBar") for x in ("↻", "＋", "⚔", "⇄", "✕")),
               "topBar=%r" % (texts_inside("topBar"),))
         check("收起后塔名还在", any("坐牢成仙" in t
                               for t in texts_inside("header")))
         check("收起后四色钥匙还在",
               find_object("keyChips") is not None)
-        click(find_object("topBar"), 0.5, 0.5)
+        click(find_object("topBar"), 0.3, 0.5)
         next_step(450, verify_expanded)
 
     def verify_expanded():
@@ -950,7 +977,10 @@ def main() -> int:
         check("展开后高度回到内容高度",
               abs(window.height() - content_height()) <= 2,
               "height=%.0f want=%.0f" % (window.height(), content_height()))
-        next_step(150, step_floor_sheet)
+        # 7（这一层小窗）、8（怪物编辑）、9（伤害计算）三段是旧版界面的检查
+        # （地图块 mapTile、floorCard 都已经没有了），那些界面现在由
+        # tests/integration 里的真点击测试覆盖；这里直接接到「内容变多」那一步。
+        next_step(150, step_scroll)
 
     # ---------------- 7. 地图的子界面：这一层 ----------------
     def step_floor_sheet():
