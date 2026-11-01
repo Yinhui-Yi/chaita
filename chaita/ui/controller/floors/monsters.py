@@ -6,6 +6,8 @@ from PySide6.QtCore import Slot
 
 from ...toolkit.library import _import_icon
 from ...toolkit.texts import _carry_row
+from .common import mark_manual
+from .grid import drop_cells
 
 
 class FloorMonstersMixin:
@@ -18,7 +20,8 @@ class FloorMonstersMixin:
             return -1
         entry = dict(self._map_history[position])
         mons = list(entry.get("mons") or [])
-        item = {"name": (name or "怪物").strip() or "怪物", "count": None}
+        item = mark_manual({"name": (name or "怪物").strip() or "怪物",
+                            "count": None})
         mons.append(item)
         mons.sort(key=lambda one: one["name"])
         entry["mons"] = mons
@@ -46,7 +49,8 @@ class FloorMonstersMixin:
         entry = dict(self._map_history[position])
         mons = list(entry.get("mons") or [])
         digits = "".join(ch for ch in (count or "") if ch.isdigit())
-        item = {"name": clean, "count": int(digits) if digits else None}
+        item = mark_manual({"name": clean,
+                            "count": int(digits) if digits else None})
         picked = _import_icon(icon_file, "floor")
         if picked:
             item["icon"] = picked
@@ -61,6 +65,11 @@ class FloorMonstersMixin:
 
     @Slot(str, int)
     def removeFloorMonster(self, floor_text, index) -> None:
+        """删掉这一层的某只怪，**连它标过的格子一起删**。
+
+        坐标是按名字记的，不清的话删了再加一只同名的，旧坐标又回来了
+        （用户 2026-10-31："我把怪删了重加为什么不是全新的"）。
+        """
         from .... import trace
         position = self._find_floor(floor_text)
         if position < 0:
@@ -71,18 +80,7 @@ class FloorMonstersMixin:
         if 0 <= index < len(mons):
             removed = str((mons.pop(index) or {}).get("name") or "")
         entry["mons"] = mons
-        # 顺手把这只怪在这一层标过的格子清掉：坐标是按**名字**记的，不清的话
-        # 删了再加一只同名的，旧坐标又回来了（用户 2026-10-31：
-        # "我把怪删了重加为什么不是全新的"）。
-        if removed:
-            grid = dict(entry.get("grid") or {})
-            cells = list(grid.get("cells") or [])
-            keep = [cell for cell in cells
-                    if not (str(cell.get("kind") or "") == "monster"
-                            and str(cell.get("name") or "") == removed)]
-            if len(keep) != len(cells):
-                grid["cells"] = keep
-                entry["grid"] = grid
+        drop_cells(entry, "monster", removed)
         self._map_history[position] = entry
         self.mapHistoryChanged.emit()
         trace.note("manual.remove_floor_monster", floor=floor_text,
@@ -106,8 +104,10 @@ class FloorMonstersMixin:
         value = (text or "").strip()
         if field == "name":
             if value == "":
-                mons.pop(index)
+                # 名字清空 = 删这一行：坐标也跟着走（和行尾 ✕ 同一条规则）
+                gone = mons.pop(index)
                 updated["mons"] = mons
+                drop_cells(updated, "monster", gone.get("name"))
                 self._map_history[position] = updated
                 self.mapHistoryChanged.emit()
                 trace.note("manual.remove_floor_monster", floor=floor_text,
@@ -119,6 +119,8 @@ class FloorMonstersMixin:
             mons[index]["count"] = int(digits) if digits else None
         else:
             return
+        # 用户亲手改过的行：AI 再读一次不许动它
+        mons[index] = mark_manual(mons[index])
         updated["mons"] = mons
         self._map_history[position] = updated
         self.mapHistoryChanged.emit()

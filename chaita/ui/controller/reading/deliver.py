@@ -70,30 +70,9 @@ class ReadingDeliverMixin:
                     self._last_status = dict(status)
                     self._apply_status(status)
 
-            # 本层怪物：模型报的名字 + 它估的只数（估不出来就是 null）。
-            # 名字先对到手册的写法上：图上没字，模型是看图案猜的，猜出来的别名
-            # （「绿头怪」这种）不该进记录（用户："哪里来的绿头怪、红头怪"）。
-            known = [str(m.get("name") or "").strip() for m in self._monsters
-                     if str(m.get("name") or "").strip()]
-            read_names = [str((row or {}).get("name") or "").strip()
-                          for row in (result.monsters or [])]
-            mapping, unmatched, invented = monster_names.align(read_names, known)
-            dropped = set(unmatched) if known else set()
-            if mapping or dropped:
-                from .... import trace
-                trace.note("read.name_align", renamed=len(invented),
-                           dropped=len(dropped), unmatched=sorted(dropped)[:5])
-            here = []
-            for monster in (result.monsters or []):
-                name = str(monster.get("name") or "").strip()
-                if not name or name in dropped:
-                    continue
-                name = mapping.get(name, name)
-                count = monster.get("count")
-                if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-                    count = None
-                here.append({"name": name, "count": count})
-
+            # 本层的怪和资源：**不看模型报的名字和数量**，清单和数量都从
+            # 「每个格子里有什么」数出来（用户 2026-10-31："AI 现在不需要读数量"）。
+            # 合并规则在 `_store_map_entry` → `_merge_read_grid`（和刷新共用一份）。
             floor = status.get("floor")
             floor_text = _floor_text(floor)
             if not floor_text:
@@ -107,9 +86,8 @@ class ReadingDeliverMixin:
                 self._set_task(task_id, state="failed", text="没读出层数")
                 return
 
-            self._store_map_entry(tower, result, entry_id, floor_text, here,
-                                  items=result.items or [], quick_map=quick_map,
-                                  grid=result.grid or {})
+            self._store_map_entry(tower, result, entry_id, floor_text,
+                                  quick_map=quick_map, grid=result.grid or {})
             # 主结果先到位，但资源还在后面读：任务行只写层名（行首的"…"已经表示在跑），
             # 不再拼"（读资源…）"这种内部进度黑话
             self._set_task(task_id, state="running", text=floor_text)

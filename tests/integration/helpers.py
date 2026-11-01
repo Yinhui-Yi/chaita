@@ -120,7 +120,8 @@ def host_windows(window):
             continue
         if sheet is not None:
             hosts.append(sheet)
-    for prop in ("battleWindow", "routeWindow", "compareWindow", "mapWindow"):
+    for prop in ("battleWindow", "routeWindow", "compareWindow", "gainWindow",
+                 "mapWindow"):
         try:
             value = window.property(prop)
         except (RuntimeError, AttributeError):

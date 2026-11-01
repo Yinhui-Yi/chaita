@@ -88,6 +88,15 @@ def _cursor_pos():
     import win32api
     return win32api.GetCursorPos()
 
+def _cursor_to(x, y):
+    """把**系统鼠标**挪到 (x, y)（物理像素）。测试里会把它换掉。
+
+    用在"切层之后指针要跟到落点那一格"：光改数据不够，用户的鼠标还停在上一层
+    那个位置，接着拖就接不上（用户 2026-11-01："切层后改鼠标坐标"、"鼠标就是鼠标"）。
+    """
+    import win32api
+    win32api.SetCursorPos((int(round(x)), int(round(y))))
+
 def _cursor_down():
     """鼠标左键是不是还按着。松开事件可能送不到那一行，所以靠这个兜底。"""
     import win32api

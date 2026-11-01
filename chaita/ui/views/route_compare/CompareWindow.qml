@@ -338,7 +338,7 @@ Window {
                             hoverEnabled: true
                             cursorShape: rowItem.hasSpot ? Qt.PointingHandCursor
                                                          : Qt.ArrowCursor
-                            onClicked: host.compareHighlight(modelData)
+                            onClicked: host.highlightCell(modelData)
                         }
                         Rectangle {
                             objectName: "compareThumb"

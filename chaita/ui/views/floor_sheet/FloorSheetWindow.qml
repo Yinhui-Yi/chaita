@@ -447,6 +447,11 @@ Window {
                                     return String(modelData.to || "") === ""
                                            ? "" : ("→ " + host.floorShort(text))
                                 }
+                                // 点开时填层号（"3"），12 回车 → 还是 3层；
+                                // 用显示文字（"→ 3"）当初值会把层名写成 "→ 3"
+                                editText: function (text) {
+                                    return host.floorShort(text)
+                                }
                                 closeTick: sheetRoot.closeTick
                                 onOpened: function (who) {
                                     sheetRoot.openField = who

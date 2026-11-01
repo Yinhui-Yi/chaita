@@ -802,7 +802,7 @@ def main() -> int:
             rows = window.compareRows()
             rows = rows.toVariant() if hasattr(rows, "toVariant") else rows
             if rows:
-                window.compareHighlight(rows[0])
+                window.highlightCell(rows[0])
             QGuiApplication.processEvents()
 
         elif scenario == "iconpick":

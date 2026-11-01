@@ -118,3 +118,5 @@ def test_item_then_monster_computes_510():
     # 吃宝石攻 90→91，血蚊 17 回合 → 16×30 + 先攻 30 = 510
     assert results[0]["total_damage"] == 510
     assert results[0]["hp_after"] == 490
+
+

@@ -9,7 +9,8 @@ from PySide6.QtCore import Slot
 from ...constants import TASK_LIMIT
 from ...toolkit.pictures import _save_temp
 
-from .common import _align_grid_names, _dead_icon_file
+from .common import (_align_grid_names, _dead_icon_file, _drop_unknown_monsters,
+                     is_manual, merge_cells)
 from .stairs import _stairs_list
 
 
@@ -38,17 +39,19 @@ def _stairs_from_grid(cells) -> list:
 
 
 def _merge_stairs(old, from_grid) -> list:
-    """AI 读到的楼梯并进已有的：同一个格子保留用户选过的目标层。"""
-    merged = [dict(one) for one in (old or [])]
+    """楼梯：**用户定过的原样保留**，其余按这次读到的重建。
+
+    以前是"只补不改"（同格保留用户选过的目标层），但那样 AI 读到的楼梯会一次比
+    一次多（用户："我二次刷新时，地图的怪和资源会累计"）。现在和格子一个规则：
+    用户动过那行（改过方向/目标层/落点）就整行留着，没动过的按这次读到的重来。
+    """
+    merged = [dict(one) for one in (old or []) if is_manual(one)]
+    taken = {(int(one.get("row", -1)), int(one.get("col", -1)))
+             for one in merged}
     for fresh in from_grid or []:
-        hit = None
-        for one in merged:
-            if (int(one.get("row", -1)) == fresh["row"]
-                    and int(one.get("col", -1)) == fresh["col"]):
-                hit = one
-                break
-        if hit is None:
-            merged.append(dict(fresh))
+        if (fresh["row"], fresh["col"]) in taken:
+            continue
+        merged.append(dict(fresh))
     return merged
 
 
@@ -59,12 +62,12 @@ class RecordsMixin:
                 return position
         return -1
 
-    def _store_map_entry(self, tower, result, entry_id, floor_text, here,
-                         items=None, quick_map=None, grid=None) -> None:
+    def _store_map_entry(self, tower, result, entry_id, floor_text,
+                         quick_map=None, grid=None) -> None:
         """把这次的地图落到层数相同的那条记录上（没有就插一条）。
 
-        grid = 每个格子里有什么（`docs/ROUTE.md` 的路线链按它预填）；
-        这次没读到就保留那条记录上原来的，别把已经读到的清掉。
+        grid = 每个格子里有什么 —— **它就是这一层的清单和坐标**（`_merge_read_grid`）。
+        这次没读到格子就保留那条记录上原来的：读地图只更新层号和截图。
         """
         index = -1
         for position, entry in enumerate(self._map_history):
@@ -83,34 +86,117 @@ class RecordsMixin:
         if index >= 0:
             entry = dict(self._map_history[index])
             entry["floor"] = floor_text
-            # 这次没读到怪/资源时**不要清空那层已有的记录**：
-            # 「读地图」只更新层数和截图，之前加的怪、勾过的状态都得留着
-            if here:
-                entry["mons"] = here
-            if items:
-                entry["items"] = items
             if url:
                 entry["url"] = url
             if grid:
-                aligned = _align_grid_names(grid, self._monsters)
-                entry["grid"] = aligned
-                # 读地图顺带读到的楼梯：并进这一层（同格保留用户选过的目标层）
-                found = _stairs_from_grid(aligned.get("cells") or [])
-                if found:
-                    entry["stairs"] = _merge_stairs(
-                        _stairs_list(entry.get("stairs")), found)
+                entry = self._merge_read_grid(entry, grid)
             self._map_history[index] = entry
         else:
-            aligned = _align_grid_names(grid or {}, self._monsters)
-            new_entry = {"id": entry_id, "floor": floor_text,
-                         "url": url, "mons": here,
-                         "items": items or [], "grid": aligned}
-            found = _stairs_from_grid(aligned.get("cells") or [])
-            if found:
-                new_entry["stairs"] = _merge_stairs([], found)
-            self._map_history.insert(0, new_entry)
+            new_entry = {"id": entry_id, "floor": floor_text, "url": url,
+                         "mons": [], "items": [], "grid": {}}
+            self._map_history.insert(0, self._merge_read_grid(new_entry,
+                                                             grid or {}))
         self.mapHistoryChanged.emit()
         self.statusTextChanged.emit()
+
+    def _merge_read_grid(self, entry, grid) -> dict:
+        """把这次读到的「每格有什么」并进这一层（刷新和「读地图」共用这一条规则）。
+
+        规则（用户 2026-10-31）：
+        - **用户手动定过的一个字段都不碰**：标的格子、改过的怪行/资源行、楼梯；
+        - 其余按这次读到的重建：清单里的怪/资源都从格子里数出来，
+          **数量 = 它占几格**（"AI 现在不需要读数量"，它数出来的经常是血量/效果值）；
+        - 这次没读到、又不是用户定的东西就没了 —— AI 读的归 AI，不会越刷越多；
+        - 楼梯并进（用户定过的保留，其余按这次读到的重来）。
+
+        返回新的 entry（不改传入的那个 dict）。
+        """
+        new_cells = (grid or {}).get("cells") or []
+        if not new_cells:
+            # 这次一个格子都没读到：清单和坐标都别动 —— "没读到"不等于"图上没有"
+            return dict(entry)
+        old_cells = (entry.get("grid") or {}).get("cells") or []
+        cells = merge_cells(old_cells, new_cells)
+        # 怪名对到手册的写法；手册里没有的名字直接不记（用户："哪里来的绿头怪"）
+        cells = _align_grid_names({"cells": cells},
+                                  self._monsters).get("cells") or []
+        cells = _drop_unknown_monsters(cells, self._monsters)
+
+        updated = dict(entry)
+        updated["mons"] = self._rows_from_cells(entry.get("mons"), cells,
+                                                "monster")
+        updated["items"] = self._rows_from_cells(entry.get("items"), cells,
+                                                 "item")
+        # 资源的"同一样东西"按图标身份认（红药水 / 红血瓶 是一瓶）：格子和清单
+        # 两头都用同一份效果，`gridPositions` 才认得出"这一行标在哪几格"
+        effect_of = {str(row.get("name") or ""): str(row.get("effect") or "")
+                     for row in updated["items"]}
+        for cell in cells:
+            if str(cell.get("kind") or "") != "item" or is_manual(cell):
+                continue
+            name = str(cell.get("name") or "")
+            if name in effect_of:
+                cell["effect"] = effect_of[name]
+        updated["grid"] = {"cells": cells}
+
+        found = _stairs_from_grid(cells)
+        if found:
+            updated["stairs"] = _merge_stairs(_stairs_list(updated.get("stairs")),
+                                              found)
+        return updated
+
+    def _rows_from_cells(self, old_rows, cells, kind) -> list:
+        """清单行按格子重算：**用户定过的原样留着**，其余照这次格子里数出来的重建。
+
+        `count` = 这个名字占了几格（AI 不再读数量）；这次一格都没有的旧行不留
+        （它是 AI 读进来的，AI 这次没读到就说明读错了）。
+        """
+        from ....game import iteminfo
+
+        def identity(name):
+            """同一样东西怎么认：资源按图标身份（红药水/红血瓶 是一瓶），怪按名字。"""
+            key = iteminfo.key_for(name) if kind == "item" else ""
+            return ("item:" + key) if key else ("name:" + name)
+
+        counts, first_name, order = {}, {}, []
+        for cell in cells:
+            if str(cell.get("kind") or "") != kind:
+                continue
+            name = str(cell.get("name") or "").strip()
+            if not name:
+                continue
+            key = identity(name)
+            if key not in counts:
+                order.append(key)
+                counts[key] = 0
+                first_name[key] = name
+            counts[key] += 1
+
+        def build(name, count):
+            if kind == "item":
+                return self._fill_item_display({"name": name, "count": count,
+                                                "effect": "", "icon": ""})
+            return {"name": name, "count": count}
+
+        rows, done = [], set()
+        for row in old_rows or []:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "").strip()
+            key = identity(name)
+            if is_manual(row):
+                rows.append(dict(row))
+                done.add(key)
+                continue
+            if key in counts and key not in done:
+                rows.append(build(first_name[key], counts[key]))
+                done.add(key)
+        for key in order:
+            if key in done:
+                continue
+            rows.append(build(first_name[key], counts[key]))
+            done.add(key)
+        return rows
 
     @Slot(str, result=bool)
     def ensureFloor(self, floor_text) -> bool:
@@ -172,11 +258,11 @@ class RecordsMixin:
 
     @Slot(str)
     def refreshFloorCounts(self, floor_text) -> None:
-        """某一层行尾的 ↻：读这一层的地图，把"有哪些怪、各几只"和
-        **"有哪些资源（血瓶/宝石/钥匙/金币）、各几个"**一起读出来写进去。
+        """某一层行尾的 ↻：重读这一层的「每个格子里有什么」，按它更新清单和坐标。
 
-        以前只读怪，资源永远停在旧值（用户："刷新地图的时候没有更新资源
-        包括宝石血瓶钥匙等"）。现在一次会话两边都问（`read_floor_map`）。
+        怪和资源（宝石/血瓶/钥匙/金币/武器/防具）都从格子里数：**数量 = 占几格**
+        （用户 2026-10-31："AI 现在不需要读数量"）。合并规则见 `_merge_read_grid`：
+        用户手动定过的东西一个字段都不动。
 
         也不再要求这层先有怪：一层没加过怪、刚「读地图」建出来的，也能直接点。
         """

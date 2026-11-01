@@ -18,6 +18,10 @@ Item {
     property int labelSize: 9
     // 值的写法：给了函数就按它显示（比如只显示层号）
     property var showText: null
+    // 点开时输入框里填什么：给了函数就用它，没给就用 `value`（完整层名）。
+    // **别拿 `showText` 当初值**：那是显示用的，可能带 "→ " 这种装饰，回车提交回来
+    // 就变成一个不存在的层名（用户 2026-10-31："楼梯坐标我粘贴后再选中楼层信息就没了"）。
+    property var editText: null
     // 宿主点空白时把它加一：等同于按回车
     property int closeTick: 0
     onCloseTickChanged: field.commitNow()
@@ -43,11 +47,13 @@ Item {
     }
 
     function open() {
-        // 打开时填**层号**（"2"），不填整套层名：手打的多半就是个数字
-        editor.text = field.value === "" ? ""
-                                         : String(field.showText
-                                                  ? field.showText(field.value)
-                                                  : field.value)
+        // 打开时填**层号**（"2"），不填整套层名：手打的多半就是个数字。
+        // 这个"层号"由宿主用 `editText` 给（楼梯那边是 `floorShort`），
+        // 绝不能拿显示文字（带 "→ "）来填 —— 见 `editText` 上面的注释。
+        var text = String(field.value || "")
+        if (text !== "" && field.editText)
+            text = String(field.editText(text))
+        editor.text = text
         editor.visible = true
         editor.forceActiveFocus()
         editor.selectAll()

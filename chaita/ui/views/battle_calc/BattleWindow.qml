@@ -485,20 +485,27 @@ Window {
             height: 22
             spacing: 6
             FlatBtn {
+                id: battleAddRow
                 objectName: "battleAddRow"
                 label: "＋ 新的计算"
                 onClicked: host.battleAddPlan()
             }
             FlatBtn {
+                id: battlePaste
                 objectName: "battlePaste"
                 label: "粘贴"
                 onClicked: host.battlePaste()
             }
+            // 弹簧：把「清空」顶到右边（宽度按实际按钮算，别写死数字）
             Item {
-                width: Math.max(0, parent.width - 96 - 46 - 46)
+                width: Math.max(0, battleBtnRow.width - battleAddRow.width
+                                   - battlePaste.width
+                                   - battleClearBtn.width
+                                   - 2 * battleBtnRow.spacing)
                 height: 1
             }
             FlatBtn {
+                id: battleClearBtn
                 objectName: "battleClear"
                 label: "清空"
                 onClicked: host.battleClear()

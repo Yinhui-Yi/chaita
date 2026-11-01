@@ -80,7 +80,8 @@ def test_add_floor_monster_sorts_and_returns_its_index():
 def test_add_floor_monster_defaults_blank_name():
     c = Fake([{"floor": "1层", "mons": []}])
     c.addFloorMonster("1层", "   ")
-    assert c._map_history[0]["mons"] == [{"name": "怪物", "count": None}]
+    assert c._map_history[0]["mons"] == [{"name": "怪物", "count": None,
+                                          "manual": True}]
 
 
 def test_add_floor_monster_full_keeps_count_and_icon(monkeypatch):
@@ -93,7 +94,7 @@ def test_add_floor_monster_full_keeps_count_and_icon(monkeypatch):
 
     assert index == 0
     assert c._map_history[0]["mons"][0] == {
-        "name": "铁卫", "count": 3, "icon": "icon.png"}
+        "name": "铁卫", "count": 3, "icon": "icon.png", "manual": True}
 
 
 def test_add_floor_monster_full_without_icon_or_count(monkeypatch):
@@ -104,7 +105,8 @@ def test_add_floor_monster_full_without_icon_or_count(monkeypatch):
     c.addFloorMonsterFull("1层", "铁卫", "abc", "")
 
     # 没有图就别塞 icon 键；数量不是数字就 None
-    assert c._map_history[0]["mons"][0] == {"name": "铁卫", "count": None}
+    assert c._map_history[0]["mons"][0] == {"name": "铁卫", "count": None,
+                                          "manual": True}
 
 
 def test_add_floor_monster_full_blank_name_is_rejected(monkeypatch):
@@ -126,6 +128,38 @@ def test_remove_floor_monster_out_of_range_keeps_rows():
     c = Fake([{"floor": "1层", "mons": [{"name": "血蚊", "count": 1}]}])
     c.removeFloorMonster("1层", 5)
     assert len(c._map_history[0]["mons"]) == 1
+
+
+def test_remove_floor_monster_drops_its_cells():
+    """删掉这只怪 → 它标过的格子一起没。
+
+    坐标按名字记，不清的话删了再加一只同名的，旧坐标又回来
+    （用户 2026-10-31："我把怪删了重加为什么不是全新的"）。
+    """
+    c = Fake([{"floor": "1层", "mons": [{"name": "血蚊", "count": 1},
+                                       {"name": "铁卫", "count": 1}],
+               "grid": {"cells": [
+                   {"row": 2, "col": 3, "kind": "monster", "name": "血蚊"},
+                   {"row": 4, "col": 5, "kind": "monster",
+                    "name": "铁卫"}]}}])
+
+    c.removeFloorMonster("1层", 0)
+
+    assert c._map_history[0]["grid"]["cells"] == [
+        {"row": 4, "col": 5, "kind": "monster", "name": "铁卫"}]
+
+
+def test_clearing_a_monster_name_drops_its_cells_too():
+    """名字清空也算删这一行，坐标同样跟着走。"""
+    c = Fake([{"floor": "1层", "mons": [{"name": "血蚊", "count": 1}],
+               "grid": {"cells": [
+                   {"row": 2, "col": 3, "kind": "monster",
+                    "name": "血蚊"}]}}])
+
+    c.saveFloorMonsterField("1层", 0, "name", "")
+
+    assert c._map_history[0]["mons"] == []
+    assert c._map_history[0]["grid"]["cells"] == []
 
 
 def test_toggle_done_goes_through_shared_toggle():

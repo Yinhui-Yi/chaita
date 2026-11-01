@@ -112,6 +112,31 @@ Item {
             }
         }
 
+        // 加属性收益：自己的工具，和伤害计算并列（用户："这是新功能！！！不要和
+        // 之前的混在一起！！！"），所以给它自己的入口，放在 ⚔ 左边。
+        Item {
+            id: gainBtn
+            objectName: "gainOpen"
+            anchors.right: battleBtn.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            Text {
+                anchors.centerIn: parent
+                text: "＋"
+                color: gainMouse.containsMouse ? host.amber : host.ink2
+                font.pixelSize: 11
+            }
+            MouseArea {
+                id: gainMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: host.openGain()
+            }
+        }
+
         // 伤害计算：一扇自己的窗口（可以摆在游戏旁边边打边算）。
         // 放在导航条上是刻意的：它是"工具"，不属于任何一栏数据，
         // 而且收起状态也点得到。

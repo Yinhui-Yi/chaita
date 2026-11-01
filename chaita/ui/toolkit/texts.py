@@ -65,6 +65,29 @@ def _floor_text(floor):
         text = str(int(floor)) if float(floor).is_integer() else str(floor)
     else:
         text = str(floor).strip()
+    text = _clean_floor_name(text)
     if text.lower() in ("", "null", "none", "未知", "未读层", "?"):
         return ""
     return text
+
+
+def _clean_floor_name(text: str) -> str:
+    """层名只留"字"：头尾的箭头/标点削掉（`"→ 3"` → `"3"`）。
+
+    为什么要有这一条：以前"通到…"那格点开时把**显示文字**（带 "→ "）当成层名
+    提交，存档里就多出 `"→ 3"` 这种假层（用户 2026-10-31："楼梯坐标我粘贴后再选中
+    楼层信息就没了"）。显示和提交那两处已经修了，这里负责把**旧存档**洗干净。
+    只削头尾，中间的字（"通天塔 3"）不动。
+    """
+    value = str(text or "").strip()
+
+    def _word(ch: str) -> bool:
+        return ch.isalnum() or "\u4e00" <= ch <= "\u9fa5"
+
+    head = 0
+    while head < len(value) and not _word(value[head]):
+        head += 1
+    tail = len(value)
+    while tail > head and not _word(value[tail - 1]):
+        tail -= 1
+    return value[head:tail]

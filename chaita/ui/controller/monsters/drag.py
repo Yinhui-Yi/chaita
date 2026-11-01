@@ -5,7 +5,7 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QGuiApplication
 
-from ...toolkit.desktop import _cursor_down, _cursor_pos
+from ...toolkit.desktop import _cursor_down, _cursor_pos, _cursor_to
 
 class DragMixin:
     @Slot(str, str)
@@ -47,6 +47,29 @@ class DragMixin:
         if scale <= 0:
             scale = 1.0
         return [int(round(x / scale)), int(round(y / scale)), down]
+
+    @Slot(int, int)
+    def moveCursor(self, x, y) -> None:
+        """把**系统鼠标**挪到逻辑坐标 (x, y)。
+
+        切层之后要用：路线走到楼梯、换到另一层并落到"出口"那一格时，用户的鼠标
+        还停在上一层那个位置 —— 光把数据改对不够，指针得**真的移过去**，不然接着
+        拖就接不上（用户 2026-11-01："切层后改鼠标坐标"、"鼠标就是鼠标"）。
+        物理像素 = 逻辑 × devicePixelRatio（和 `cursorState` 是同一套换算）。
+        """
+        from .... import trace
+        try:
+            screen = QGuiApplication.primaryScreen()
+            scale = float(screen.devicePixelRatio()) if screen else 1.0
+        except Exception:
+            scale = 1.0
+        if scale <= 0:
+            scale = 1.0
+        try:
+            _cursor_to(int(round(float(x) * scale)), int(round(float(y) * scale)))
+            trace.note("manual.move_cursor", x=int(x), y=int(y))
+        except Exception as exc:
+            trace.note("manual.move_cursor_failed", error=repr(exc)[:160])
 
     @Slot(int, float, float, int)
     def monDragStart(self, index, top_y, row_height, count) -> None:

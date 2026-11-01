@@ -262,20 +262,20 @@ Item {
                     onStepped: function (cell) {
                         panel.host.routeEnterCell(routeLayer, cell)
                     }
-                    // 长按：编辑模式下 = 抓起这一格（拖到「这一层」的怪/资源行上松手
-                    // 就记下坐标，用户 2026-10-31："我怎么又不可以拖动添加资源的坐标了"）；
-                    // 平时 = 起笔开始画路线
+                    // 编辑模式：**按下这一下就抓起这一格**（拖到「这一层」的怪/资源行上
+                    // 松手就记下坐标）。不走长按 —— 用户 2026-10-31："从来都是点击选中，
+                    // 什么时候要长按了"。格子永远走格子层的 `cellAt`（13×13 边界那条
+                    // 规则只在那里写一份），两个层叠在同一块上、同一个坐标系。
+                    grabOnPress: panel.editing
+                    onGrabbed: function (x, y) {
+                        var cell = gridLayer.cellAt(x, y)
+                        if (cell.row === undefined)
+                            return          // 13×13 之外不是格子，抓不起来
+                        panel.beginCellDrag(cell.row, cell.col)
+                    }
+                    // 长按：起一条路线（编辑模式下走不到这里，见 `grabOnPress`）
                     onLongPressed: function (x, y) {
-                        if (panel.editing) {
-                            var cell = routeLayer.cellAt(x, y)
-                            panel.beginCellDrag(cell.row, cell.col)
-                        } else {
-                            // 没在编辑模式：长按是"起一条路线"。记一行日志，
-                            // 免得"拖不动"时查不出是哪一种情况
-                            if (controller)
-                                controller.uiNote("ui.route_start", "not_editing")
-                            routeLayer.startAt(x, y)
-                        }
+                        routeLayer.startAt(x, y)
                     }
                     // 点一下（不拖）：编辑模式里 = 选中这一格；平时 = 点楼梯换层
                     onTapped: function (cell, modifiers) {
@@ -293,7 +293,8 @@ Item {
                     onRightTapped: function (cell, x, y) {
                         if (!panel.editing)
                             return
-                        panel.host.gridPickCell(cell.row, cell.col)
+                        // **不动选择**：用户可能正勾着几格，右键看一眼坐标不该清掉
+                        panel.host.gridPickMenuCell(cell.row, cell.col)
                         panel.menuRow = cell.row
                         panel.menuCol = cell.col
                         panel.showCellMenu(routeLayer.mapToItem(panel, x, y))
@@ -574,25 +575,66 @@ Item {
         }
     }
 
-    // 编辑模式长按抓起一格 → 拖到「这一层」某一行上松手 = 把这一格记给那一行。
+    // 编辑模式**按下**就抓起一格 → 拖到「这一层」某一行上松手 = 把这一格记给那一行。
+    // （以前要按住 350ms 不动才算抓起，可人拖东西就是"按下就拖"，一移动长按就被
+    //  自己取消，松手什么都不发生 —— 用户 2026-10-31 "无法通过拖动给清单里的东西
+    //  添加坐标"。长按只留给"画路线"，见 `routeLayer.onLongPressed`。）
     //
     // **不走 QDrag**（用户 2026-10-31："不能通过拖动加资源"，之前 Drag.Automatic
     // 起不来/拖不动）：改成 QML **定时轮询光标**（`controller.cursorState()`），
     // 松手时问一下各扇「这一层」小窗：光标底下是哪一行 → 直接把这一格记给那一行。
-    // 好处：跨窗口不依赖平台拖放会话，无头环境也能测；坏处：拖动过程中没有小牌跟着。
+    // 好处：跨窗口不依赖平台拖放会话，无头环境也能测。
     property int dragRow: -1
     property int dragCol: -1
     property bool dragging: false
+    // 这一拖要记哪几格（起手时定下来）：**Ctrl 勾上的 + 抓着的这一格**
+    property var dragCells: []
+
+    function hasCell(cells, row, col) {
+        for (var i = 0; i < (cells || []).length; i++) {
+            var one = cells[i] || ({})
+            if (Number(one.row) === Number(row)
+                    && Number(one.col) === Number(col))
+                return true
+        }
+        return false
+    }
 
     function beginCellDrag(row, col) {
         panel.dragRow = Number(row)
         panel.dragCol = Number(col)
+        // 这一拖记**勾上的 + 抓着的**：Ctrl+点多选就是"一次记好几个坐标"，
+        // 抓的那一格没勾也并进来 —— 拖一下就把勾选丢掉太冤（也免得"勾了 3 格
+        // 却只记了 1 格"）。落格清勾选由 `gridAssignMany` 那一处管。
+        var cells = []
+        var multi = panel.host.gridMulti || []
+        for (var i = 0; i < multi.length; i++) {
+            var one = multi[i] || ({})
+            cells.push({ "row": Number(one.row), "col": Number(one.col) })
+        }
+        if (!panel.hasCell(cells, panel.dragRow, panel.dragCol))
+            cells.push({ "row": panel.dragRow, "col": panel.dragCol })
+        panel.dragCells = cells
         panel.dragging = true
-        // 起手就给一句提示 + 记一行日志：不然"没反应"时什么都查不到
-        panel.host.mapHint = "松手落在「这一层」的怪/资源行上"
+        // 正在拖的那一格在图上画个实框（`GridLayer` 里本来就有这条画法，
+        // 以前没人给它赋值，等于一直是死代码）；勾着的那些格子照旧是细框
+        panel.host.gridDrag = { "row": panel.dragRow, "col": panel.dragCol }
+        // 起手就给一句提示 + 记一行日志：不然"没反应"时什么都查不到。
+        // 格数写在**最前面**：底栏窄，后半截会被省略号吃掉，而"这次记几格"正是
+        // 拖多选时最要紧的那一句。
+        panel.host.mapHint = cells.length > 1
+                ? "记 " + cells.length + " 格 · 松手落在怪/资源行上"
+                : "松手落在「这一层」的怪/资源行上"
         if (controller)
             controller.uiNote("ui.cell_drag_start",
-                              String(panel.host.mapFloor) + " " + row + "," + col)
+                              String(panel.host.mapFloor) + " " + row + "," + col
+                              + " 共 " + cells.length + " 格")
+    }
+
+    // 松开时光标底下是哪一格（13×13 之外 = `{}`）。走格子层那条规则，不另写一份。
+    function cellUnderGlobal(globalX, globalY) {
+        var at = gridLayer.mapFromGlobal(Number(globalX), Number(globalY))
+        return gridLayer.cellAt(at.x, at.y)
     }
 
     function rowAtGlobal(globalX, globalY) {
@@ -614,6 +656,7 @@ Item {
         var state = controller ? controller.cursorState() : null
         if (!state || state.length < 3) {
             panel.dragging = false
+            panel.host.gridDrag = ({})
             if (controller)
                 controller.uiNote("ui.cell_drag_end", "no_cursor")
             return
@@ -621,20 +664,26 @@ Item {
         var down = !!state[2]
         if (down)
             return
-        // 松手了：光标底下有行就记格，没有就什么都不做
         panel.dragging = false
+        panel.host.gridDrag = ({})
         var hit = panel.rowAtGlobal(Number(state[0]), Number(state[1]))
+        // 松手还在抓起的那一格上 = 只是**点了一下**（选中这一格，由 `tapped` 管），
+        // 不是拖失败：别记坐标，也别弹"没有行"红字
+        var here = panel.cellUnderGlobal(Number(state[0]), Number(state[1]))
+        var sameCell = here.row === panel.dragRow && here.col === panel.dragCol
         if (controller)
             controller.uiNote("ui.cell_drag_end",
-                              (hit ? "hit " : "miss ")
+                              (hit ? "hit " : (sameCell ? "tap " : "miss "))
                               + Number(state[0]) + "," + Number(state[1]))
         if (hit) {
-            panel.host.assignCellToRow(panel.host.mapFloor, hit,
-                                       panel.dragRow, panel.dragCol)
+            panel.host.assignCellToRow(hit, panel.dragCells)
             panel.host.mapHint = ""      // 记上了就把那句提示收掉
-        } else {
+        } else if (!sameCell) {
             panel.host.mapHint = "松开的地方没有行：拖到「这一层」的怪/资源行上再松手"
+        } else {
+            panel.host.mapHint = ""      // 点了一下：起手那句提示也收掉
         }
+        panel.dragCells = []
     }
 
     Timer {

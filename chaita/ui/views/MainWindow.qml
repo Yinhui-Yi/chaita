@@ -29,6 +29,7 @@ import "battle_calc"
 import "floor_sheet"
 import "route_editor"
 import "route_compare"
+import "property_gain"
 import "map_view"
 import "preview"
 
@@ -690,6 +691,7 @@ Window {
     property var gridPicked: ({})
 
     // Ctrl+点一格：勾上 / 取消（同一个格子再点一次就取消）
+    // 勾上的格子 = **要一起记的一批**（拖动时和抓着的那一格并肩交给那一行）。
     function gridMultiToggle(row, col) {
         var list = []
         var found = false
@@ -701,8 +703,11 @@ Window {
             }
             list.push({ "row": Number(c.row), "col": Number(c.col) })
         }
-        if (!found)
+        if (!found) {
             list.push({ "row": Number(row), "col": Number(col) })
+            // 刚点的那一格就是"看着它"的那一格（右键菜单/拖动框都认它）
+            win.gridPicked = { "row": Number(row), "col": Number(col) }
+        }
         win.gridMulti = list
     }
 
@@ -720,8 +725,16 @@ Window {
         win.gridMulti = []
     }
 
-    // 左键单击某一格 = 选中它（右键菜单的"复制坐标"用的就是这一格）
+    // 左键单击某一格 = **选中它**：选择集合就剩这一格（再 Ctrl 点别的会加成多选）。
+    // 右键菜单的"复制坐标 / 清掉"也作用在这一格上，所以 `gridPicked` 一起设。
     function gridPickCell(row, col) {
+        win.gridPicked = { "row": Number(row), "col": Number(col) }
+        win.gridMulti = [{ "row": Number(row), "col": Number(col) }]
+    }
+
+    // 右键点一格：只把"菜单作用的那一格"挪过去，**不动选择**
+    // （用户可能正 Ctrl 勾着几格，右键看一眼坐标不该把它们清掉）。
+    function gridPickMenuCell(row, col) {
         win.gridPicked = { "row": Number(row), "col": Number(col) }
     }
 
@@ -765,6 +778,16 @@ Window {
             return false
         win.gridAssign(Number(cell.row), Number(cell.col), "", "")
         win.gridPicked = ({})
+        // 清掉的那一格不该再算在"要一起记的一批"里
+        var list = []
+        for (var i = 0; i < win.gridMulti.length; i++) {
+            var c = win.gridMulti[i] || ({})
+            if (Number(c.row) === Number(cell.row)
+                    && Number(c.col) === Number(cell.col))
+                continue
+            list.push({ "row": Number(c.row), "col": Number(c.col) })
+        }
+        win.gridMulti = list
         return true
     }
 
@@ -1873,6 +1896,16 @@ Window {
             return
         win.mapHint = ""
         win.mapFloor = name
+        // **编辑模式跟着走**：`panel.editing` 要求 `gridEditFloor === mapFloor`，
+        // 切层之后不同步的话它能变假 —— 长按就从"抓格子拖"退回成"画路线"，
+        // 表现就是"拖不动、也没有任何提示"（用户 2026-10-31："还是没法拖动"）。
+        // 旧层上的悬停/选中/多选一律清掉，它们属于上一层。
+        if (win.gridEditOn && win.gridEditFloor !== name) {
+            win.gridEditFloor = name
+            win.gridHover = ({})
+            win.gridPicked = ({})
+            win.gridMulti = []
+        }
         win.followMapSheet(name)
     }
 
@@ -2071,6 +2104,10 @@ Window {
     // 用户 2026-10-31："循环你妈个逼"（点一下换一层点不过来）、"我1000层魔塔怎么办"
     function resolveFloorName(fromFloorText, typed) {
         var text = String(typed || "").trim()
+        // 头尾的箭头/标点削掉：显示那格是 "→ 3"，粘回来也得认（旧数据里也存过这种）
+        text = text.replace(/^[^0-9A-Za-z\u4e00-\u9fa5]+/, "")
+        text = text.replace(/[^0-9A-Za-z\u4e00-\u9fa5]+$/, "")
+        text = text.trim()
         if (text === "")
             return ""
         var floors = win.mapFloors()
@@ -2109,15 +2146,13 @@ Window {
         return win.setStairTarget(floor, index, name)
     }
 
-    // 抓一格的拖动松手落在某一行上：把这一格记给那一行。
+    // 抓着一格（或 Ctrl 勾的一批）拖到某一行上松手：把这几格记给那一行。
     // 和 DropArea 落格走**同一个** `gridAssignMany`（一处规则，别写第二份）。
-    function assignCellToRow(floorText, hit, row, col) {
-        if (!controller || !hit)
+    function assignCellToRow(hit, cells) {
+        if (!controller || !hit || !(cells || []).length)
             return false
-        win.gridAssignMany([{ "row": Number(row), "col": Number(col) }],
-                           String(hit.kind || ""),
-                           String(hit.name || ""),
-                           String(hit.effect || ""))
+        win.gridAssignMany(cells, String(hit.kind || ""),
+                           String(hit.name || ""), String(hit.effect || ""))
         return true
     }
 
@@ -2197,8 +2232,16 @@ Window {
         if (one === null)
             return false
         var target = win.stairTargetFloor(one)
-        if (target === "")
+        if (target === "") {
+            // 踩到楼梯却没换层：**必须说一句**，不然就是"切个屁，根本不动"
+            var dirText = String(one.dir || "up") === "up" ? "上" : "下"
+            win.mapHint = "这格的" + dirText + "楼梯还没选「通到…」"
+            if (controller)
+                controller.uiNote("route.jump_blocked",
+                                  String(win.mapFloor) + " " + Number(cell.row)
+                                  + "," + Number(cell.col) + " 没选目标层")
             return false
+        }
         // 落脚点：这一行自己记的"落点"最准；没记就找目标层里通回本层的那行
         var toRow = Number(one.toRow === undefined ? -1 : one.toRow)
         var toCol = Number(one.toCol === undefined ? -1 : one.toCol)
@@ -2213,8 +2256,31 @@ Window {
                     break
                 }
             }
+            // 那头**没标"通回本层"**也照样能认：从 A 踩上楼到 B，B 上那座楼梯就是
+            // 反方向那一座（楼梯两头是同一个东西）。不这么兜底就只能沿用上一层的
+            // 同一个坐标，落点纯属瞎猜（用户 2026-10-31："切换楼层后的起点不对"、
+            // "画在错的格子上"）。
+            if (landing.row === undefined) {
+                var wantDir = String(one.dir || "up") === "up" ? "down" : "up"
+                for (var k = 0; k < back.length; k++) {
+                    var twin = back[k] || {}
+                    if (String(twin.dir || "") === wantDir
+                            && Number(twin.row) >= 0) {
+                        landing = twin
+                        break
+                    }
+                }
+            }
         }
+        var from = win.mapFloor
         win.selectFloor(target)
+        // 换层这一步留痕：从哪层、哪一格、切到哪层、落在哪一格、依据是什么
+        var why = (toRow >= 0 && toCol >= 0) ? "出口坐标"
+                : (landing.row !== undefined ? "目标层的楼梯" : "同坐标兜底")
+        if (controller)
+            controller.uiNote("route.jump",
+                              String(from) + " " + Number(cell.row) + ","
+                              + Number(cell.col) + " → " + target)
         if (toRow >= 0 && toCol >= 0) {
             layer.jumpTo(target, toRow, toCol)
             win.mapHint = ""
@@ -2226,6 +2292,21 @@ Window {
             win.mapHint = "「" + target + "」还没标那个楼梯，先落在第 "
                     + (Number(cell.row) + 1) + " 行第 "
                     + (Number(cell.col) + 1) + " 列"
+        }
+        if (controller)
+            controller.uiNote("route.land", why + " " + target + " "
+                              + Number(layer.cells[layer.cells.length - 1].row)
+                              + "," + Number(layer.cells[layer.cells.length - 1].col))
+        // 切层之后把**系统鼠标**移到落点那一格的中心：光把数据改对不够，用户的指针
+        // 还停在上一层那个位置，接着拖就接不上（用户 2026-11-01："切层后改鼠标坐标"、
+        // "鼠标就是鼠标"）。
+        var land = layer.cells.length > 0
+                 ? layer.cells[layer.cells.length - 1] : null
+        if (land && controller) {
+            var at = layer.mapToGlobal(Qt.point(
+                (Number(land.col) + 0.5) * layer.cell,
+                (Number(land.row) + 0.5) * layer.cell))
+            controller.moveCursor(Math.round(at.x), Math.round(at.y))
         }
         return true
     }
@@ -2316,6 +2397,63 @@ Window {
         }
     }
 
+    // ---- 加属性收益（用户 2026-11-01）----
+    // "每增加 x 点攻击防御魔防，剩下的怪会减少多少伤害 …需要可以配上界"，
+    // 后来："这是新功能！！！不要和之前的混在一起！！！" —— 所以它是**自己一扇窗**
+    // （导航条 ＋），不挂在伤害计算里：那边是按顺序打一串、看掉血；这边是"多加属性
+    // 少掉多少"。用法接着清单那张怪表：○ 的是还剩的怪，每种后面直接写少掉多少，
+    // 点亮一行就去地图上圈出那一格。
+    property var gainWindow: null
+    property real gainWinW: 0
+    property real gainWinH: 0
+    // 三档加成 + 上界 + 算出来的结果（窗口关掉再开，填过的数还在）
+    property string gainAtk: ""
+    property string gainDef: ""
+    property string gainMdef: ""
+    property string gainCap: ""
+    property var gainResult: ({})
+
+    function openGain() {
+        if (!win.gainWindow) {
+            win.gainWindow = gainWindowComp.createObject(null, {})
+            if (!win.gainWindow)
+                return
+        }
+        // 上界默认就是"我现在有多少血"：省下来的血不可能超过它，
+        // 所以第一次打开就先填上，要用别数再改
+        if (win.gainCap === "" && controller) {
+            var hero = controller.battleHero() || ({})
+            var hp = Number(hero.hp || 0)
+            if (hp > 0)
+                win.gainCap = String(hp)
+        }
+        win.gainWindow.recalc()
+        win.gainWindow.place()
+        win.gainWindow.show()
+        try {
+            win.gainWindow.raise()
+            win.gainWindow.requestActivate()
+        } catch (error) {}
+    }
+
+    function closeGain() {
+        if (win.gainWindow) {
+            var gone = win.gainWindow
+            win.gainWindow = null
+            gone.destroy()
+        }
+    }
+
+    // 点收益表里的一行（这一层这一种怪）→ 地图切到那层、圈出它在的第一格；
+    // 图上没标位置的（还没读格子）就什么都不做，返回 false。
+    function gainHighlight(floorText, name) {
+        var spots = win.gridPositionsFor(floorText, name, "")
+        if (spots.length === 0)
+            return false
+        return win.highlightCell({ "floor": String(floorText || ""),
+                                   "row": spots[0].row, "col": spots[0].col })
+    }
+
     // ---- 路线对比：把几条算好的路线摆一起，比每只怪掉多少血 ----
     property var compareWindow: null
     property real compareWinW: 0
@@ -2353,9 +2491,10 @@ Window {
         }
     }
 
-    // 对比表点一行 = 它的坐标：地图窗口切到那一层、圈出这一格。
+    // 一张表点一行 = 它的坐标：地图切到那一层、圈出这一格。
+    // 路线对比和「加属性收益」都用它（同一个动作，只写这一处）。
     // 坐标不全是空的老路线（手粘的 JSON）就什么都不做，返回 false。
-    function compareHighlight(spot) {
+    function highlightCell(spot) {
         var at = spot || ({})
         var floor = String(at.floor || "")
         var row = Number(at.row)
@@ -3748,6 +3887,13 @@ Window {
         Component {
             id: battleWindowComp
             BattleWindow { host: win }
+        }
+
+        // ============ 加属性收益 ============
+        // 再加 X 点攻/防/魔防，剩下的怪少掉多少血。另开的一扇窗口。
+        Component {
+            id: gainWindowComp
+            GainWindow { host: win }
         }
 
         // ============ 路线对比 ============

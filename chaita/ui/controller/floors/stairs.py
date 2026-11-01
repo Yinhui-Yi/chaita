@@ -15,13 +15,16 @@
 
 老记录里是 `{"up": {...}, "down": {...}}` 那种"一层两个"的写法，读的时候
 （`_stairs_list`）自动转成列表，不用用户重标。
+
+用户自己加过/改过的楼梯带 `manual` 标记（`floors/common.py`）：AI 刷新时整行留着。
 """
 
 from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import Slot
 
-from .grid import _cell_key, _in_range
+from .common import _cell_key, is_manual, mark_manual
+from .grid import _in_range
 
 # 方向：只影响画箭头，不影响去哪一层
 DIRECTIONS = ("up", "down")
@@ -52,9 +55,11 @@ def _clean_stair(item) -> dict:
         to_row, to_col = -1, -1
     if to_row < 0 or to_col < 0 or not _in_range((to_row, to_col)):
         to_row, to_col = -1, -1
-    return {"row": row, "col": col, "dir": direction,
-            "to": str(item.get("to") or "").strip(),
-            "toRow": to_row, "toCol": to_col}
+    cleaned = {"row": row, "col": col, "dir": direction,
+               "to": str(item.get("to") or "").strip(),
+               "toRow": to_row, "toCol": to_col}
+    # 用户定过的标记要跟着走：清洗字段不等于"这条是 AI 读的"
+    return mark_manual(cleaned) if is_manual(item) else cleaned
 
 
 def _stairs_list(raw) -> list:
@@ -98,7 +103,8 @@ class StairsMixin:
             return -1
         entry = dict(self._map_history[position])
         stairs = _stairs_list(entry.get("stairs"))
-        stairs.append({"row": -1, "col": -1, "dir": direction, "to": ""})
+        stairs.append(mark_manual({"row": -1, "col": -1, "dir": direction,
+                                   "to": ""}))
         entry["stairs"] = stairs
         self._map_history[position] = entry
         self.mapHistoryChanged.emit()
@@ -106,6 +112,7 @@ class StairsMixin:
 
     # ---- 改某一行楼梯：**规则只有这一份**（下面几个槽都是它的薄包装）----
     def _change_stair(self, floor_text, index, **fields) -> bool:
+        from .... import trace
         position = self._find_floor(floor_text)
         if position < 0:
             return False
@@ -117,11 +124,17 @@ class StairsMixin:
         one.update(fields)
         cleaned = _clean_stair(one)
         if cleaned is None:
+            trace.note("manual.stair_rejected", floor=floor_text,
+                       index=int(index), fields=fields)
             return False
-        stairs[int(index)] = cleaned
+        # 用户改过这一行楼梯（方向/目标层/落点）：AI 刷新时整行留着
+        stairs[int(index)] = mark_manual(cleaned)
         entry["stairs"] = stairs
         self._map_history[position] = entry
         self.mapHistoryChanged.emit()
+        # 每一步都留痕："我明明标了出口怎么没用" 时能查出存进去的到底是什么
+        trace.note("manual.stair_change", floor=floor_text, index=int(index),
+                   fields=fields, **{"now": dict(cleaned)})
         return True
 
     @Slot(str, int, int, int, result=bool)

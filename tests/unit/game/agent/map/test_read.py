@@ -1,26 +1,36 @@
-"""map read 的清洗函数单元测试（`chaita/game/agent/map/read.py`）。
+"""map read 的清洗/汇总函数单元测试（`chaita/game/agent/map/read.py`）。
 
-真值来自规则：同名合并、数量上限、坐标 1 基转 0 基、13×13、只留怪/宝石/血瓶。
+真值来自规则（用户 2026-10-31）：
+  · 只问「每个格子里有什么」，**不问数量** —— 数量 = 这个格子占几格（`tally`）；
+  · 格子里钥匙/金币/武器/防具也算 item（"钥匙/武器/防具也需要记"）；
+  · 坐标 1 基转 0 基、只留 13×13 以内。
 """
 
 from chaita.game.agent.map import read as map_read
 
 
-def test_clean_merges_same_name():
-    assert map_read.clean([{"name": "红头怪", "count": 3},
-                           {"name": "红头怪", "count": 2}]) \
-        == [{"name": "红头怪", "count": 5}]
+# ---- 数量来自格子（不再问模型）----
+
+def test_tally_counts_cells_and_keeps_first_seen_order():
+    cells = [{"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
+             {"row": 0, "col": 1, "kind": "monster", "name": "铁卫"},
+             {"row": 1, "col": 1, "kind": "monster", "name": "血蚊"},
+             {"row": 2, "col": 2, "kind": "item", "name": "红宝石"}]
+    assert map_read.tally(cells, "monster") == [
+        {"name": "血蚊", "count": 2}, {"name": "铁卫", "count": 1}]
+    assert map_read.tally(cells, "item") == [{"name": "红宝石", "count": 1}]
 
 
-def test_clean_drops_empty_and_non_positive():
-    assert map_read.clean([{"name": "", "count": 1},
-                           {"name": "怪", "count": 0}]) == []
+def test_tally_ignores_other_kinds_and_blank_names():
+    cells = [{"row": 0, "col": 0, "kind": "stair_up", "name": "上楼梯"},
+             {"row": 0, "col": 1, "kind": "monster", "name": ""},
+             {"row": 0, "col": 2, "kind": "monster", "name": "甲"}]
+    assert map_read.tally(cells, "monster") == [{"name": "甲", "count": 1}]
+    assert map_read.tally([], "monster") == []
+    assert map_read.tally(None, "monster") == []
 
 
-def test_clean_drops_absurd_count():
-    # MAX_COUNT = 60，超过就丢掉（把血量/效果当数量的）
-    assert map_read.clean([{"name": "超多", "count": 61}]) == []
-
+# ---- 「每格有什么」的清洗 ----
 
 def test_clean_cells_shifts_to_zero_based_and_filters():
     cells = map_read.clean_cells([
@@ -36,6 +46,18 @@ def test_clean_cells_shifts_to_zero_based_and_filters():
         {"row": 4, "col": 6, "kind": "item", "name": "红宝石"},
         {"row": 5, "col": 1, "kind": "item", "name": "红血瓶"},
     ]
+
+
+def test_clean_cells_keeps_keys_weapons_and_armor():
+    """钥匙/金币/武器/防具都算 item 记下来（用户 2026-10-31："也需要记"）。"""
+    cells = map_read.clean_cells([
+        {"row": 1, "col": 1, "kind": "item", "name": "黄钥匙"},
+        {"row": 1, "col": 2, "kind": "item", "name": "蓝钥匙"},
+        {"row": 1, "col": 3, "kind": "item", "name": "金币"},
+        {"row": 1, "col": 4, "kind": "item", "name": "铁剑"},
+        {"row": 1, "col": 5, "kind": "item", "name": "铁盾"},
+    ])
+    assert [c["name"] for c in cells] == ["黄钥匙", "蓝钥匙", "金币", "铁剑", "铁盾"]
 
 
 def test_clean_cells_drops_duplicate():
@@ -74,38 +96,21 @@ def test_clean_layout():
         == {"cells": [{"row": 0, "col": 0, "kind": "monster", "name": "甲"}]}
 
 
-# ---- 单问：stub core.ask_json，只测"怎么取字段、怎么洗" ----
+def test_grid_question_asks_for_keys_weapons_and_no_counts():
+    """提问词本身也是规则：要钥匙/武器/防具，不要数量。"""
+    question = map_read.GRID_QUESTION
+    for word in ("钥匙", "金币", "武器", "防具"):
+        assert word in question
+    assert "不要写数量" in question
 
+
+# ---- 单问：stub core.ask_json，只测"怎么取字段、怎么洗" ----
 
 def test_floor(monkeypatch):
     monkeypatch.setattr(map_read.core, "ask_json",
                         lambda session, q, image=None, label=None:
                         {"floor": "地下30"})
     assert map_read.floor(object(), None) == "地下30"
-
-
-def test_monsters_of(monkeypatch):
-    monkeypatch.setattr(map_read.core, "ask_json",
-                        lambda *a, **k: {"monsters": [{"name": "血蚊",
-                                                       "count": 2}]})
-    assert map_read.monsters_of(object(), None, None) \
-        == [{"name": "血蚊", "count": 2}]
-
-
-def test_monsters_of_injects_known_names(monkeypatch):
-    got = {}
-    monkeypatch.setattr(map_read.core, "ask_json",
-                        lambda session, q, image=None, label=None:
-                        (got.update({"q": q}), {"monsters": []})[1])
-    map_read.monsters_of(object(), ["红色史莱姆"], None)
-    assert "红色史莱姆" in got["q"]     # 候选名写进提示词
-
-
-def test_items_of(monkeypatch):
-    monkeypatch.setattr(map_read.core, "ask_json",
-                        lambda *a, **k: {"items": [{"name": "红宝石",
-                                                    "count": 3}]})
-    assert map_read.items_of(object()) == [{"name": "红宝石", "count": 3}]
 
 
 def test_layout_of(monkeypatch):
@@ -115,6 +120,16 @@ def test_layout_of(monkeypatch):
                                                     "name": "甲"}]})
     assert map_read.layout_of(object()) \
         == {"cells": [{"row": 0, "col": 0, "kind": "monster", "name": "甲"}]}
+
+
+def test_layout_of_injects_known_names(monkeypatch):
+    """手册里的怪名写进提问词（候选写法，不是必须从中挑）。"""
+    got = {}
+    monkeypatch.setattr(map_read.core, "ask_json",
+                        lambda session, q, image=None, label=None:
+                        (got.update({"q": q}), {})[1])
+    map_read.layout_of(object(), ["红色史莱姆"])
+    assert "红色史莱姆" in got["q"]
 
 
 class _FakeSession:
@@ -132,6 +147,7 @@ def _fake_ask(by_label):
 
 
 def test_read_orchestration(monkeypatch):
+    """一次会话两问：层号 + 每格有什么；清单和数量都从格子数出来。"""
     import numpy as np
     import chaita.trace as trace
     monkeypatch.setattr(trace, "note", lambda *a, **k: None)
@@ -139,36 +155,60 @@ def test_read_orchestration(monkeypatch):
                         lambda image, api_key: _FakeSession())
     monkeypatch.setattr(map_read.core, "ask_json", _fake_ask({
         "map_floor": {"floor": "地下30"},
-        "map_mons": {"monsters": [{"name": "血蚊", "count": 2}]},
-        "map_items": {"items": [{"name": "红宝石", "count": 1}]},
-        "map_grid": {"cells": [{"row": 1, "col": 1, "kind": "monster",
-                                "name": "甲"}]},
+        "map_grid": {"cells": [
+            {"row": 1, "col": 1, "kind": "monster", "name": "血蚊"},
+            {"row": 1, "col": 2, "kind": "monster", "name": "血蚊"},
+            {"row": 2, "col": 2, "kind": "item", "name": "红宝石"}]},
     }))
     img = np.zeros((10, 10, 3), np.uint8)
     out = map_read.read(img, "k")
     assert out["floor"] == "地下30"
-    assert out["mons"] == [{"name": "血蚊", "count": 2}]
+    assert out["grid"] == {"cells": [
+        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
+        {"row": 0, "col": 1, "kind": "monster", "name": "血蚊"},
+        {"row": 1, "col": 1, "kind": "item", "name": "红宝石"}]}
+    assert out["mons"] == [{"name": "血蚊", "count": 2}]   # 数量 = 两格
     assert out["items"] == [{"name": "红宝石", "count": 1}]
-    assert out["grid"] == {"cells": [{"row": 0, "col": 0,
-                                      "kind": "monster", "name": "甲"}]}
 
 
-def test_read_empty_image_returns_default():
-    assert map_read.read(None, "k") == {"floor": "", "mons": [], "items": [],
-                                        "grid": {}}
-
-
-def test_monsters_orchestration(monkeypatch):
+def test_read_asks_only_two_questions(monkeypatch):
+    """**不再问数量**：整条路只发"层号"和"每格有什么"两问。"""
     import numpy as np
     import chaita.trace as trace
     monkeypatch.setattr(trace, "note", lambda *a, **k: None)
     monkeypatch.setattr(map_read, "_open",
                         lambda image, api_key: _FakeSession())
-    monkeypatch.setattr(map_read, "monsters_of",
-                        lambda session, known=None, image=None:
-                        [{"name": "血蚊"}])
+    labels = []
+
+    def ask(session, question, image=None, label=None):
+        labels.append(label)
+        return {}
+
+    monkeypatch.setattr(map_read.core, "ask_json", ask)
+    map_read.read(np.zeros((10, 10, 3), np.uint8), "k")
+    assert labels == ["map_floor", "map_grid"]
+
+
+def test_read_empty_image_returns_default():
+    assert map_read.read(None, "k") == {"floor": "", "grid": {},
+                                        "mons": [], "items": []}
+
+
+def test_monsters_orchestration(monkeypatch):
+    """旧入口「只要怪」也按格子数（不再单独问数量）。"""
+    import numpy as np
+    import chaita.trace as trace
+    monkeypatch.setattr(trace, "note", lambda *a, **k: None)
+    monkeypatch.setattr(map_read, "_open",
+                        lambda image, api_key: _FakeSession())
+    monkeypatch.setattr(map_read, "layout_of",
+                        lambda session, known=None: {"cells": [
+                            {"row": 0, "col": 0, "kind": "monster",
+                             "name": "血蚊"},
+                            {"row": 0, "col": 1, "kind": "monster",
+                             "name": "血蚊"}]})
     img = np.zeros((10, 10, 3), np.uint8)
-    assert map_read.monsters(img, "k") == [{"name": "血蚊"}]
+    assert map_read.monsters(img, "k") == [{"name": "血蚊", "count": 2}]
     assert map_read.monsters(None, "k") == []
 
 

@@ -396,7 +396,12 @@ def test_read_once_model_crash_reports_cannot_read(monkeypatch):
     assert entry == "s1"                                 # 建过的层号照旧返回
 
 
-def test_read_once_without_items_starts_items_task(monkeypatch):
+def test_read_once_finishes_the_task_without_a_second_items_pass(monkeypatch):
+    """整窗读取完就把任务标 done：**不再单独补问一次资源**。
+
+    资源也来自「每格有什么」（`_merge_read_grid`）；以前那一问让模型报数量，
+    和"AI 不读数量"的规则冲突（用户 2026-10-31）。
+    """
     _quiet(monkeypatch)
     monkeypatch.setattr(tasks_mod, "_api_key", lambda: "k")
     monkeypatch.setattr(tasks_mod, "_save_temp", lambda *a, **k: "")
@@ -407,30 +412,8 @@ def test_read_once_without_items_starts_items_task(monkeypatch):
                         _Towers(_tower()), _Winutil(), image=_IMG(),
                         mode="auto", target=_tower())
 
-    args, kwargs = c.items_task                # 漏了资源才补问一次
-    assert args[0] is not None                 # game_read
-    assert args[2] == "k"                      # 用的是同一次读取的 key
-    assert args[4] == 5                        # 挂在同一条任务上
-    assert c.items_done is None
-
-
-def test_read_once_with_items_skips_second_question(monkeypatch):
-    _quiet(monkeypatch)
-    monkeypatch.setattr(tasks_mod, "_api_key", lambda: "k")
-    monkeypatch.setattr(tasks_mod, "_save_temp", lambda *a, **k: "")
-    monkeypatch.setattr(tasks_mod, "_save_thumb", lambda *a, **k: "")
-    c = Worker()
-
-    c._read_worker_once(1, 5,
-                        _Read(result=_result(kind="map",
-                                             items=[{"name": "红宝石"}])),
-                        _Towers(_tower()), _Winutil(), image=_IMG(),
-                        mode="auto", target=_tower())
-
-    assert c.items_task is None                          # 已经读过资源了
-    args, kwargs = c.items_done
-    assert args[0] == 5
-    assert kwargs["got_items"] is True
+    assert not hasattr(c, "_start_items_task") or c.items_task is None
+    assert c.task_sets[-1] == (5, {"state": "done", "text": "3"})
     assert c.finishes == []                              # 不算失败
 
 

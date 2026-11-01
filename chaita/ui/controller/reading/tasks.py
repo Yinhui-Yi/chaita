@@ -332,19 +332,14 @@ class ReadingTasksMixin:
                    kind=result.kind, monsters=len(result.monsters or []))
         self._post(lambda: self._deliver(target, result, seq, entry_id, quick,
                                          task_id=task_id, mode=mode))
-        # 资源只在「读取」（整窗读）里补：读地图就只读地图。
-        # 用户明确要求：读地图别顺带读资源，那和顶部「读取」重复。
-        if result.kind != "monsters" and mode == "auto" \
-                and not (result.items or []):
-            # 资源已经在「读地图」那个会话里问过（result.items）就不再发第二次；
-            # 只有整窗「读取」漏了资源时才补这一步。
-            focus = quick if quick is not None else image
-            self._start_items_task(game_read, focus, key,
-                                   _floor_text(result.status.get("floor")),
-                                   task_id)
-        elif result.kind != "monsters":
-            self._post(lambda: self._finish_items_task(
-                task_id, _floor_text(result.status.get("floor")), got_items=True))
+        # 这次读取到这里就完：怪和资源都来自「每格有什么」（`_merge_read_grid`）。
+        # **不再单独补问一次资源**：那一问让模型报数量，和新规则冲突
+        # （用户 2026-10-31："AI 现在不需要读数量"）。
+        if result.kind != "monsters":
+            done_floor = _floor_text(result.status.get("floor"))
+            if done_floor:
+                self._post(lambda: self._set_task(task_id, state="done",
+                                                  text=done_floor))
         return entry_id
 
     def _finish(self, headline: str, detail: str, task_id=None) -> None:

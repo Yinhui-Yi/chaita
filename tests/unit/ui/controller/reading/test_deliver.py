@@ -132,9 +132,9 @@ class Delivery(ReadingDeliverMixin):
     def _apply_status(self, status):
         self.applied_status.append(status)
 
-    def _store_map_entry(self, tower, result, entry_id, floor_text, here,
-                         items=None, quick_map=None, grid=None):
-        self.stored.append((floor_text, here, items, grid))
+    def _store_map_entry(self, tower, result, entry_id, floor_text,
+                         quick_map=None, grid=None):
+        self.stored.append((floor_text, grid))
 
 
 class MapResult:
@@ -229,36 +229,30 @@ def test_deliver_without_floor_does_not_store():
 
 
 def test_deliver_stores_entry_and_marks_task_running():
+    """落库只交层号和「每格有什么」：清单和数量都由格子推（不再看模型报的名单）。"""
     c = Delivery()
-    result = MapResult(monsters=[{"name": "血蚊", "count": 2}],
-                       items=[{"name": "红宝石"}], grid={"cells": []})
+    grid = {"cells": [{"row": 0, "col": 0, "kind": "monster", "name": "血蚊"}]}
+    result = MapResult(monsters=[{"name": "血蚊", "count": 99}],
+                       items=[{"name": "红宝石"}], grid=grid)
 
     c._deliver(Tower(), result, task_id=7, seq=1)
 
-    floor_text, here, items, grid = c.stored[0]
+    floor_text, stored_grid = c.stored[0]
     assert floor_text == "3层"
-    assert here == [{"name": "血蚊", "count": 2}]
-    assert items == [{"name": "红宝石"}]
+    assert stored_grid == grid
     assert c.tasks[-1][1] == {"state": "running", "text": "3层"}
 
 
-def test_deliver_drops_unmatched_monster_names():
-    c = Delivery(monsters=[{"name": "红色史莱姆"}])
-
-    c._deliver(Tower(), MapResult(monsters=[{"name": "绿头怪", "count": 1}]))
-
-    assert c.stored[0][1] == []                 # 对不上手册的名字不进记录
-
-
-def test_deliver_treats_bad_count_as_unknown():
+def test_deliver_ignores_the_monsters_the_model_reports():
+    """"AI 现在不需要读数量"：模型哪怕报了怪/资源，也不进这一层的记录。"""
     c = Delivery()
-    result = MapResult(monsters=[{"name": "血蚊", "count": "两只"},
-                                 {"name": "铁卫", "count": 0},
-                                 {"name": "小蝙蝠", "count": True}])
+    result = MapResult(monsters=[{"name": "血蚊", "count": 3}],
+                       items=[{"name": "红宝石", "count": 2}],
+                       grid={"cells": []})
 
-    c._deliver(Tower(), result)
+    c._deliver(Tower(), result, task_id=7, seq=1)
 
-    assert [row["count"] for row in c.stored[0][1]] == [None, None, None]
+    assert c.stored[0] == ("3层", {"cells": []})
 
 
 # ---- _apply_floor：层数一读出来先建条目 ----
