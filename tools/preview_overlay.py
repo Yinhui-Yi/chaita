@@ -823,8 +823,16 @@ def main() -> int:
             ]
             controller.chatLogChanged.emit()
         elif scenario == "gain":
-            # 加属性收益：打开窗口，看三档加成 + 结果
-            QTimer.singleShot(200, window.openGain)
+            # 加属性收益：打开窗口，看三档加成 + 结果；摆回主窗口右边（和真实用法一样）
+            def _open_gain():
+                window.openGain()
+                gain = window.property("gainWindow")
+                gain = gain.toQObject() if hasattr(gain, "toQObject") else gain
+                if gain is not None:
+                    gain.setX(window.x() + window.width() + 8)
+                    gain.setY(window.y() + 30)
+                    gain.show()
+            QTimer.singleShot(200, _open_gain)
         elif scenario == "compare":
             # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
             _compare_scenario(window, controller)

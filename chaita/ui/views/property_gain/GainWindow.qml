@@ -42,26 +42,29 @@ Window {
     readonly property var floors: (result || {}).floors || []
     readonly property var hero: (result || {}).hero || ({})
 
-    // ---- 版式：抬头 26 / 当前属性 18 / 输入 22 / 细线 / 列表 / 合计 30 ----
-    readonly property int headerH: 26
-    readonly property int heroY: 28
-    readonly property int heroH: 16
-    readonly property int inputY: 48
-    readonly property int inputH: 22
-    readonly property int hairY: 76
-    readonly property int listY: 82
-    readonly property int footerH: 30
-    // 一行一种（缩略图 16 + 上下各 3） / 一行一个组头
-    readonly property int speciesH: 22
-    readonly property int groupH: 20
+    // ---- 版式（灰底卡片里自上而下）：标题行 / 白卡：当前属性 / 输入 / 细线 / 列表 / 合计 ----
+    // 窗口最外圈留给投影的透明边；灰底卡片（gainCard）画在它里面，和主窗口同一套
+    readonly property int inset: Theme.windowInset
+    readonly property int headerH: 34
+    // 白卡左右各缩 8，卡里内容再缩 8：内容离灰底卡片边 16
+    readonly property int heroY: headerH + 10
+    readonly property int heroH: 18
+    readonly property int inputY: heroY + heroH + 4
+    readonly property int inputH: 24
+    readonly property int hairY: inputY + inputH + 8
+    readonly property int listY: hairY + 6
+    readonly property int footerH: 32
+    // 一行一种（缩略图 16 + 上下各 4） / 一行一个组头
+    readonly property int speciesH: 24
+    readonly property int groupH: 22
     // 左右内边距：整张卡片只有这一个数（别每行各写一个魔法数字）
-    readonly property int padW: 12
+    readonly property int padW: 16
     // 每行右边的四列（从右往左：共 / 一只 / ×数量 / 位置），两种行（算得出的、
     // 没数值的）共用这套宽度，才对得齐
-    readonly property int allW: 52
-    readonly property int oneW: 52
-    readonly property int countW: 26
-    readonly property int spotW: 76
+    readonly property int allW: 60
+    readonly property int oneW: 60
+    readonly property int countW: 30
+    readonly property int spotW: 84
     readonly property int colGap: 6
 
     readonly property var screenRect: {
@@ -73,37 +76,42 @@ Window {
         return Qt.rect(originX, originY, scr.width, scr.height)
     }
     readonly property int maxH: Math.max(200, screenRect.height - 72)
-    readonly property int autoW: 366
-    readonly property int autoH: listY + 6
-        + Math.max(30, Math.min(320, gainCol.implicitHeight)) + footerH
+    readonly property int autoW: 2 * inset + 400
+    readonly property int autoH: 2 * inset + listY + 6
+        + Math.max(30, Math.min(320, gainCol.implicitHeight)) + footerH + 8
 
     width: Math.max(320, host.gainWinW > 0 ? host.gainWinW : autoW)
     height: Math.max(150, host.gainWinH > 0
                      ? host.gainWinH : Math.min(maxH, autoH))
 
+    // 卡片贴屏幕边就算到头：外圈 10px 透明投影边可以伸出屏幕
     function clampPos() {
         var rect = gainWin.screenRect
         if (!rect)
             return
-        var left = rect.x + 2
-        var top = rect.y + 2
-        var right = Math.max(left, rect.x + rect.width - gainWin.width - 2)
-        var bottom = Math.max(top, rect.y + rect.height - gainWin.height - 2)
+        var left = rect.x + 2 - gainWin.inset
+        var top = rect.y + 2 - gainWin.inset
+        var right = Math.max(left, rect.x + rect.width - gainWin.width - 2
+                                   + gainWin.inset)
+        var bottom = Math.max(top, rect.y + rect.height - gainWin.height - 2
+                                   + gainWin.inset)
         gainWin.x = Math.round(Math.max(left, Math.min(gainWin.x, right)))
         gainWin.y = Math.round(Math.max(top, Math.min(gainWin.y, bottom)))
     }
 
     // 开窗时摆在主窗口右边；伤害计算 / 路线对比开着就排到它们右边（别叠在一起）
+    // （两张卡片之间留 8px，两边各自还有一圈投影边）
     function place() {
         var rect = gainWin.screenRect
         if (!rect)
             return
-        var baseX = host.x + host.width + 8
+        var gap = 8 - 2 * gainWin.inset
+        var baseX = host.x + host.width + gap
         var others = [host.battleWindow, host.compareWindow]
         for (var i = 0; i < others.length; i++) {
             var other = others[i]
             if (other && other.visible)
-                baseX = Math.max(baseX, other.x + other.width + 8)
+                baseX = Math.max(baseX, other.x + other.width + gap)
         }
         gainWin.x = Math.round(Math.max(
             rect.x + 4,
@@ -315,38 +323,51 @@ Window {
         Rectangle {
             anchors.fill: parent
             radius: 4
-            color: "#EADFCB"
+            color: Theme.chip
             visible: thumbImage.status !== Image.Ready
             Text {
                 anchors.centerIn: parent
                 text: thumb.monName ? thumb.monName.charAt(0) : "?"
                 color: Theme.ink2
                 font.family: Theme.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 10
                 font.bold: true
             }
         }
+    }
+
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: gainCard
+        radius: gainCard.radius
     }
 
     Rectangle {
         id: gainCard
         objectName: "gainCard"
         anchors.fill: parent
-        radius: 8
-        color: Theme.paperHi
-        border.width: 1
-        border.color: Theme.edge
+        anchors.margins: gainWin.inset
+        radius: 10
+        color: Theme.canvas
         clip: true
         focus: true
         Keys.onEscapePressed: host.closeGain()
         MouseArea { anchors.fill: parent }
 
+        // 内容那张白卡（当前属性 + 输入 + 列表 + 合计都在它上面）
+        Card {
+            x: 8
+            y: gainWin.headerH
+            width: parent.width - 16
+            height: parent.height - gainWin.headerH - 8
+        }
+
         // ---- 抬头：拖着走 + 关 ----
         Item {
             id: gainHeader
-            x: 6
-            y: 2
-            width: parent.width - 12
+            x: 8
+            y: 0
+            width: parent.width - 16
             height: gainWin.headerH
 
             MouseArea {
@@ -381,33 +402,20 @@ Window {
                 text: "加属性收益"
                 color: Theme.ink
                 font.family: Theme.uiFont
-                font.pixelSize: 11
+                font.pixelSize: 14
                 font.bold: true
-                font.letterSpacing: 0.6
             }
 
-            Item {
+            IconBtn {
                 id: gainClose
                 objectName: "gainClose"
                 anchors.right: parent.right
-                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: gainCloseMouse.containsMouse ? Theme.danger
-                                                        : Theme.ink3
-                    font.pixelSize: 11
-                }
-                MouseArea {
-                    id: gainCloseMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeGain()
-                }
+                glyph: "✕"
+                glyphSize: 12
+                hoverInk: Theme.danger
+                hoverBack: Theme.dangerSoft
+                onClicked: host.closeGain()
             }
         }
 
@@ -422,8 +430,8 @@ Window {
             verticalAlignment: Text.AlignVCenter
             text: gainWin.heroText()
             color: Theme.ink3
-            font.family: Theme.monoFont
-            font.pixelSize: 9
+            font.family: Theme.uiFont
+            font.pixelSize: 11
             elide: Text.ElideRight
         }
 
@@ -435,7 +443,7 @@ Window {
             y: gainWin.inputY
             width: gainCard.width - 2 * gainWin.padW
             height: gainWin.inputH
-            spacing: 8
+            spacing: 10
 
             Repeater {
                 model: [["atk", "攻", Theme.markAtk],
@@ -443,20 +451,20 @@ Window {
                         ["mdef", "魔防", Theme.markMdef],
                         ["cap", "上界", Theme.amber]]
                 delegate: Row {
-                    spacing: 3
+                    spacing: 4
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData[1]
                         color: modelData[2]
                         font.family: Theme.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                     }
                     Rectangle {
-                        width: modelData[0] === "cap" ? 44 : 36
-                        height: 18
-                        radius: 4
+                        width: modelData[0] === "cap" ? 52 : 44
+                        height: gainWin.inputH
+                        radius: Theme.radius
                         color: gainField.activeFocus ? Theme.paperHi
-                                                     : Theme.paperLo
+                                                     : Theme.tile
                         border.width: 1
                         border.color: gainField.activeFocus ? Theme.amber
                                                            : Theme.hairline
@@ -470,7 +478,7 @@ Window {
                             padding: 0
                             color: Theme.ink
                             font.family: Theme.monoFont
-                            font.pixelSize: 9
+                            font.pixelSize: 12
                             selectByMouse: true
                             // 初值来自主窗口（关掉再开，填过的数还在）
                             text: gainWin.gainValue(modelData[0])
@@ -506,7 +514,7 @@ Window {
             y: gainWin.listY
             width: gainCard.width - 2 * gainWin.padW
             height: Math.max(24, gainCard.height - gainWin.listY
-                             - gainWin.footerH - 4)
+                             - gainWin.footerH - 14)
             contentWidth: width
             contentHeight: gainCol.implicitHeight
             clip: true
@@ -527,7 +535,7 @@ Window {
                     text: "清单里没有剩下的怪（清单里划掉的、或者还没读到怪）"
                     color: Theme.ink3
                     font.family: Theme.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     wrapMode: Text.Wrap
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -553,7 +561,7 @@ Window {
                                       || "没写层名"
                                 color: Theme.ink2
                                 font.family: Theme.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 11
                                 font.bold: true
                             }
                             Text {
@@ -562,8 +570,8 @@ Window {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: gainWin.groupHeadText(gainGroup.group)
                                 color: Theme.ink3
-                                font.family: Theme.monoFont
-                                font.pixelSize: 8
+                                font.family: Theme.uiFont
+                                font.pixelSize: 10
                             }
                         }
 
@@ -585,10 +593,9 @@ Window {
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    radius: 3
-                                    color: Qt.rgba(0.84, 0.62, 0.18,
-                                                   rowArea.containsMouse
-                                                   ? 0.12 : 0)
+                                    radius: 4
+                                    color: rowArea.containsMouse ? Theme.tile
+                                                                 : "transparent"
                                 }
                                 MouseArea {
                                     id: rowArea
@@ -623,7 +630,7 @@ Window {
                                     text: String(gainRowItem.row.name || "")
                                     color: Theme.ink
                                     font.family: Theme.uiFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -637,7 +644,7 @@ Window {
                                     text: gainWin.spotText(gainRowItem.spots)
                                     color: Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -650,7 +657,7 @@ Window {
                                     text: "×" + Number(gainRowItem.row.count || 0)
                                     color: Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                 }
                                 Text {
                                     id: gainRowOne
@@ -668,7 +675,7 @@ Window {
                                     color: Number(gainRowItem.row.one || 0) > 0
                                            ? Theme.markAtk : Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                 }
                                 Text {
                                     id: gainRowAll
@@ -683,7 +690,7 @@ Window {
                                     color: Number(gainRowItem.row.all || 0) > 0
                                            ? Theme.ink : Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                     font.bold: true
                                 }
                             }
@@ -706,10 +713,9 @@ Window {
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    radius: 3
-                                    color: Qt.rgba(0.84, 0.62, 0.18,
-                                                   unknownArea.containsMouse
-                                                   ? 0.12 : 0)
+                                    radius: 4
+                                    color: unknownArea.containsMouse ? Theme.tile
+                                                                     : "transparent"
                                 }
                                 // 没数值的怪最该去看一眼：点一行也去地图上圈出它
                                 MouseArea {
@@ -743,7 +749,7 @@ Window {
                                     text: String(row.name || "")
                                     color: Theme.ink3
                                     font.family: Theme.uiFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -757,7 +763,7 @@ Window {
                                     text: gainWin.spotText(spots)
                                     color: Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -770,7 +776,7 @@ Window {
                                     text: "×" + Number(row.count || 0)
                                     color: Theme.ink3
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                 }
                                 Text {
                                     id: gainUnknownWhy
@@ -783,7 +789,7 @@ Window {
                                     text: String(row.reason || "") + "（没算）"
                                     color: Theme.ink3
                                     font.family: Theme.uiFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                     elide: Text.ElideRight
                                 }
                             }
@@ -800,7 +806,7 @@ Window {
             width: gainCard.width - 2 * gainWin.padW
             height: gainWin.footerH
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 2
+            anchors.bottomMargin: 12
 
             Rectangle {
                 anchors.left: parent.left
@@ -817,8 +823,8 @@ Window {
                 verticalAlignment: Text.AlignVCenter
                 text: gainWin.totalText()
                 color: (gainWin.result || {}).capped ? Theme.amber : Theme.ink
-                font.family: Theme.monoFont
-                font.pixelSize: 10
+                font.family: Theme.uiFont
+                font.pixelSize: 12
                 font.bold: true
                 elide: Text.ElideRight
             }
