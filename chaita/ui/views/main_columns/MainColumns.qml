@@ -5,15 +5,15 @@ import "../shared"
 // 地图那一栏的卡片（大图在 map_view/MapWindow.qml）
 import "../map_view"
 
-// 中间三栏 + 读取记录：地图（只显示选中的那一层）、怪物（手册数值 × 地图数量）、
-// 技能（按地图上出现过的怪统计）、读取记录（每点一次读取一条）。
+// 中间的标签页：地图（只显示选中的那一层）、怪物（手册数值 × 地图数量）、
+// 技能（按地图上出现过的怪统计），下面接读取记录（每点一次读取一条）。
 //
 // 主窗口的一块（不是覆盖层）。滚动容器是外面那层 `flick`（Flickable），
 // 这里只是它里面的 `Column`；所以外层要 `flick.contentHeight: body.implicitHeight`，
 // 那边仍用 id `body` 指过来。
 //
-// 三栏都能各自折叠（host.mapCollapsed / monCollapsed / skillCollapsed），
-// 折叠状态和列表数据都在 host 上，这里只画和点。
+// 一次只显示一页（host.tab：map / monsters / skills），当前页和列表数据都在 host 上，
+// 这里只画和点。
 Column {
     id: body
 
@@ -35,6 +35,21 @@ Column {
     objectName: "contentBody"
     width: host.bodyW
     spacing: 0
+
+    // 每页的内容高度（行高 × 行数 + 页首那一行 + 空态）。切页时内容区要垫到不矮于
+    // 地图页，所以这几个数要能直接算出来，不靠量布局。
+    readonly property int tabRowH: 16
+    readonly property int monRowH: 36
+    readonly property int skillRowH: 28
+    readonly property int emptyH: 24
+    readonly property real mapPageH: host.floorList.length > 0
+                                     ? 14 + mapCard.height : 34
+    readonly property real monPageH: tabRowH + (host.monRows.length > 0
+                                                ? host.monRows.length * monRowH : emptyH)
+    readonly property real skillPageH: tabRowH + (host.skills.length > 0
+                                                  ? host.skills.length * skillRowH : emptyH)
+    readonly property real pageH: host.tab === "map" ? mapPageH
+                                  : (host.tab === "monsters" ? monPageH : skillPageH)
     // 行数/内容变了，窗口高度跟着走（内容决定高度，不留一截空白）
 
     // ---------- 上次留下的记录：只提示，点「恢复」才加载 ----------
@@ -95,117 +110,97 @@ Column {
         }
     }
 
-    // ---------- 地图 ----------
+    // ---------- 标签页：地图 / 怪物 / 技能 ----------
+    // 一次只显示一页。右边那颗「读取」读的是**当前页**：地图页读地图、怪物页读怪物手册，
+    // 技能是从怪物算出来的，没有自己的读取。
     Item {
+        objectName: "tabBar"
         width: body.width
-        height: 18
-        // 点标题（含箭头）折叠/展开这一栏
-        Item {
-            id: mapSectionHead
-            objectName: "mapSectionHead"
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, mapHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "mapChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.mapCollapsed ? "▸" : "▾"
-                color: mapHeadMouse.containsMouse ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: mapHeadLabel
-                objectName: "mapSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.mapCollapsed
-                      ? "地图  " + host.floorList.length + " 层"
-                      : "地图"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: mapHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleMapSection()
-            }
-        }
+        height: 26
+
         Row {
-            anchors.right: parent.right
+            anchors.left: parent.left
+            // 标签自带 8px 内边距：让第一个标签的字和下面内容的左边线对齐
+            anchors.leftMargin: -8
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Text {
-                id: readTipText
-                objectName: "readTip"
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.readTip
-                color: host.ink3
-                font.family: host.monoFont
-                font.pixelSize: 9
-                elide: Text.ElideRight
-                width: Math.min(readTipText.implicitWidth, 86)
-                horizontalAlignment: Text.AlignRight
-                visible: text !== "" && host.floorList.length > 0
-            }
-            // 读取（只读地图）：挨着地图条，不在对话框里。
-            // 已经在读也能再点（并行读取）。按钮上的字**永远是「读取」**：
-            // 手册是分页的，翻到下一页还得再点它；写成「读取中」会让人以为
-            // 不能再按（用户："要通过按读取中来开启第二页太反直觉"）。
-            // 正在读用右上角一颗呼吸的小点表示，按钮本身照样能点。
-            Rectangle {
-                id: readMapBtn
-                objectName: "readMap"
-                anchors.verticalCenter: parent.verticalCenter
-                width: 46
-                height: 20
-                radius: 6
-                readonly property int busy: host.runningCount("map")
-                color: host.amber
-                Text {
-                    anchors.centerIn: parent
-                    text: "读取"
-                    color: host.amberInk
-                    font.family: host.uiFont
-                    font.pixelSize: 10
-                    font.bold: true
-                }
-                Rectangle {
-                    objectName: "mapBusyDot"
-                    visible: readMapBtn.busy > 0
-                    x: readMapBtn.width - 7
-                    y: -2
-                    width: 7
-                    height: 7
-                    radius: 3.5
-                    color: host.amberInk
-                    border.width: 1
-                    border.color: host.amber
-                    SequentialAnimation on opacity {
-                        running: readMapBtn.busy > 0
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
-                        NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
+            spacing: 4
+
+            Repeater {
+                model: [
+                    { "key": "map", "label": "地图", "count": host.floorList.length },
+                    { "key": "monsters", "label": "怪物", "count": host.monRows.length },
+                    { "key": "skills", "label": "技能", "count": host.skills.length }
+                ]
+                delegate: Item {
+                    id: tabItem
+                    objectName: "tab_" + modelData.key
+                    readonly property bool on: host.tab === modelData.key
+                    width: tabText.implicitWidth + 16
+                    height: 26
+
+                    Text {
+                        id: tabText
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: -1
+                        textFormat: Text.RichText
+                        text: modelData.label
+                              + (modelData.count > 0
+                                 ? " <font size='1' color='" + host.ink3 + "'>"
+                                   + modelData.count + "</font>" : "")
+                        color: tabItem.on ? host.ink
+                               : (tabMouse.containsMouse ? host.ink2 : host.ink3)
+                        font.family: host.uiFont
+                        font.pixelSize: 13
+                        font.bold: tabItem.on
+                    }
+                    // 选中的那页：底下一条琥珀线
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 6
+                        anchors.bottom: parent.bottom
+                        height: 2
+                        radius: 1
+                        color: host.amber
+                        visible: tabItem.on
+                    }
+                    MouseArea {
+                        id: tabMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: host.tab = modelData.key
                     }
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.readMode("map")
-                }
             }
         }
-    }
 
-    // 出错时那句话就贴在读取按钮下面（不占位时高度为 0）
+        ReadBtn {
+            objectName: "readMap"
+            host: body.host
+            mode: "map"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: host.tab === "map"
+        }
+        ReadBtn {
+            objectName: "readMon"
+            host: body.host
+            mode: "monsters"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: host.tab === "monsters"
+        }
+    }
+    // 标签条和内容之间一条细线
+    Rectangle {
+        width: body.width
+        height: 1
+        color: host.hairline
+    }
+    // 出错时那句话就贴在标签条下面（不占位时高度为 0）
     Text {
         objectName: "errorText"
         width: body.width
@@ -219,8 +214,26 @@ Column {
         elide: Text.ElideRight
     }
 
+    // 内容区的上边距（4px）。三页的内容平铺在这个 Column 里，按当前页显示/隐藏
+    // （Column 会跳过不可见的子项）。
     Item { width: body.width; height: 4 }
 
+    // ---------- 地图页 ----------
+    // 上次读取的时间，右对齐；读取那颗按钮在标签条上
+    Text {
+        id: readTipText
+        objectName: "readTip"
+        width: body.width
+        height: visible ? 14 : 0
+        visible: host.tab === "map" && host.floorList.length > 0
+        text: host.readTip
+        color: host.ink3
+        font.family: host.monoFont
+        font.pixelSize: 9
+        elide: Text.ElideRight
+        horizontalAlignment: Text.AlignRight
+        verticalAlignment: Text.AlignVCenter
+    }
     // 地图只画**这一层**，但画得大：左边侧栏快速切层、右边大图，
     // 其余层压在大图后面只露一角（用户 2026-10-30）。
     MapPanel {
@@ -229,117 +242,28 @@ Column {
     }
     Text {
         width: body.width
-        height: host.floorList.length === 0 && !host.mapCollapsed ? 34 : 0
-        visible: host.floorList.length === 0 && !host.mapCollapsed
-        text: "还没有地图。点这栏的「读取」，一层一层记进来。"
+        height: visible ? 34 : 0
+        visible: host.tab === "map" && host.floorList.length === 0
+        text: "还没有地图。点右上角的「读取」，一层一层记进来。"
         color: host.ink3
         font.family: host.uiFont
         font.pixelSize: 10
         wrapMode: Text.WordWrap
     }
 
-    Item { width: body.width; height: host.gapB }
-
-    // ---------- 怪物 ----------
-    Item {
+    // ---------- 怪物页 ----------
+    Text {
+        objectName: "monAgg"
         width: body.width
-        height: 18
-        Item {
-            id: monSectionHead
-            objectName: "monSectionHead"
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, monHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "monChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.monCollapsed ? "▸" : "▾"
-                color: monHeadMouse.containsMouse ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: monHeadLabel
-                objectName: "monSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: "怪物"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: monHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleMonSection()
-            }
-        }
-        Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Text {
-                objectName: "monAgg"
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.monAgg
-                color: host.amber
-                font.family: host.monoFont
-                font.pixelSize: 9
-            }
-            // 读取（只读怪物手册）：和地图那栏的「读取」分开，
-            // 也能并行点（两栏各跑各的）。字永远写「读取」：
-            // 手册分页，翻到下一页再点它就行（见上面地图那栏的注释）。
-            Rectangle {
-                id: readMonBtn
-                objectName: "readMon"
-                anchors.verticalCenter: parent.verticalCenter
-                width: 46
-                height: 20
-                radius: 6
-                readonly property int busy: host.runningCount("monsters")
-                color: host.amber
-                Text {
-                    anchors.centerIn: parent
-                    text: "读取"
-                    color: host.amberInk
-                    font.family: host.uiFont
-                    font.pixelSize: 10
-                    font.bold: true
-                }
-                Rectangle {
-                    objectName: "monBusyDot"
-                    visible: readMonBtn.busy > 0
-                    x: readMonBtn.width - 7
-                    y: -2
-                    width: 7
-                    height: 7
-                    radius: 3.5
-                    color: host.amberInk
-                    border.width: 1
-                    border.color: host.amber
-                    SequentialAnimation on opacity {
-                        running: readMonBtn.busy > 0
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
-                        NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
-                    }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.readMode("monsters")
-                }
-            }
-        }
+        height: visible ? body.tabRowH : 0
+        visible: host.tab === "monsters"
+        text: host.monAgg
+        color: host.amber
+        font.family: host.monoFont
+        font.pixelSize: 9
+        horizontalAlignment: Text.AlignRight
+        verticalAlignment: Text.AlignVCenter
     }
-    Item { width: body.width; height: 4 }
 
     Repeater {
         id: monRep
@@ -347,9 +271,9 @@ Column {
         delegate: Item {
             objectName: "monRow"
             width: body.width
-            height: 36
-            // 怪物那栏折叠起来时整行让位（Column 会跳过不可见的子项）
-            visible: !host.monCollapsed
+            height: body.monRowH
+            // 不在怪物页时整行让位（Column 会跳过不可见的子项）
+            visible: host.tab === "monsters"
             // 正在被拖的那一行淡一点：看得出"它在跟着手走"
             // （controller 可能已被回收成 null：绑定里要短路，不然报
             // "Cannot read property 'monDragFrom' of null"）
@@ -563,80 +487,36 @@ Column {
     }
     Text {
         width: body.width
-        height: host.monRows.length === 0 && !host.monCollapsed ? 24 : 0
-        visible: host.monRows.length === 0 && !host.monCollapsed
-        text: "还没读到怪。点这栏的「读取」读怪物手册。"
+        height: visible ? body.emptyH : 0
+        visible: host.tab === "monsters" && host.monRows.length === 0
+        text: "还没读到怪。点右上角的「读取」读怪物手册。"
         color: host.ink3
         font.family: host.uiFont
         font.pixelSize: 10
     }
 
-    Item { width: body.width; height: host.gapB }
-
-    // ---------- 技能 ----------
-    Item {
+    // ---------- 技能页 ----------
+    Text {
+        objectName: "skillAgg"
         width: body.width
-        height: 18
-        // 点标题（含箭头）折叠/展开这一栏 —— 和地图/怪物同一个做法
-        Item {
-            id: skillSectionHead
-            objectName: "skillSectionHead"
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, skillHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "skillChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.skillCollapsed ? "▸" : "▾"
-                color: skillHeadMouse.containsMouse
-                       ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: skillHeadLabel
-                objectName: "skillSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                // 右边 skillAgg 已经写了"N 种 · 涉及 M 只"，
-                // 标题就不再重复一遍（和"怪物"那栏一样，只写栏名）
-                text: "技能"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: skillHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleSkillSection()
-            }
-        }
-        Text {
-            objectName: "skillAgg"
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: host.skillAgg
-            color: host.ink3
-            font.family: host.monoFont
-            font.pixelSize: 9
-        }
+        height: visible ? body.tabRowH : 0
+        visible: host.tab === "skills"
+        text: host.skillAgg
+        color: host.ink3
+        font.family: host.monoFont
+        font.pixelSize: 9
+        horizontalAlignment: Text.AlignRight
+        verticalAlignment: Text.AlignVCenter
     }
-    Item { width: body.width; height: 4 }
 
     Repeater {
         model: host.skills
         delegate: Item {
             objectName: "skillRow"
             width: body.width
-            height: 28
-            // 技能那栏折叠起来时整行让位（Column 会跳过不可见的子项）
-            visible: !host.skillCollapsed
+            height: body.skillRowH
+            // 不在技能页时整行让位（Column 会跳过不可见的子项）
+            visible: host.tab === "skills"
             Text {
                 objectName: "skillName"
                 anchors.left: parent.left
@@ -669,12 +549,20 @@ Column {
     }
     Text {
         width: body.width
-        height: host.skills.length === 0 && !host.skillCollapsed ? 24 : 0
-        visible: host.skills.length === 0 && !host.skillCollapsed
+        height: visible ? body.emptyH : 0
+        visible: host.tab === "skills" && host.skills.length === 0
         text: "还没读到技能。"
         color: host.ink3
         font.family: host.uiFont
         font.pixelSize: 10
+    }
+
+    // 把内容区垫到不矮于地图页（切页时窗口高度不跳）；没有地图时不垫
+    Item {
+        objectName: "stageFill"
+        width: body.width
+        height: host.floorList.length === 0 ? 0
+                : Math.max(0, body.mapPageH - body.pageH)
     }
 
     Item { width: body.width; height: host.gapB }

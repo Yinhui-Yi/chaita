@@ -102,6 +102,7 @@ def test_read_monster_button_fills_manual(monkeypatch):
 
     controller, engine, window = _window(monkeypatch, "manual", fake_read)
 
+    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_item(window, "readMon"))
     helpers.APP.processEvents()
 
@@ -123,6 +124,7 @@ def test_read_monster_button_wrong_screen_reports(monkeypatch):
 
     controller, engine, window = _window(monkeypatch, "map", fake_read)
 
+    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_item(window, "readMon"))
     helpers.APP.processEvents()
 

@@ -1,8 +1,8 @@
 """主面板那几个按钮的接线（**集成测试**，只点界面上有的东西）。
 
 覆盖：会话横幅的「恢复 / 忽略」、读取记录里的「取消 / 重试」、怪物行点开编辑并保存 /
-取消、地图那一栏（侧栏切层、大图、底部那句话、清单入口、刷新）、三块折叠头、
-怪物库那一行的 ✕。断言一律读**公开属性**（`controller.monsters / mapHistory / tasks /
+取消、地图那一栏（侧栏切层、大图、底部那句话、清单入口、刷新）、标签条（切页、读取
+按钮跟着当前页）、塔名和导航条同一行、怪物库那一行的 ✕。断言一律读**公开属性**（`controller.monsters / mapHistory / tasks /
 statusData`、`window` 的属性、界面上的文字），不读 `controller._xxx` 内部字段。
 
 标准见 `tests/integration/README.md`。剪贴板/抓图/模型是外部边界，用替身；
@@ -16,6 +16,7 @@ statusData`、`window` 的属性、界面上的文字），不读 `controller._x
 """
 
 import numpy as np
+from PySide6.QtCore import QPointF
 
 from chaita.game import read as game_read
 
@@ -42,13 +43,13 @@ def _floors(controller, floors=("3层",)):
 
 
 def _open_map_bar(window):
-    """真实用户动作：地图那块是折叠的就点一下标题把它展开。"""
-    if window.property("mapCollapsed"):
-        helpers.click_item(window, helpers.find_item(window, "mapSectionHead"))
+    """真实用户动作：不在地图页就点一下「地图」标签。"""
+    if window.property("tab") != "map":
+        helpers.click_item(window, helpers.find_item(window, "tab_map"))
         helpers.APP.processEvents()
     assert helpers.wait_for(
         lambda: helpers.find_item(window, "mapPanel") is not None), \
-        "地图那一栏没展开"
+        "地图那一页没显示"
 
 
 def test_session_restore_button_restores_the_saved_session():
@@ -154,6 +155,7 @@ def test_monster_row_opens_editor_and_save_writes_back():
     走过的界面：主界面怪物行（点开）→ 编辑卡片（名字输入框）→ 「保存」。
     """
     controller, engine, window = _window()
+    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_all(window, "monOpen")[0])
     helpers.APP.processEvents()
     assert window.property("monEdit") == 0
@@ -178,6 +180,7 @@ def test_monster_editor_cancel_keeps_original():
     controller, engine, window = _window()
     before = [dict(m) for m in controller.monsters]
 
+    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_all(window, "monOpen")[0])
     helpers.APP.processEvents()
     helpers.click_item(window, helpers.find_item(window, "monCancel"))
@@ -278,25 +281,79 @@ def test_floor_refresh_button_reports_missing_screenshot():
     assert "还没有地图截图" in task["text"]
 
 
-def test_section_heads_toggle_collapse():
-    """测什么：三个折叠头（地图 / 怪物 / 技能）点一下收、再点一下展开。
+def test_点标签页切换地图_怪物_技能():
+    """测什么：三个标签点一下就切到那一页，一次只有一页的内容可见。
 
-    走过的界面：主界面三块的标题行。
+    走过的界面：主界面标签条（地图 / 怪物 / 技能）。
     """
     controller, engine, window = _window()
     helpers.APP.processEvents()
-    assert window.property("mapCollapsed") is False
+    assert window.property("tab") == "map"
 
-    helpers.click_item(window, helpers.find_item(window, "mapSectionHead"))
-    assert window.property("mapCollapsed") is True
-    helpers.click_item(window, helpers.find_item(window, "mapSectionHead"))
-    assert window.property("mapCollapsed") is False
+    helpers.click_item(window, helpers.find_item(window, "tab_monsters"))
+    helpers.APP.processEvents()
+    assert window.property("tab") == "monsters"
+    assert all(item.isVisible()
+               for item in helpers.find_all(window, "monRow"))
 
-    helpers.click_item(window, helpers.find_item(window, "monSectionHead"))
-    assert window.property("monCollapsed") is True
+    helpers.click_item(window, helpers.find_item(window, "tab_skills"))
+    helpers.APP.processEvents()
+    assert window.property("tab") == "skills"
+    assert not any(item.isVisible()
+                   for item in helpers.find_all(window, "monRow"))
 
-    helpers.click_item(window, helpers.find_item(window, "skillSectionHead"))
-    assert window.property("skillCollapsed") is True
+    helpers.click_item(window, helpers.find_item(window, "tab_map"))
+    helpers.APP.processEvents()
+    assert window.property("tab") == "map"
+
+
+def test_三个标签页内容区一样高_切页窗口高度不跳():
+    """测什么：有地图时，怪物页/技能页的内容区垫到和地图页一样高，切页时窗口不变高变矮。
+
+    走过的界面：主界面标签条切页，量窗口高度。
+    """
+    controller, engine, window = _window()
+    _floors(controller)
+    heights = {}
+    for tab in ("map", "monsters", "skills"):
+        helpers.click_item(window, helpers.find_item(window, "tab_" + tab))
+        helpers.APP.processEvents()
+        heights[tab] = window.property("expandedHeight")
+    assert heights["monsters"] == heights["map"]
+    assert heights["skills"] == heights["map"]
+
+
+def test_读取按钮跟着当前页_技能页没有读取():
+    """测什么：地图页只有地图的「读取」，怪物页只有手册的「读取」，技能页一个都没有。
+
+    走过的界面：主界面标签条右上角的「读取」按钮。
+    """
+    controller, engine, window = _window()
+    seen = {}
+    for tab in ("map", "monsters", "skills"):
+        helpers.open_tab(window, tab)
+        seen[tab] = (helpers.find_item(window, "readMap").isVisible(),
+                     helpers.find_item(window, "readMon").isVisible())
+    assert seen == {"map": (True, False), "monsters": (False, True),
+                    "skills": (False, False)}
+
+
+def test_塔名和导航条在同一行():
+    """测什么：塔名画在导航条那一行（和 ✕ 的纵向中心一致），不再单占一行。
+
+    走过的界面：主窗口抬头。
+    """
+    controller, engine, window = _window()
+    controller._tower_label = "拆个魔塔 通天塔1"
+    controller.statusTextChanged.emit()
+    helpers.APP.processEvents()
+
+    label = helpers.find_item(window, "towerLabel")
+    close = helpers.find_item(window, "closeBtn")
+    assert label.property("text") == "拆个魔塔 通天塔1"
+    centre = lambda item: item.mapToScene(
+        QPointF(0, item.height() / 2)).y()
+    assert abs(centre(label) - centre(close)) < 1
 
 
 def test_monster_row_delete_removes_that_monster():
@@ -306,6 +363,7 @@ def test_monster_row_delete_removes_that_monster():
     """
     controller, engine, window = _window()
 
+    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_all(window, "monDeleteRow")[0])
     helpers.APP.processEvents()
 

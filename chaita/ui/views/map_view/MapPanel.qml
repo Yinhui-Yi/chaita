@@ -35,8 +35,7 @@ Item {
     // 现在开着的那一格（点别处就收起来；点在它自己身上不算）
     property var openField: null
     // 这一栏多高：大图（含错开的角）+ 底下那条 22
-    height: host.mapCollapsed || host.floorList.length === 0
-            ? 0 : stackH + 22
+    height: host.floorList.length === 0 ? 0 : stackH + 22
 
     // 现在这一层的记录
     readonly property var entry: host.mapEntry(host.mapFloor)
@@ -93,7 +92,7 @@ Item {
     readonly property real railRowH: Math.max(
         18, Math.min(26, (stackH - 4) / Math.max(1, railRows.length)))
 
-    visible: !host.mapCollapsed && host.floorList.length > 0
+    visible: host.tab === "map" && host.floorList.length > 0
 
     // ---------- 左边：侧栏快速切层 ----------
     ListView {
