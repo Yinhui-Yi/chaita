@@ -10,9 +10,9 @@
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
 | 1 | 主窗口 | 真窗口 | `views/MainWindow.qml` | 它自己（`win.*`） | 程序启动 |
-| 2 | 导航条（含塔名）/ 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
-| 3 | 标签页（地图 / 怪物 / 技能）+ 读取记录 | 主窗口的一块 | `views/main_columns/MainColumns.qml` | 主窗口（`tab/floorList/monRows/skills`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚；一次只显示一页，内容区垫到不矮于地图页） |
-| 4 | 地图（主界面「地图」页） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（`tab == "map"` 时显示） |
+| 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
+| 3 | 三栏 + 读取记录 | 主窗口的一块 | `views/main_columns/MainColumns.qml` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
+| 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
 | 5 | 底部对话 | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused` | 常驻 |
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
 | 7 | 格子编辑层 | 地图上的覆盖层 | `views/map_view/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells`）；单击报 `cellPicked(row,col)`、Ctrl 多选、右键报 `menuRequested(row,col,x,y)` | 地图那栏「编辑」后画 13×13；单击选中、Ctrl 多选、右键出小窗（复制坐标 / 清掉） |
@@ -31,8 +31,8 @@
 | 20 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
 | 21 | 加属性收益 | 真窗口 | `views/property_gain/GainWindow.qml` | 主窗口 `gain*`（三档加成 + 上界 + 结果）；窗口自己只有窗口状态 | 导航条 ＋（⚔ 左边） |
 
-（1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那 8 个是共用件，不算界面：
-`Theme` 配色/字体、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`ReadBtn` 标签条上的「读取」、`NumberStepper` 加减数、
+（1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那 7 个是共用件，不算界面：
+`Theme` 配色/字体、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`NumberStepper` 加减数、
 `EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
 
 **地图就在主界面那一栏里画**（用户 2026-10-30："把主界面的地图做大！"、"多张地图不要
@@ -53,7 +53,7 @@
 chaita/ui/
     views/                        30 个 QML / 14303 行（+ shared/qmldir），只有界面
         MainWindow.qml            3921   棋盘/卡片/滚动容器 + win.* 状态和函数
-        main_panel/                382   导航条（含塔名）+ 状态行
+        main_panel/                382   导航条 + 抬头 + 状态行
         main_columns/              857   地图那一栏/怪物/技能/读取记录（id 仍叫 body）
         chat/                      187   底部对话（sendChat/scrollChatToEnd/logHeight）
         map_view/                 1280   地图（主界面那一栏 + 三个图层）

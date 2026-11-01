@@ -205,12 +205,6 @@ def click_item(window, item):
     APP.processEvents()
 
 
-def open_tab(window, tab):
-    """真实用户动作：点一下标签条上的「地图 / 怪物 / 技能」切到那一页。"""
-    click_item(window, find_item(window, "tab_" + tab))
-    APP.processEvents()
-
-
 class _FakeClipboard:
     def __init__(self):
         self.value = ""

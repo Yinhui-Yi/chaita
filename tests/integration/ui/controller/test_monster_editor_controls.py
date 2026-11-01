@@ -23,7 +23,6 @@ def _editor(monsters=None):
         {"name": "铁卫", "hp": "900", "atk": "50", "def": "30"}]
     controller.monstersChanged.emit()
     helpers.APP.processEvents()
-    helpers.open_tab(window, "monsters")
     helpers.click_item(window, helpers.find_all(window, "monOpen")[0])
     helpers.APP.processEvents()
     return controller, engine, window

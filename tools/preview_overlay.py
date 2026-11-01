@@ -42,7 +42,7 @@ SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
 SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
              "collapsed-empty", "session", "floor", "flooritems",
-             "floorsmall", "tab-monsters", "tab-skills", "floorpick",
+             "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
              "battlecmp", "battleinsert", "battlepick", "battleedit",
              "battleitemedit", "battlemarks", "route", "routechain",
@@ -564,8 +564,10 @@ def main() -> int:
     def _start():
         if scenario in ("collapsed", "collapsed-empty"):
             window.setProperty("collapsed", True)
-        elif scenario in ("tab-monsters", "tab-skills"):
-            window.setProperty("tab", scenario.split("-", 1)[1])
+        elif scenario == "folded":
+            # 地图/怪物两栏都折叠：看空两格标题（用户："地图和怪物怎么不能折叠"）
+            window.setProperty("mapCollapsed", True)
+            window.setProperty("monCollapsed", True)
         elif scenario == "reading":
             # 读取中只有"点了读取按钮"才有：地图那栏的按钮显示成「读取中」
             window.setProperty("readingMode", "map")

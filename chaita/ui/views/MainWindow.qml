@@ -66,8 +66,9 @@ Window {
     // ---- 尺寸 ----
     readonly property int padH: 12
     readonly property int padV: 12
-    readonly property int navH: 26
+    readonly property int navH: 22
     readonly property int navGap: 2
+    readonly property int headerH: 24
     // 对话卡高度：跟着**实测**的行高走（文字会折行，不能按条数乘固定值）。
     // 行太多时给个上限（180），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
     readonly property int chatLogMax: 180
@@ -103,9 +104,21 @@ Window {
     property var floorSheets: ({})
     // 放到别的窗口上也得跟着数据走：列表一变就把窗口补齐/收掉
     onFloorWindowsChanged: Qt.callLater(win.syncFloorSheets)
-    // 主界面一次只显示一页：地图 / 怪物 / 技能（标签页，用户 2026-11-01 嫌三栏
-    // 竖着堆、要来回滚）。窗口整个折叠另有 `collapsed`。
-    property string tab: "map"
+    // 折叠状态：主界面的「地图」「怪物」「技能」三栏能各自收起来（用户："地图和怪物怎么
+    // 不能折叠？" → "技能也要能折叠"）。收起只留那一行标题（标题上写还剩多少），
+    // 内容不占高度 —— 整窗高度是 contentHeight 绑出来的，所以窗口会跟着变矮。
+    property bool mapCollapsed: false
+    property bool monCollapsed: false
+    property bool skillCollapsed: false
+    function toggleMapSection() {
+        win.mapCollapsed = !win.mapCollapsed
+    }
+    function toggleMonSection() {
+        win.monCollapsed = !win.monCollapsed
+    }
+    function toggleSkillSection() {
+        win.skillCollapsed = !win.skillCollapsed
+    }
     // 为了兼容各处判断：最上面那层的名字（空 = 一个都没开）
     readonly property string openFloor: win.floorWindows.length > 0
                                        ? String(win.floorWindows[win.floorWindows.length - 1])
@@ -173,7 +186,7 @@ Window {
     // 拉过就记在 userWidth / userHeight 上，之后内容怎么变都按用户拉的尺寸来，
     // 不再被"内容高度"顶回去（用户："怎么不读取就不能拉伸窗口"）。
     property int collapsedWidth: 340
-    // 收起只留导航条 + 状态行，不再吞掉底部留白
+    // 收起只留两行抬头（导航条 + 塔名），不再吞掉底部留白
     property int collapsedHeight: win.collapseChrome
     property int expandedWidth: 340
     property int expandedHeight: 480
@@ -184,8 +197,13 @@ Window {
     property int autoHeight: 0
     // 折叠/展开动画期间不要把手动尺寸记错
     property bool animatingSize: false
-    // 状态区（两行）：第一行 生命/攻击/防御/魔防，第二行 金币 + 四色钥匙。
-    // 塔名已并进导航条那一行，不再单占一行。
+    // 抬头这一行只有读到塔名时才占位：没塔名就整行不画
+    // （用户："还没读到塔这东西删掉"、"折叠模式下的空白删掉"）。
+    // 刷新 ↻ 已经挪到导航条上，所以这行不再因为"有数值"而占位。
+    readonly property bool headerVisible: win.tower !== ""
+    readonly property int headerBlock: win.headerVisible
+                                       ? win.navGap + win.headerH : 0
+    // 状态区（两行）：第一行 生命/攻击/防御/魔防，第二行 金币 + 四色钥匙
     readonly property bool statusVisible: win.statusValue("hp") !== ""
                                          || win.statusValue("atk") !== ""
                                          || win.statusValue("def") !== ""
@@ -196,12 +214,12 @@ Window {
                                          || win.keyValue("red") !== ""
                                          || win.keyValue("green") !== ""
     readonly property int statusH: 30
-    readonly property int statusBlock: win.statusVisible ? win.navGap + win.statusH : 0
-    // 导航条（含塔名）+ 状态行 + 上下留白 + 底部对话卡：这些是固定高度，剩下的都归内容区
-    readonly property int chromeH: win.padV * 2 + win.navH
+    readonly property int statusBlock: win.statusVisible ? win.statusH : 0
+    // 抬头 + 状态行 + 导航条 + 上下留白 + 底部对话卡：这些是固定高度，剩下的都归内容区
+    readonly property int chromeH: win.padV * 2 + win.navH + win.headerBlock
                                    + win.statusBlock + win.gapA * 2 + win.dockH
-    // 折叠态只有导航条 + 状态行（没有内容区、没有对话卡）
-    readonly property int collapseChrome: win.padV * 2 + win.navH
+    // 折叠态只有导航条 + 抬头 + 状态行（没有内容区、没有对话卡）
+    readonly property int collapseChrome: win.padV * 2 + win.navH + win.headerBlock
                                           + win.statusBlock
     // 兼容 startup 的 _apply_ui_state（它会把上次的尺寸写进来）。
     property int savedWidth: expandedWidth
@@ -1899,7 +1917,7 @@ Window {
 
     function openMapSheet() {
         win.ensureMapFloor()
-        win.tab = "map"
+        win.mapCollapsed = false
         // 开清单就是为了改东西（加怪 / 加资源 / 拖坐标 / 标楼梯）：顺手把编辑模式
         // 打开，不然"长按图上格子拖到行上"这个手势在路线层那边，拖不出小牌子。
         if (!win.gridEditOn || win.gridEditFloor !== win.mapFloor) {
@@ -1948,10 +1966,10 @@ Window {
         win.selectFloor(target)
     }
 
-    // 切到地图那一页：地图就在主界面里，不再另开窗
+    // 把地图那一栏露出来（折叠着就展开）：地图就在主界面里，不再另开窗
     function showMap() {
         win.ensureMapFloor()
-        win.tab = "map"
+        win.mapCollapsed = false
     }
 
     // ---- 楼梯：踩到才换层，去**它自己记的目标层** ----

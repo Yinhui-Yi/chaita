@@ -226,12 +226,11 @@ def test_clicking_a_row_highlights_that_cell_on_the_map(monkeypatch):
     board = helpers.fake_clipboard(monkeypatch)
     controller, engine, window = _open_with_floor()
     _paste(window, board, _spot_route())
-    window.setProperty("tab", "skills")
 
     helpers.click_item(window, helpers.find_item(window, "compareRowClick"))
     assert window.property("mapHiFloor") == FLOOR
     assert (window.property("mapHiRow"), window.property("mapHiCol")) == (5, 5)
-    assert window.property("tab") == "map"
+    assert window.property("mapCollapsed") is False
     assert window.property("mapFloor") == FLOOR
     ring = helpers.find_item(window, "floorCellHighlight")
     assert ring is not None and ring.isVisible()

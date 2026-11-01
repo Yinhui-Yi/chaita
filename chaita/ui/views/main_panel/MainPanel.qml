@@ -3,12 +3,12 @@ import QtQuick.Controls.Basic
 // 共用件（配色/按钮）在上一层
 import "../shared"
 
-// 卡片顶部这一块：导航条（英雄头像 / 刷新 / 塔名 / ＋ ⚔ ⇄ 关）+ 状态行
-// （生命/攻击/防御/魔防 + 四色钥匙）。塔名和导航条同一行，没读到塔时就不画。
+// 卡片顶部这一块：导航条（刷新状态 / ⚔ 伤害计算 / 关）+ 抬头（塔名）+ 状态行
+// （生命/攻击/防御/魔防 + 四色钥匙）。软件名已经删掉，换成刷新按钮（用户要求）。
 //
 // 主窗口的一块（不是覆盖层），一个界面一个文件夹。
 // 它只画和拖；数值来自 host（`host.tower`、`host.statusValue(...)`、
-// `host.floorList`…），折叠状态也是 host 的（`host.collapsed` / `host.statusBlock`）。
+// `host.floorList`…），折叠状态也是 host 的（`host.collapsed` / `host.headerBlock`）。
 // 外面只用到一个数：`chromeBottom`（滚动区从这儿开始）。
 Item {
     id: chrome
@@ -22,7 +22,7 @@ Item {
     y: host.padV
     width: host.bodyW
     // 抬头 / 状态行都可能不占高（没读到东西时折叠态只剩导航条一条）
-    height: host.navH + host.statusBlock
+    height: host.navH + host.headerBlock + host.statusBlock
 
     // 拖动 / 点一下收起。声明在按钮之前：后声明的兄弟在上层，按钮才点得到。
     MouseArea {
@@ -110,23 +110,6 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: controller.updateStatus()
             }
-        }
-
-        // 塔名：夹在刷新和右边那排工具之间，放不下就截断
-        Text {
-            id: towerLabel
-            objectName: "towerLabel"
-            anchors.left: refreshBtn.right
-            anchors.leftMargin: 8
-            anchors.right: gainBtn.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: host.tower
-            color: host.ink
-            font.family: host.uiFont
-            font.pixelSize: 15
-            font.bold: true
-            elide: Text.ElideRight
         }
 
         // 加属性收益：自己的工具，和伤害计算并列（用户："这是新功能！！！不要和
@@ -229,13 +212,40 @@ Item {
         }
     }
 
+    // ---------------- 抬头：塔名 ----------------
+    // 没读到塔时整行不占位（不留一条空白）。刷新 ↻ 在导航条上，
+    // 所以这行只有塔名，没有按钮。
+    Item {
+        id: header
+        objectName: "header"
+        y: host.navH + host.navGap
+        width: parent.width
+        height: host.headerVisible ? host.headerH : 0
+        visible: host.headerVisible
+
+        Text {
+            id: towerLabel
+            objectName: "towerLabel"
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 1
+            width: parent.width
+            text: host.tower
+            color: host.ink
+            font.family: host.uiFont
+            font.pixelSize: 16
+            font.bold: true
+            elide: Text.ElideRight
+        }
+    }
+
     // ---------------- 状态：血/攻/防/魔防 一行，金币 + 四色钥匙 一行 ----------------
     // 用户："顶部状态行改成血攻防魔防一行，钥匙一行"。
-    // 两行都跟下面标签页的左边线对齐；收起时也留着（瞄一眼用）。
+    // 两行都跟下面"地图/怪物/技能"的左边线对齐；收起时也留着（瞄一眼用）。
     Item {
         id: statusRow
         objectName: "statusRow"
-        y: host.navH + host.navGap
+        y: host.navH + host.headerBlock
         width: parent.width
         height: host.statusBlock
         visible: host.statusVisible

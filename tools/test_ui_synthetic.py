@@ -474,8 +474,8 @@ def main() -> int:
         check("抬头默认是普通箭头光标（不是手）",
               drag is not None and drag.property("cursorShape") == Qt.ArrowCursor,
               "cursor=%r" % (drag.property("cursorShape") if drag else None,))
-        check("导航条上显示塔名", any("坐牢成仙" in t for t in texts_inside("towerLabel")),
-              "towerLabel=%r" % (texts_inside("towerLabel"),))
+        check("抬头显示塔名", any("坐牢成仙" in t for t in texts_inside("header")),
+              "header=%r" % (texts_inside("header"),))
         # 状态区分两行：血/攻/防/魔防 一行，金币 + 四色钥匙 一行
         first_line = texts_inside("statChips")
         second_line = texts_inside("resChips")
@@ -493,10 +493,10 @@ def main() -> int:
               % (scene_y(find_object("statChips")),
                  scene_y(find_object("resChips"))))
         check("状态区在塔名下面",
-              scene_y(find_object("statusRow")) > scene_y(find_object("towerLabel")),
-              "status=%.0f tower=%.0f"
+              scene_y(find_object("statusRow")) > scene_y(find_object("header")),
+              "status=%.0f header=%.0f"
               % (scene_y(find_object("statusRow")),
-                 scene_y(find_object("towerLabel"))))
+                 scene_y(find_object("header"))))
 
         map_btn = find_object("readMap")
         mon_btn = find_object("readMon")
@@ -668,7 +668,7 @@ def main() -> int:
               texts_inside("readMon") == ["读取"],
               "labels=%r" % (texts_inside("readMon"),))
         check("在读的时候按钮右上角有小点",
-              find_object("readMonBusy") is not None)
+              find_object("monBusyDot") is not None)
         check("地图栏按钮也一直是「读取」（各管各的）",
               texts_inside("readMap") == ["读取"],
               "labels=%r" % (texts_inside("readMap"),))
@@ -692,10 +692,10 @@ def main() -> int:
         check("两栏能同时读（并行不被挡）",
               modes == ["map", "monsters"], "running=%r" % (modes,))
         check("两个按钮各自挂着「在读」小点",
-              find_object("readMapBusy") is not None
-              and find_object("readMonBusy") is not None,
-              "map=%r mon=%r" % (find_object("readMapBusy"),
-                                 find_object("readMonBusy")))
+              find_object("mapBusyDot") is not None
+              and find_object("monBusyDot") is not None,
+              "map=%r mon=%r" % (find_object("mapBusyDot"),
+                                 find_object("monBusyDot")))
         check("记录区标题写着读着几条",
               any("读着 2 条" in t for t in texts_inside("taskSection")),
               "texts=%r" % (texts_inside("taskSection"),))
@@ -939,7 +939,7 @@ def main() -> int:
               any("拆塔辅助" in t for t in texts_inside("topBar")),
               "topBar=%r" % (texts_inside("topBar"),))
         check("收起后塔名还在", any("坐牢成仙" in t
-                              for t in texts_inside("towerLabel")))
+                              for t in texts_inside("header")))
         check("收起后四色钥匙还在",
               find_object("keyChips") is not None)
         click(find_object("topBar"), 0.5, 0.5)
