@@ -261,12 +261,16 @@ class _App:
     def __init__(self, argv):
         self.argv = argv
         self.name = ""
+        self.icon = None
         self.aboutToQuit = _Signal()
         self.filters = []
         self.code = 7
 
     def setApplicationName(self, name):
         self.name = name
+
+    def setWindowIcon(self, icon):
+        self.icon = icon
 
     def installNativeEventFilter(self, f):
         self.filters.append(f)
@@ -313,7 +317,12 @@ def _fake_run(monkeypatch, applied=True, roots=None):
     controller = _Controller()
     app = _App(["prog"])
 
-    monkeypatch.setattr(su, "QGuiApplication", lambda argv: app)
+    monkeypatch.setattr(su, "QGuiApplication",
+                        lambda argv: calls.setdefault("order", []).append("app")
+                        or app)
+    monkeypatch.setattr(su, "_set_taskbar_group",
+                        lambda: calls.setdefault("order", []).append("taskbar"))
+    monkeypatch.setattr(su, "_app_icon", lambda: "ICON")
     monkeypatch.setattr(su, "QQmlApplicationEngine", lambda: engine)
     monkeypatch.setattr(su, "Controller", lambda: controller)
     monkeypatch.setattr(su, "load_into", lambda e: calls.setdefault("loaded", e))
@@ -328,6 +337,42 @@ def _fake_run(monkeypatch, applied=True, roots=None):
     return calls, app, engine, controller
 
 
+def test_app_icon_按常用尺寸各一份():
+    from PySide6.QtGui import QGuiApplication
+    QGuiApplication.instance() or QGuiApplication([])
+    icon = su._app_icon()
+    assert not icon.isNull()
+    assert {16, 32, 48, 256} <= {size.width() for size in icon.availableSizes()}
+
+
+def test_app_icon_找不到文件就是空图标_系统用默认的(monkeypatch):
+    from PySide6.QtGui import QGuiApplication
+    QGuiApplication.instance() or QGuiApplication([])
+    monkeypatch.setattr(su, "HERO_ICON_PATH", "不存在的.png")
+    assert su._app_icon().isNull()
+
+
+def test_set_taskbar_group_把应用ID交给Windows(monkeypatch):
+    asked = []
+    shell32 = type("Shell32", (), {
+        "SetCurrentProcessExplicitAppUserModelID": staticmethod(
+            lambda app_id: asked.append(app_id))})
+    monkeypatch.setattr(su.ctypes, "windll",
+                        type("Windll", (), {"shell32": shell32}), raising=False)
+    su._set_taskbar_group()
+    assert asked == [su.APP_USER_MODEL_ID]
+
+
+def test_set_taskbar_group_失败不影响启动(monkeypatch):
+    def boom(app_id):
+        raise OSError("no shell")
+    shell32 = type("Shell32", (), {
+        "SetCurrentProcessExplicitAppUserModelID": staticmethod(boom)})
+    monkeypatch.setattr(su.ctypes, "windll",
+                        type("Windll", (), {"shell32": shell32}), raising=False)
+    su._set_taskbar_group()                  # 不抛异常就行
+
+
 def test_run_wires_the_window_in_order(monkeypatch):
     calls, app, engine, controller = _fake_run(monkeypatch, applied=False)
     window = engine.roots[0]
@@ -335,6 +380,9 @@ def test_run_wires_the_window_in_order(monkeypatch):
     assert su._run() == 7                  # exec() 的返回码原样传出去
 
     assert app.name == "ChaitaAssistant"
+    assert app.icon == "ICON"              # 任务栏 / Alt+Tab 用我们的图标
+    # 任务栏分组 ID 要在 QGuiApplication 创建之前设（第一扇窗口出现前）
+    assert calls["order"] == ["taskbar", "app"]
     assert app.aboutToQuit.slots == [controller._begin_shutdown]
     assert engine.ctx.props["controller"] is controller
     assert controller.window is window

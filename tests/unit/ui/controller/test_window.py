@@ -153,6 +153,21 @@ def test_restore_pinned_只在上次记着置顶时才置顶(monkeypatch):
     assert "pinned" not in c._win.props
 
 
+def test_set_pinned_先切主窗口置顶_再改pinned属性(monkeypatch):
+    """子窗口的置顶标志绑定 `pinned`，改属性会让 Qt 重建子窗口；这之后再给主窗口设置顶
+    会「返回成功、其实没生效」（实测），所以必须先设主窗口。"""
+    import chaita.ui.controller.window as win
+    c, _, _ = _pin_mix(monkeypatch, {})
+    events = []
+    monkeypatch.setattr(win.desktop, "set_topmost",
+                        lambda hwnd, on: events.append("topmost") or True)
+    c._win.setProperty = lambda key, value: events.append("prop:" + key)
+
+    c.setPinned(True)
+
+    assert events == ["topmost", "prop:pinned"]
+
+
 def test_set_chat_collapsed_更新窗口属性_并记住(monkeypatch):
     c, _, saved = _pin_mix(monkeypatch, {"x": 1, "pinned": True})
 

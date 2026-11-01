@@ -31,7 +31,11 @@ SKILL_NOTES_PATH = os.path.join(_LOGS, "skill_notes.json")
 # 命名规律 player01_<行>_<列>：行 0 背面 / 行 1 正面 / 行 2-3 左右行走。
 _ASSETS = _ASSETS_ROOT
 
-HERO_ICON = "file:///" + os.path.join(_ASSETS, "hero_icon.png").replace("\\", "/")
+HERO_ICON_PATH = os.path.join(_ASSETS, "hero_icon.png")
+HERO_ICON = "file:///" + HERO_ICON_PATH.replace("\\", "/")
+
+# 任务栏分组用的应用 ID：没有它，任务栏会把这个软件归到 python.exe 名下、用 Python 的图标
+APP_USER_MODEL_ID = "ChaitaAssistant.Overlay"
 
 # 状态图标目录（由 tools/make_icons.py 生成）
 ICON_BASE = "file:///" + os.path.join(_ASSETS, "icons").replace("\\", "/") + "/"

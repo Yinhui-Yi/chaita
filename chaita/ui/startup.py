@@ -1,15 +1,17 @@
 """启动与收尾：崩溃日志、渲染后端、main()、按顺序拆窗口。"""
 
+import ctypes
 import os
 import sys
 
 from . import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
-from PySide6.QtCore import QCoreApplication, QEvent, QLockFile, QUrl, qVersion
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QCoreApplication, QEvent, QLockFile, QUrl, qVersion, Qt
+from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
 from PySide6.QtQml import QQmlApplicationEngine
 
-from .constants import APP_TITLE, HERO_ICON, ICON_BASE, ITEM_BASE, _LOGS
+from .constants import (APP_TITLE, APP_USER_MODEL_ID, HERO_ICON, HERO_ICON_PATH,
+                        ICON_BASE, ITEM_BASE, _LOGS)
 from .controller.controller import Controller
 from .toolkit.desktop import NativeHitTest, focus_window_of_process
 from .toolkit.state import _apply_ui_state, _place_right
@@ -120,9 +122,37 @@ def main() -> int:
         _release_single_instance()
 
 
+def _set_taskbar_group() -> None:
+    """告诉 Windows 这是它自己的应用：任务栏按这个 ID 分组、用我们的图标，
+    不然会被归到 python.exe 名下、显示 Python 的图标。要在第一扇窗口出现之前调。"""
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            APP_USER_MODEL_ID)
+    except Exception:
+        pass
+
+
+def _app_icon() -> QIcon:
+    """任务栏 / Alt+Tab 用的图标：勇者头像（原图 26×26），按常用尺寸各缩一份。
+
+    用最近邻（不插值），像素画才不会糊。图标是给系统画的，不走界面里"不放大"的规矩。
+    找不到文件就返回空图标（系统用默认的）。
+    """
+    base = QPixmap(HERO_ICON_PATH)
+    icon = QIcon()
+    if base.isNull():
+        return icon
+    for size in (16, 24, 32, 48, 64, 128, 256):
+        icon.addPixmap(base.scaled(size, size, Qt.KeepAspectRatio,
+                                   Qt.FastTransformation))
+    return icon
+
+
 def _run() -> int:
+    _set_taskbar_group()
     app = QGuiApplication(sys.argv)
     app.setApplicationName("ChaitaAssistant")
+    app.setWindowIcon(_app_icon())
 
     # 必须留引用：否则 Controller 会被 GC，QML 拿到空壳，点关闭没反应
     controller = Controller()

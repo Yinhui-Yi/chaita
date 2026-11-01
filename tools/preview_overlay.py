@@ -50,7 +50,7 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinne
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
              "iconscroll3", "queue", "chatlong", "compare", "comparehi",
-             "map", "mapedit", "mapstairs", "mapstack", "cellmenu")
+             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -713,17 +713,19 @@ def main() -> int:
                 route_win.setX(window.x() + window.width() + 8)
                 route_win.setY(window.y() + 30)
                 route_win.show()
+            # 这三个函数都要先递上这条路线的上下文（路线窗口自己的 ctx）
+            ctx = route_win.property("ctx") if route_win is not None else None
             if scenario == "routechain":
-                window.routeCompute()
+                window.routeCompute(ctx)
             elif scenario == "routepick":
                 # 点开第 2 格的下拉：怪 / 资源两个标签页 + 门 / 清空
-                QTimer.singleShot(250, lambda: window.openRouteMenu(1))
+                QTimer.singleShot(250, lambda: window.openRouteMenu(ctx, 1))
             elif scenario == "routeedit":
                 # 点第 2 格（红头怪）的缩略图 = 改参数卡片（和伤害计算同一个长相）
-                QTimer.singleShot(250, lambda: window.routeEditStep(1))
+                QTimer.singleShot(250, lambda: window.routeEditStep(ctx, 1))
             else:
                 # 点资源那格（红宝石）的缩略图
-                QTimer.singleShot(250, lambda: window.routeEditStep(2))
+                QTimer.singleShot(250, lambda: window.routeEditStep(ctx, 2))
         elif scenario == "gridedit":
             # 格子编辑模式：地图盖 13×13 坐标系，词条下面标"位置 x,y"
             window.gridEditToggle("通天塔1")
@@ -820,6 +822,9 @@ def main() -> int:
                  "at": "14:31"},
             ]
             controller.chatLogChanged.emit()
+        elif scenario == "gain":
+            # 加属性收益：打开窗口，看三档加成 + 结果
+            QTimer.singleShot(200, window.openGain)
         elif scenario == "compare":
             # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
             _compare_scenario(window, controller)

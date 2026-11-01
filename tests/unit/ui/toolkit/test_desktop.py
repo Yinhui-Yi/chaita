@@ -177,22 +177,25 @@ def test_focus_window_does_the_topmost_dance(monkeypatch):
     """抢前台会被系统拒绝，所以顺序是：还原 → 置顶 → 取消置顶 → 要前台。"""
     calls = []
     user32 = type("User32", (), {
-        "ShowWindow": staticmethod(lambda h, c: calls.append(("ShowWindow", h, c))),
+        "ShowWindow": staticmethod(
+            lambda h, c: calls.append(("ShowWindow", h.value, c))),
         "SetWindowPos": staticmethod(
             lambda h, after, x, y, cx, cy, flags:
-            calls.append(("SetWindowPos", h, after))),
+            calls.append(("SetWindowPos", h.value, after.value)) or 1),
         "SetForegroundWindow": staticmethod(
-            lambda h: calls.append(("SetForegroundWindow", h))),
+            lambda h: calls.append(("SetForegroundWindow", h.value))),
     })
     monkeypatch.setattr(desk.ctypes, "windll",
                         type("Windll", (), {"user32": user32}), raising=False)
     monkeypatch.setattr(desk, "_main_window_of", lambda pid: 9)
 
     assert desk.focus_window_of_process(4242) is True
+    # HWND 参数都是按指针（c_void_p）传的，-1/-2 在 64 位上就是全 1 的那个数
+    mask = 0xFFFFFFFFFFFFFFFF
     assert calls == [
         ("ShowWindow", 9, desk._SW_RESTORE),
-        ("SetWindowPos", 9, desk._HWND_TOPMOST),
-        ("SetWindowPos", 9, desk._HWND_NOTOPMOST),
+        ("SetWindowPos", 9, desk._HWND_TOPMOST & mask),
+        ("SetWindowPos", 9, desk._HWND_NOTOPMOST & mask),
         ("SetForegroundWindow", 9)]
 
 

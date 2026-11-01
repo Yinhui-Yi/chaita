@@ -110,8 +110,11 @@ class WindowMixin:
     def _apply_pinned(self, pinned: bool) -> None:
         if self._win is None:
             return
-        self._win.setProperty("pinned", pinned)
+        # 顺序不能反：先改主窗口的置顶，再改 `pinned` 属性（子窗口的置顶标志绑定它，
+        # 一改 Qt 就把子窗口重建成置顶/非置顶）。反过来的话，子窗口已经置顶了，
+        # 再给主窗口设置顶会"返回成功、其实没生效"（实测）。
         desktop.set_topmost(int(self._win.winId()), pinned)
+        self._win.setProperty("pinned", pinned)
 
     @Slot()
     def markGeometryReady(self) -> None:

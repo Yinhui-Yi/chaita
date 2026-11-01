@@ -94,10 +94,12 @@ def focus_window_of_process(pid: int) -> bool:
         hwnd = _main_window_of(pid)
         if not hwnd:
             return False
-        user32.ShowWindow(hwnd, _SW_RESTORE)
-        user32.SetWindowPos(hwnd, _HWND_TOPMOST, 0, 0, 0, 0, _SWP_NOMOVE_NOSIZE)
-        user32.SetWindowPos(hwnd, _HWND_NOTOPMOST, 0, 0, 0, 0, _SWP_NOMOVE_NOSIZE)
-        user32.SetForegroundWindow(hwnd)
+        handle = ctypes.c_void_p(hwnd)
+        user32.ShowWindow(handle, _SW_RESTORE)
+        # HWND_TOPMOST / HWND_NOTOPMOST 是 -1 / -2，必须按指针传（见 `set_topmost`）
+        set_topmost(hwnd, True)
+        set_topmost(hwnd, False)
+        user32.SetForegroundWindow(handle)
         return True
     except Exception:
         return False
