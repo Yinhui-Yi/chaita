@@ -16,6 +16,7 @@ statusData`、`window` 的属性、界面上的文字），不读 `controller._x
 """
 
 import numpy as np
+from PySide6.QtCore import QPointF
 
 from chaita.game import read as game_read
 
@@ -297,6 +298,27 @@ def test_section_heads_toggle_collapse():
 
     helpers.click_item(window, helpers.find_item(window, "skillSectionHead"))
     assert window.property("skillCollapsed") is True
+
+
+def test_导航条五个图标按钮同尺寸_同一条水平线():
+    """测什么：导航条上的刷新 / ＋ / ⚔ / ⇄ / ✕ 是同一种图标按钮——一样大、纵向中心一致，
+    从右到左依次排开不重叠。
+
+    走过的界面：主窗口导航条。
+    """
+    controller, engine, window = _window()
+    names = ("statusRefresh", "gainOpen", "battleOpen", "compareOpen", "closeBtn")
+    buttons = [helpers.find_item(window, name) for name in names]
+
+    assert len({(b.width(), b.height()) for b in buttons}) == 1
+    centres = {round(b.mapToScene(QPointF(0, b.height() / 2)).y())
+               for b in buttons}
+    assert len(centres) == 1
+    right_group = [b.mapToScene(QPointF(0, 0)).x() for b in buttons[1:]]
+    assert right_group == sorted(right_group)
+    gaps = [right_group[i + 1] - right_group[i] - buttons[0].width()
+            for i in range(len(right_group) - 1)]
+    assert all(gap >= 0 for gap in gaps)
 
 
 def test_monster_row_delete_removes_that_monster():

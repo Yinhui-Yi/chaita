@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
+// 共用件（配色/按钮）在上一层
+import "../shared"
 
 // 底部对话：问答历史（会折行、会滚到最新）+ 输入框 + 发送。
 //
@@ -25,11 +27,17 @@ Rectangle {
     anchors.rightMargin: host.padH
     anchors.bottomMargin: host.padV
     height: host.dockH
-    radius: 8
-    color: host.paperHi
-    border.width: 1
-    border.color: host.hairline
+    // 平的：没有外框和底色，只在最上面画一条分隔线，和上面的内容区分开
+    color: "transparent"
     visible: !host.collapsed
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 1
+        color: host.hairline
+    }
 
     // 对话内容：会折行、可能比一屏长，所以放在一个会自己滚到底的小窗里
     Flickable {
@@ -70,7 +78,7 @@ Rectangle {
                         text: modelData && modelData.who ? modelData.who : ""
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 10
                         elide: Text.ElideRight
                     }
                     Text {
@@ -83,7 +91,7 @@ Rectangle {
                         color: modelData && modelData.who === "你"
                                ? host.ink : host.ink2
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         lineHeight: 1.15
                         wrapMode: Text.Wrap
                     }
@@ -95,7 +103,7 @@ Rectangle {
                         text: modelData && modelData.at ? modelData.at : ""
                         color: host.ink3
                         font.family: host.monoFont
-                        font.pixelSize: 8
+                        font.pixelSize: 9
                         horizontalAlignment: Text.AlignRight
                     }
                 }
@@ -119,9 +127,10 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: 26
             height: 26
-            radius: 8
-            color: sendMouse.containsMouse ? "#A6771F" : host.amber
-            Behavior on color { ColorAnimation { duration: 120 } }
+            radius: Theme.radius
+            color: sendMouse.pressed ? Theme.amberPress
+                 : (sendMouse.containsMouse ? Theme.amberHover : host.amber)
+            Behavior on color { ColorAnimation { duration: 100 } }
             Text {
                 anchors.centerIn: parent
                 text: "↑"
@@ -145,11 +154,11 @@ Rectangle {
             anchors.rightMargin: 6
             anchors.verticalCenter: parent.verticalCenter
             height: 26
-            radius: 8
-            color: host.paperLo
+            radius: Theme.radius
+            color: host.paper
             border.width: 1
-            border.color: chatInput.activeFocus ? host.amber : "#E0D7C6"
-            Behavior on border.color { ColorAnimation { duration: 120 } }
+            border.color: chatInput.activeFocus ? host.amber : Theme.fieldEdge
+            Behavior on border.color { ColorAnimation { duration: 100 } }
 
             TextInput {
                 id: chatInput
@@ -160,7 +169,7 @@ Rectangle {
                 verticalAlignment: TextInput.AlignVCenter
                 color: host.ink
                 font.family: host.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
                 selectByMouse: true
                 clip: true
                 onAccepted: dock.sendChat()

@@ -13,24 +13,44 @@ import QtQuick
 //
 // 用它的前提：同目录有 `qmldir`（`singleton Theme 1.0 Theme.qml`），
 // 文件里写 `import "."`（直接子目录里 `import ".."`）。
+// 配色（IntelliJ Light 一路）：冷灰白底 + 近黑字 + 唯一一个蓝色强调色。
+// 层次靠 1px 分隔线和极淡的灰底，不靠边框和阴影堆。
+// `amber` / `amberInk` 是旧名字（原来是琥珀金，现在是强调蓝）：各界面逐个换样式时
+// 一并改成 `accent`，不为了改名去碰还没轮到的文件。
 QtObject {
     readonly property string uiFont: "Microsoft YaHei UI"
     readonly property string monoFont: "Consolas"
 
-    readonly property color paper: "#F4F0E7"
-    readonly property color paperHi: "#FFFCF6"
-    readonly property color paperLo: "#F7F2E8"
-    readonly property color edge: "#D5CCBA"
-    readonly property color hairline: "#E2DACA"
-    readonly property color ink: "#1D1A14"
-    readonly property color ink2: "#5E5749"
-    readonly property color ink3: "#8C8372"
-    readonly property color amber: "#B4842A"
-    readonly property color amberInk: "#FFF8EA"
-    readonly property color danger: "#B4452A"
+    // 面板底 / 浮起的面（弹层、输入框内部）/ 凹下去的底（输入框、悬停、分区标题条）
+    readonly property color paper: "#FFFFFF"
+    readonly property color paperHi: "#FFFFFF"
+    readonly property color paperLo: "#F7F8FA"
+    // 悬停和按下的灰底（行、图标按钮）
+    readonly property color hover: "#EBECF0"
+    // 外框 / 分隔线
+    readonly property color edge: "#DFE1E5"
+    readonly property color hairline: "#EBECF0"
+    // 输入框外框（比分隔线深一档，看得出是能点的）
+    readonly property color fieldEdge: "#C9CCD6"
+    readonly property color ink: "#1E1F22"
+    readonly property color ink2: "#4E5157"
+    readonly property color ink3: "#818594"
+    readonly property color amber: "#3574F0"
+    readonly property color amberInk: "#FFFFFF"
+    readonly property color amberHover: "#2E67D6"
+    readonly property color amberPress: "#2859B8"
+    // 强调色的淡底（选中行、聚焦光圈）
+    readonly property color amberSoft: "#E8F0FE"
+    readonly property color danger: "#DB5860"
+    readonly property color dangerSoft: "#FBEBEC"
+    readonly property color dangerEdge: "#EFB8BC"
     // 效果标记的三个颜色（伤害计算里资源缩略图左下角那种小字）：
     // 攻击 = 红、防御 = 蓝、魔防 = 绿（用户 2026-10-28 点的颜色）
     readonly property color markAtk: "#C23B2E"
     readonly property color markDef: "#2F6FA8"
     readonly property color markMdef: "#3E8E5A"
+
+    // 尺寸：圆角、控件高度（按钮/输入框/图标按钮同高，同一排才齐）
+    readonly property int radius: 4
+    readonly property int controlH: 24
 }

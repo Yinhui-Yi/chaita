@@ -42,7 +42,8 @@ Window {
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
     // ---- 设计 tokens：颜色/字号只从这里取 ----
-    // 暖纸底 + 墨字 + 一点琥珀金。三档文字明度拉开层次，不靠边框堆。
+    // 暖纸底 + 墨字 + 一点琥珀金这套已经换了：现在是冷灰白底 + 近黑字 + 一个强调蓝。
+    // 三档文字明度拉开层次，不靠边框堆。
     // 配色和字体只有一处定义（Theme.qml），这里留同名别名：
     // 这份文件里 5000 行都写 `win.amber`，不为了搬家去改它们；子界面直接用 Theme。
     readonly property string uiFont: Theme.uiFont
@@ -66,7 +67,7 @@ Window {
     // ---- 尺寸 ----
     readonly property int padH: 12
     readonly property int padV: 12
-    readonly property int navH: 22
+    readonly property int navH: 28
     readonly property int navGap: 2
     readonly property int headerH: 24
     // 对话卡高度：跟着**实测**的行高走（文字会折行，不能按条数乘固定值）。
@@ -213,7 +214,7 @@ Window {
                                          || win.keyValue("blue") !== ""
                                          || win.keyValue("red") !== ""
                                          || win.keyValue("green") !== ""
-    readonly property int statusH: 30
+    readonly property int statusH: 34
     readonly property int statusBlock: win.statusVisible ? win.statusH : 0
     // 抬头 + 状态行 + 导航条 + 上下留白 + 底部对话卡：这些是固定高度，剩下的都归内容区
     readonly property int chromeH: win.padV * 2 + win.navH + win.headerBlock
@@ -3766,7 +3767,7 @@ Window {
     Rectangle {
         id: card
         anchors.fill: parent
-        radius: 10
+        radius: 8
         color: win.paper
         border.width: 1
         border.color: win.edge

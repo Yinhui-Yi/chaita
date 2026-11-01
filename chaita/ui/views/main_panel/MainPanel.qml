@@ -88,127 +88,64 @@ Item {
 
         // 刷新状态（只刷人物面板、不读图）：原来在导航条右边，挪到软件名这里
         // （用户："显示标题的地方删掉，换成刷新按钮"）。
-        Item {
+        IconBtn {
             id: refreshBtn
             objectName: "statusRefresh"
             anchors.left: heroMark.visible ? heroMark.right : parent.left
-            anchors.leftMargin: heroMark.visible ? 6 : 0
+            anchors.leftMargin: heroMark.visible ? 4 : 0
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            Text {
-                anchors.centerIn: parent
-                text: controller && controller.updating ? "…" : "↻"
-                color: refreshMouse.containsMouse ? host.amber
-                     : (controller && controller.updating ? host.ink3 : host.ink2)
-                font.pixelSize: 12
-            }
-            MouseArea {
-                id: refreshMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: controller.updateStatus()
-            }
+            glyph: controller && controller.updating ? "…" : "↻"
+            dim: controller && controller.updating
+            onClicked: controller.updateStatus()
         }
 
         // 加属性收益：自己的工具，和伤害计算并列（用户："这是新功能！！！不要和
         // 之前的混在一起！！！"），所以给它自己的入口，放在 ⚔ 左边。
-        Item {
+        IconBtn {
             id: gainBtn
             objectName: "gainOpen"
             anchors.right: battleBtn.left
-            anchors.rightMargin: 8
+            anchors.rightMargin: 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            Text {
-                anchors.centerIn: parent
-                text: "＋"
-                color: gainMouse.containsMouse ? host.amber : host.ink2
-                font.pixelSize: 11
-            }
-            MouseArea {
-                id: gainMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.openGain()
-            }
+            glyph: "＋"
+            onClicked: host.openGain()
         }
 
         // 伤害计算：一扇自己的窗口（可以摆在游戏旁边边打边算）。
         // 放在导航条上是刻意的：它是"工具"，不属于任何一栏数据，
         // 而且收起状态也点得到。
-        Item {
+        IconBtn {
             id: battleBtn
             objectName: "battleOpen"
             anchors.right: compareBtn.left
-            anchors.rightMargin: 8
+            anchors.rightMargin: 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            Text {
-                anchors.centerIn: parent
-                text: "⚔"
-                color: battleMouse.containsMouse ? host.amber : host.ink2
-                font.pixelSize: 11
-            }
-            MouseArea {
-                id: battleMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.openBattle()
-            }
+            glyph: "⚔"
+            onClicked: host.openBattle()
         }
 
         // 路线对比：在伤害计算右边（用户："入口就在伤害计算的右边"）。
         // 把算好的路线粘贴/拖进来，比每只怪掉多少血。
-        Item {
+        IconBtn {
             id: compareBtn
             objectName: "compareOpen"
             anchors.right: closeBtn.left
-            anchors.rightMargin: 8
+            anchors.rightMargin: 2
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            Text {
-                anchors.centerIn: parent
-                text: "⇄"
-                color: compareMouse.containsMouse ? host.amber : host.ink2
-                font.pixelSize: 11
-            }
-            MouseArea {
-                id: compareMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.openCompare()
-            }
+            glyph: "⇄"
+            onClicked: host.openCompare()
         }
 
-        // 关闭：11px 的小叉，悬停才染红
-        Item {
+        // 关闭：悬停才染红
+        IconBtn {
             id: closeBtn
             objectName: "closeBtn"
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            Text {
-                anchors.centerIn: parent
-                text: "✕"
-                color: closeMouse.containsMouse ? host.danger : host.ink3
-                font.pixelSize: 11
-            }
-            MouseArea {
-                id: closeMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: controller.quit()
-            }
+            glyph: "✕"
+            hoverInk: Theme.danger
+            hoverBack: Theme.dangerSoft
+            onClicked: controller.quit()
         }
     }
 
@@ -233,7 +170,7 @@ Item {
             text: host.tower
             color: host.ink
             font.family: host.uiFont
-            font.pixelSize: 16
+            font.pixelSize: 15
             font.bold: true
             elide: Text.ElideRight
         }
@@ -255,23 +192,27 @@ Item {
             objectName: "statusLock"
             anchors.right: parent.right
             anchors.top: parent.top
-            width: 24
-            height: 16
-            radius: 4
+            width: 28
+            height: 18
+            radius: Theme.radius
             color: controller && controller.statusLocked
-                   ? Qt.rgba(0.84, 0.62, 0.18, 0.20) : "transparent"
+                   ? Theme.amberSoft
+                   : (lockMouse.containsMouse ? Theme.hover : "transparent")
             border.width: 1
-            border.color: host.hairline
+            border.color: controller && controller.statusLocked
+                          ? Theme.amber : Theme.edge
             Text {
                 anchors.centerIn: parent
                 text: "锁"
                 color: controller && controller.statusLocked
                        ? host.amber : host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 10
             }
             MouseArea {
+                id: lockMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: if (controller) controller.toggleStatusLock()
             }
@@ -311,7 +252,7 @@ Item {
                             text: modelData[1]
                             color: host.ink
                             font.family: host.monoFont
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                         }
                     }
                 }
@@ -339,7 +280,7 @@ Item {
                         text: host.statusValue("gold")
                         color: host.ink
                         font.family: host.monoFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                 }
 
@@ -371,7 +312,7 @@ Item {
                                 text: modelData[1]
                                 color: host.ink2
                                 font.family: host.monoFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                             }
                         }
                     }

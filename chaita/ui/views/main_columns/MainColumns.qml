@@ -96,112 +96,34 @@ Column {
     }
 
     // ---------- 地图 ----------
-    Item {
+    SectionHead {
         width: body.width
-        height: 18
-        // 点标题（含箭头）折叠/展开这一栏
-        Item {
-            id: mapSectionHead
-            objectName: "mapSectionHead"
-            anchors.left: parent.left
+        key: "map"
+        title: host.mapCollapsed
+               ? "地图  " + host.floorList.length + " 层" : "地图"
+        collapsed: host.mapCollapsed
+        onToggled: host.toggleMapSection()
+
+        Text {
+            id: readTipText
+            objectName: "readTip"
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, mapHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "mapChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.mapCollapsed ? "▸" : "▾"
-                color: mapHeadMouse.containsMouse ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: mapHeadLabel
-                objectName: "mapSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.mapCollapsed
-                      ? "地图  " + host.floorList.length + " 层"
-                      : "地图"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: mapHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleMapSection()
-            }
+            text: host.readTip
+            color: host.ink3
+            font.family: host.monoFont
+            font.pixelSize: 10
+            elide: Text.ElideRight
+            width: Math.min(readTipText.implicitWidth, 90)
+            horizontalAlignment: Text.AlignRight
+            visible: text !== "" && host.floorList.length > 0
         }
-        Row {
-            anchors.right: parent.right
+        // 读取（只读地图）：挨着地图条，不在对话框里
+        ReadBtn {
+            objectName: "readMap"
+            host: body.host
+            mode: "map"
+            busyName: "mapBusyDot"
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Text {
-                id: readTipText
-                objectName: "readTip"
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.readTip
-                color: host.ink3
-                font.family: host.monoFont
-                font.pixelSize: 9
-                elide: Text.ElideRight
-                width: Math.min(readTipText.implicitWidth, 86)
-                horizontalAlignment: Text.AlignRight
-                visible: text !== "" && host.floorList.length > 0
-            }
-            // 读取（只读地图）：挨着地图条，不在对话框里。
-            // 已经在读也能再点（并行读取）。按钮上的字**永远是「读取」**：
-            // 手册是分页的，翻到下一页还得再点它；写成「读取中」会让人以为
-            // 不能再按（用户："要通过按读取中来开启第二页太反直觉"）。
-            // 正在读用右上角一颗呼吸的小点表示，按钮本身照样能点。
-            Rectangle {
-                id: readMapBtn
-                objectName: "readMap"
-                anchors.verticalCenter: parent.verticalCenter
-                width: 46
-                height: 20
-                radius: 6
-                readonly property int busy: host.runningCount("map")
-                color: host.amber
-                Text {
-                    anchors.centerIn: parent
-                    text: "读取"
-                    color: host.amberInk
-                    font.family: host.uiFont
-                    font.pixelSize: 10
-                    font.bold: true
-                }
-                Rectangle {
-                    objectName: "mapBusyDot"
-                    visible: readMapBtn.busy > 0
-                    x: readMapBtn.width - 7
-                    y: -2
-                    width: 7
-                    height: 7
-                    radius: 3.5
-                    color: host.amberInk
-                    border.width: 1
-                    border.color: host.amber
-                    SequentialAnimation on opacity {
-                        running: readMapBtn.busy > 0
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
-                        NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
-                    }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.readMode("map")
-                }
-            }
         }
     }
 
@@ -241,102 +163,29 @@ Column {
     Item { width: body.width; height: host.gapB }
 
     // ---------- 怪物 ----------
-    Item {
+    SectionHead {
         width: body.width
-        height: 18
-        Item {
-            id: monSectionHead
-            objectName: "monSectionHead"
-            anchors.left: parent.left
+        key: "mon"
+        title: "怪物"
+        collapsed: host.monCollapsed
+        onToggled: host.toggleMonSection()
+
+        Text {
+            objectName: "monAgg"
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, monHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "monChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.monCollapsed ? "▸" : "▾"
-                color: monHeadMouse.containsMouse ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: monHeadLabel
-                objectName: "monSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: "怪物"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: monHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleMonSection()
-            }
+            text: host.monAgg
+            color: host.ink3
+            font.family: host.monoFont
+            font.pixelSize: 10
         }
-        Row {
-            anchors.right: parent.right
+        // 读取（只读怪物手册）：和地图那栏的「读取」分开，
+        // 也能并行点（两栏各跑各的）。
+        ReadBtn {
+            objectName: "readMon"
+            host: body.host
+            mode: "monsters"
+            busyName: "monBusyDot"
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Text {
-                objectName: "monAgg"
-                anchors.verticalCenter: parent.verticalCenter
-                text: host.monAgg
-                color: host.amber
-                font.family: host.monoFont
-                font.pixelSize: 9
-            }
-            // 读取（只读怪物手册）：和地图那栏的「读取」分开，
-            // 也能并行点（两栏各跑各的）。字永远写「读取」：
-            // 手册分页，翻到下一页再点它就行（见上面地图那栏的注释）。
-            Rectangle {
-                id: readMonBtn
-                objectName: "readMon"
-                anchors.verticalCenter: parent.verticalCenter
-                width: 46
-                height: 20
-                radius: 6
-                readonly property int busy: host.runningCount("monsters")
-                color: host.amber
-                Text {
-                    anchors.centerIn: parent
-                    text: "读取"
-                    color: host.amberInk
-                    font.family: host.uiFont
-                    font.pixelSize: 10
-                    font.bold: true
-                }
-                Rectangle {
-                    objectName: "monBusyDot"
-                    visible: readMonBtn.busy > 0
-                    x: readMonBtn.width - 7
-                    y: -2
-                    width: 7
-                    height: 7
-                    radius: 3.5
-                    color: host.amberInk
-                    border.width: 1
-                    border.color: host.amber
-                    SequentialAnimation on opacity {
-                        running: readMonBtn.busy > 0
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
-                        NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
-                    }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.readMode("monsters")
-                }
-            }
         }
     }
     Item { width: body.width; height: 4 }
@@ -347,7 +196,7 @@ Column {
         delegate: Item {
             objectName: "monRow"
             width: body.width
-            height: 36
+            height: 44
             // 怪物那栏折叠起来时整行让位（Column 会跳过不可见的子项）
             visible: !host.monCollapsed
             // 正在被拖的那一行淡一点：看得出"它在跟着手走"
@@ -357,6 +206,14 @@ Column {
                      && controller
                      && controller.monDragFrom === modelData.dbIndex
                      ? 0.45 : 1
+
+            // 悬停：整行一层浅灰底（点得开、拖得动的提示）
+            Rectangle {
+                anchors.fill: parent
+                anchors.bottomMargin: 1
+                radius: Theme.radius
+                color: rowMouse.containsMouse ? Theme.paperLo : "transparent"
+            }
 
             // 拖到这行前面松手 = 插在这儿
             Rectangle {
@@ -376,6 +233,7 @@ Column {
             // 整行：轻点打开编辑，按住上下拖 = 调顺序
             // （拖动交给 Python 读光标，见 beginMonDrag 的注释）
             MouseArea {
+                id: rowMouse
                 objectName: "monOpen"
                 anchors.fill: parent
                 hoverEnabled: true
@@ -430,7 +288,7 @@ Column {
             Image {
                 id: sprite
                 objectName: "monIcon"
-                x: 0
+                x: 6
                 anchors.verticalCenter: parent.verticalCenter
                 width: 24
                 height: 24
@@ -448,8 +306,8 @@ Column {
             Rectangle {
                 anchors.fill: sprite
                 visible: sprite.status !== Image.Ready
-                radius: 5
-                color: "#EADFCB"
+                radius: Theme.radius
+                color: Theme.hover
                 Text {
                     anchors.centerIn: parent
                     text: modelData && modelData.name
@@ -465,9 +323,9 @@ Column {
                 id: monName
                 objectName: "monName"
                 anchors.left: parent.left
-                anchors.leftMargin: 32
+                anchors.leftMargin: 38
                 anchors.top: parent.top
-                anchors.topMargin: 4
+                anchors.topMargin: 7
                 text: modelData ? modelData.name : ""
                 color: host.ink
                 font.family: host.uiFont
@@ -484,46 +342,46 @@ Column {
                 text: modelData ? modelData.skill : ""
                 color: host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 10
                 elide: Text.ElideRight
             }
             Text {
                 id: monTotal
                 objectName: "monTotal"
                 anchors.right: parent.right
-                anchors.rightMargin: 66
+                anchors.rightMargin: 72
                 anchors.top: parent.top
-                anchors.topMargin: 5
+                anchors.topMargin: 8
                 // 手册里读过、地图上还没记的怪没有 ×N（数字是 0 也不写）
                 visible: modelData && modelData.onMap
                 text: modelData ? "×" + modelData.total : ""
                 color: host.ink3
                 font.family: host.monoFont
-                font.pixelSize: 10
+                font.pixelSize: 11
             }
             Text {
                 objectName: "monLeft"
                 anchors.right: parent.right
-                anchors.rightMargin: 22
+                anchors.rightMargin: 28
                 anchors.top: parent.top
-                anchors.topMargin: 4
+                anchors.topMargin: 7
                 visible: modelData && modelData.onMap
                 text: modelData ? "剩 " + modelData.left : ""
                 color: modelData && modelData.left > 0 ? host.amber : host.ink3
                 font.family: host.monoFont
-                font.pixelSize: 12
+                font.pixelSize: 13
                 font.bold: true
             }
             Text {
                 objectName: "monStats"
                 anchors.left: parent.left
-                anchors.leftMargin: 32
+                anchors.leftMargin: 38
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 5
+                anchors.bottomMargin: 8
                 text: modelData ? modelData.stats : ""
                 color: host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 10
             }
             Rectangle {
                 anchors.left: parent.left
@@ -537,8 +395,8 @@ Column {
             // 记录的话，地图上用到它的层还会把这行顶出来，看着像没删掉）
             Item {
                 objectName: "monDeleteRow"
-                x: parent.width - 16
-                y: 8
+                x: parent.width - 22
+                y: 12
                 width: 16
                 height: 20
                 visible: !!modelData && String(modelData.name || "") !== ""
@@ -574,57 +432,20 @@ Column {
     Item { width: body.width; height: host.gapB }
 
     // ---------- 技能 ----------
-    Item {
+    SectionHead {
         width: body.width
-        height: 18
-        // 点标题（含箭头）折叠/展开这一栏 —— 和地图/怪物同一个做法
-        Item {
-            id: skillSectionHead
-            objectName: "skillSectionHead"
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(60, skillHeadLabel.width + 16)
-            height: 18
-            Text {
-                objectName: "skillChevron"
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                text: host.skillCollapsed ? "▸" : "▾"
-                color: skillHeadMouse.containsMouse
-                       ? host.amber : host.ink3
-                font.pixelSize: 9
-            }
-            Text {
-                id: skillHeadLabel
-                objectName: "skillSectionLabel"
-                x: 12
-                anchors.verticalCenter: parent.verticalCenter
-                // 右边 skillAgg 已经写了"N 种 · 涉及 M 只"，
-                // 标题就不再重复一遍（和"怪物"那栏一样，只写栏名）
-                text: "技能"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 10
-                font.letterSpacing: 2
-            }
-            MouseArea {
-                id: skillHeadMouse
-                anchors.fill: parent
-                anchors.rightMargin: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: host.toggleSkillSection()
-            }
-        }
+        key: "skill"
+        title: "技能"
+        collapsed: host.skillCollapsed
+        onToggled: host.toggleSkillSection()
+
         Text {
             objectName: "skillAgg"
-            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: host.skillAgg
             color: host.ink3
             font.family: host.monoFont
-            font.pixelSize: 9
+            font.pixelSize: 10
         }
     }
     Item { width: body.width; height: 4 }
@@ -634,29 +455,29 @@ Column {
         delegate: Item {
             objectName: "skillRow"
             width: body.width
-            height: 28
+            height: 32
             // 技能那栏折叠起来时整行让位（Column 会跳过不可见的子项）
             visible: !host.skillCollapsed
             Text {
                 objectName: "skillName"
                 anchors.left: parent.left
+                anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData ? modelData.name : ""
                 color: host.ink
                 font.family: host.uiFont
-                font.pixelSize: 12
-                font.bold: true
+                font.pixelSize: 13
             }
             Text {
                 objectName: "skillLeft"
                 anchors.right: parent.right
+                anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData
                       ? modelData.total + " 只 · 剩 " + modelData.left : ""
                 color: host.amber
                 font.family: host.monoFont
-                font.pixelSize: 10
-                font.bold: true
+                font.pixelSize: 11
             }
             Rectangle {
                 anchors.left: parent.left
@@ -685,17 +506,17 @@ Column {
     Item {
         objectName: "taskSection"
         width: body.width
-        height: host.tasksView.length === 0 ? 0 : 18
+        height: host.tasksView.length === 0 ? 0 : 28
         visible: host.tasksView.length > 0
 
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: "读取记录"
-            color: host.ink3
+            color: host.ink
             font.family: host.uiFont
-            font.pixelSize: 10
-            font.letterSpacing: 2
+            font.pixelSize: 12
+            font.bold: true
         }
         Text {
             objectName: "taskAgg"
@@ -714,7 +535,14 @@ Column {
             }
             color: host.ink3
             font.family: host.monoFont
-            font.pixelSize: 9
+            font.pixelSize: 10
+        }
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: host.hairline
         }
     }
 

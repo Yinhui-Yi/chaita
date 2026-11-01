@@ -31,9 +31,15 @@
 | 20 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
 | 21 | 加属性收益 | 真窗口 | `views/property_gain/GainWindow.qml` | 主窗口 `gain*`（三档加成 + 上界 + 结果）；窗口自己只有窗口状态 | 导航条 ＋（⚔ 左边） |
 
-（1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那 7 个是共用件，不算界面：
-`Theme` 配色/字体、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`NumberStepper` 加减数、
+（1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那些是共用件，不算界面：
+`Theme` 配色/字体/圆角/控件高度、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`IconBtn` 图标按钮（导航条）、
+`SectionHead` 分区标题条（地图/怪物/技能）、`ReadBtn` 分区标题上的「读取」、`NumberStepper` 加减数、
 `EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
+
+**视觉规矩（2026-11-01 重做，PyCharm 浅色一路）**：冷灰白底 + 近黑字 + **唯一一个强调蓝**；
+层次靠 1px 分隔线和极淡的灰底，不靠卡片套卡片；按钮/输入框/图标按钮同高 `Theme.controlH`（24），
+圆角 `Theme.radius`（4）；悬停才出浅灰底。颜色/圆角**只从 `Theme` 取，不在界面里写十六进制**。
+`Theme.amber` / `amberInk` 是旧名字（现在是强调蓝），逐个窗口换样式时改成 `accent`。
 
 **地图就在主界面那一栏里画**（用户 2026-10-30："把主界面的地图做大！"、"多张地图不要
 重叠显示下层的只留一角！做侧边栏快速切换"）：左边侧栏一层一行（写层号 + 剩几只，点了

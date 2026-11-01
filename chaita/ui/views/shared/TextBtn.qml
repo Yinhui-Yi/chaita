@@ -4,9 +4,9 @@ import "."
 // 一句话就能点的小动作（"清单"「编辑」「刷新」「↑ 楼梯」「清空」「粘贴」这种）。
 //
 // 为什么要一个共用件（用户 2026-10-30："设计要统一！！！！"）：这些小动作以前是
-// 每个界面各自 `Text + MouseArea` 手写一遍，字号 9/10、悬停色 ink2/ink3/amber
-// 各不相同，同一排按钮看着就不是一套。规矩收到这里：**9px、ink3、悬停 ink，
-// 要强调就 accent 成琥珀色**，热区往外放 4px（看得见的位置点得中）。
+// 每个界面各自 `Text + MouseArea` 手写一遍，字号、悬停色各不相同，同一排按钮
+// 看着就不是一套。规矩收到这里：**10px、ink3、悬停 ink，要强调就传 accent
+// （强调蓝）**，热区往外放 4px（看得见的位置点得中）。
 Item {
     id: btn
 
@@ -37,7 +37,7 @@ Item {
                 ? (btn.accent !== "transparent" ? btn.accent : Theme.ink)
                 : Theme.ink3))
         font.family: Theme.uiFont
-        font.pixelSize: 9
+        font.pixelSize: 10
         font.bold: btn.active
         elide: Text.ElideRight
     }
