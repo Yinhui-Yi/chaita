@@ -58,6 +58,37 @@ def _type_enter(window, text):
     return field
 
 
+def test_你的话靠右_AI的话靠左_每条都带时间():
+    """测什么：对话是气泡——你说的贴右边、AI 说的贴左边，每条下面都有时间（一直显示）；
+    贴右的气泡右沿和对话区右沿对齐（不会跑出去，也不会留一截空）。
+
+    走过的界面：底部对话区（气泡）。
+    """
+    from PySide6.QtCore import QPointF
+
+    controller, engine, window = helpers.make_controller()
+    controller._chat_log = [
+        {"who": "你", "text": "红头怪还剩几只？", "at": "14:32"},
+        {"who": "AI", "text": "通天塔1 还有 4 只。", "at": "14:33"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+
+    def scene(item):
+        return item.mapToScene(QPointF(0, 0))
+
+    texts = sorted(helpers.find_all(window, "chatText"), key=lambda i: scene(i).y())
+    stamps = sorted(helpers.find_all(window, "chatAt"), key=lambda i: scene(i).y())
+    flick = helpers.find_item(window, "chatFlick")
+
+    mine, theirs = texts
+    assert scene(mine).x() > scene(theirs).x()
+    assert [s.property("text") for s in stamps] == ["14:32", "14:33"]
+    assert all(s.isVisible() for s in stamps)
+    flick_right = scene(flick).x() + flick.width()
+    assert round(scene(mine).x() + mine.width() + 12) == round(flick_right)
+    assert round(scene(theirs).x()) == round(scene(flick).x() + 12)
+
+
 def test_chat_input_enter_sends_and_clears(monkeypatch):
     """测什么：输入框里打字回车 → 话发出去、模型回的字段写进状态、输入框清空。
 

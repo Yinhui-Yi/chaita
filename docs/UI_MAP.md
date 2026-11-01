@@ -13,7 +13,7 @@
 | 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
 | 3 | 四张卡（地图 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `MonSection` / `SkillSection` / `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
 | 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
-| 5 | 底部对话 | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused` | 常驻 |
+| 5 | 底部对话（气泡 + 圆角输入栏，你靠右 / AI 靠左，时间常显） | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused`；高度 `dockH` = 输入栏 `chatBarH` + 有对话时的气泡区 | 常驻 |
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
 | 7 | 格子编辑层 | 地图上的覆盖层 | `views/map_view/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells`）；单击报 `cellPicked(row,col)`、Ctrl 多选、右键报 `menuRequested(row,col,x,y)` | 地图那栏「编辑」后画 13×13；单击选中、Ctrl 多选、右键出小窗（复制坐标 / 清掉） |
 | 8 | 楼梯层 | 地图上的覆盖层 | `views/map_view/stair_layer/StairLayer.qml` | `stairs` / `cell` / `upSrc` / `downSrc`（**纯显示**，不接管鼠标） | 常驻；要改楼梯去「这一层」清单的楼梯区 |

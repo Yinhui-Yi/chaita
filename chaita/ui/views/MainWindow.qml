@@ -84,13 +84,14 @@ Window {
     readonly property int headerH: 26
     readonly property int statusH: 78
     readonly property int heroPad: 12
-    // 对话卡高度：跟着**实测**的行高走（文字会折行，不能按条数乘固定值）。
-    // 行太多时给个上限（180），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
-    readonly property int chatLogMax: 180
+    // 对话卡高度：跟着**实测**的气泡高度走（文字会折行，不能按条数乘固定值）。
+    // 对话太长时给个上限（220），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
+    readonly property int chatLogMax: 220
     readonly property int chatLogH: Math.min(chatLogMax, chatLog.logHeight)
-    // 8（上）+ 行 + 5（行和输入条之间）+ 26（输入条）+ 7（下），最少 46
-    readonly property int dockH: Math.max(46, 8 + win.chatLogH
-                                              + (win.chatLogH > 0 ? 5 : 0) + 33)
+    // 输入栏 48；有对话时再加：上边距 8 + 对话 + 下边距 8 + 中间那条分隔线 1
+    readonly property int chatBarH: 48
+    readonly property int dockH: win.chatBarH
+                                 + (win.chatLogH > 0 ? win.chatLogH + 17 : 0)
     readonly property int gapA: 10
     readonly property int gapB: 8
     // 灰底卡片自己的宽高（窗口扣掉投影边）：弹层摆位、内容宽度都按它算
@@ -3895,6 +3896,20 @@ Window {
             onContentHeightChanged: win.applyAutoSize()
 
             MainColumns { id: body; host: win }
+        }
+
+        // 内容比窗口高、还没滚到底时，底边渐隐进灰底：不然卡片被生硬地切断
+        Rectangle {
+            visible: !win.collapsed
+                     && flick.contentY + flick.height < flick.contentHeight - 1
+            x: flick.x
+            y: flick.y + flick.height - height
+            width: flick.width
+            height: 18
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(Theme.canvas.r, Theme.canvas.g, Theme.canvas.b, 0) }
+                GradientStop { position: 1.0; color: Theme.canvas }
+            }
         }
 
         // 内容比窗口高时，右边给一条很细的位置提示
