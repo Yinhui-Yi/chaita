@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Effects
 import QtQuick.Window
 // 配色/按钮在上一层（docs/UI_MAP.md）
 import ".."
@@ -148,6 +149,12 @@ Window {
     readonly property int thumbSide: 20
     // 数量框的宽（含右边那两个箭头）：一个数字 + 两个箭头，别留一大截空白
     readonly property int countBoxW: 34
+    // 窗口最外圈留给投影的透明边；灰底卡片（cardBox）画在它里面，和主窗口同一套
+    readonly property int inset: 10
+    // 灰底上的标题行高 / 底部按钮行高 / 两边和各块之间的留白
+    readonly property int headH: 34
+    readonly property int footH: 44
+    readonly property int gap: 8
     // 窗口大小跟着卡片走：拉过大就按拉的，没拉过按内容撑
     width: Math.round(cardBox.sized
                       ? Math.max(230, Math.min(maxW, cardBox.wantedW))
@@ -158,21 +165,24 @@ Window {
                                   // 地图搬走以后这扇窗只剩清单：太矮的话「加资源」
                                   // 的下拉只有两行高，下面那几行点不到（实测过），
                                   // 所以给个下限
-                                  Math.max(240, 26 + 4
-                                          + Math.min(sheetBody.implicitHeight,
-                                                     cardBox.listMax)
-                                          + 34)))
+                                  Math.max(240 + 2 * inset,
+                                           cardBox.fixedH
+                                           + Math.min(sheetBody.implicitHeight,
+                                                      cardBox.listMax))))
     // 整块钳在屏幕里：拖到屏幕边上就停住，但**不能**把越界的那截攒着 ——
     // 攒着的话往回拖要先"还债"，窗口会卡住/跳（用户："一直在抖动"）。
     // 边也要钳：不然拉大以后右下角的拉大手柄会跑到屏幕外点不到。
+    // 卡片贴屏幕边就算到头：外圈 10px 透明投影边可以伸出屏幕。
     function clampPos() {
         var rect = sheetRoot.screenRect
         if (!rect)
             return
-        var left = rect.x + 2
-        var top = rect.y + 2
-        var right = Math.max(left, rect.x + rect.width - sheetRoot.width - 2)
-        var bottom = Math.max(top, rect.y + rect.height - sheetRoot.height - 2)
+        var left = rect.x + 2 - sheetRoot.inset
+        var top = rect.y + 2 - sheetRoot.inset
+        var right = Math.max(left, rect.x + rect.width - sheetRoot.width - 2
+                                   + sheetRoot.inset)
+        var bottom = Math.max(top, rect.y + rect.height - sheetRoot.height - 2
+                                   + sheetRoot.inset)
         sheetRoot.x = Math.round(Math.max(left, Math.min(sheetRoot.x, right)))
         sheetRoot.y = Math.round(Math.max(top, Math.min(sheetRoot.y, bottom)))
     }
@@ -188,10 +198,26 @@ Window {
             host.pickMode = ""
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    Rectangle {
+        anchors.fill: cardBox
+        radius: cardBox.radius
+        color: Theme.canvas
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Theme.windowShadow
+            shadowBlur: 1.0
+            shadowVerticalOffset: 3
+            shadowHorizontalOffset: 0
+        }
+    }
+
     Rectangle {
         id: cardBox
         objectName: "floorCard"
         anchors.fill: parent
+        anchors.margins: sheetRoot.inset
         // 用户拉过大小没有（拉过就按拉的来，没拉过就按内容撑）
         readonly property bool sized:
             host.floorSizes[sheetRoot.sheetName] !== undefined
@@ -199,26 +225,25 @@ Window {
             sheetRoot.maxW, host.floorW(sheetRoot.sheetName, 300)))
         readonly property real wantedH: Math.max(180, Math.min(
             sheetRoot.maxH, host.floorH(sheetRoot.sheetName, 180)))
-        // 固定件：抬头 26 + 底部 34（地图已经搬到 views/map_view/MapWindow.qml）
-        readonly property int fixedH: 26 + 34
+        // 固定件：外圈投影边 + 标题行 + 底部按钮行（地图已经搬到 views/map_view/MapWindow.qml）
+        readonly property int fixedH: 2 * sheetRoot.inset + sheetRoot.headH
+                                      + sheetRoot.footH
         // 列表能占多高：拉过大小就吃掉剩下的，没拉过最多 150
         readonly property int listMax: sized
             ? Math.max(40, Math.round(wantedH) - fixedH)
             : Math.max(120, Math.min(240, Math.round(sheetRoot.maxH)
                                      - 16 - fixedH))
-        radius: 8
-        color: host.paperHi
-        border.width: 1
-        border.color: host.edge
+        radius: 10
+        color: Theme.canvas
         clip: true
         MouseArea { anchors.fill: parent }
 
         // 抬头：可以拖着走
         Item {
-            x: 6
-            y: 2
-            width: cardBox.width - 12
-            height: 22
+            x: sheetRoot.gap
+            y: 0
+            width: cardBox.width - 2 * sheetRoot.gap
+            height: sheetRoot.headH
 
             MouseArea {
                 id: sheetDrag
@@ -255,75 +280,49 @@ Window {
             Text {
                 objectName: "floorTitle"
                 anchors.left: parent.left
+                anchors.leftMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 // 用户："标题里的怪物数量资源数量，剩xxx都删了，毫无意义"
-                width: parent.width - 56
+                width: parent.width - 2 * Theme.controlH - 12
                 text: sheetRoot.sheetName
-                color: host.ink
-                font.family: host.uiFont
-                font.pixelSize: 13
+                color: Theme.ink
+                font.family: Theme.uiFont
+                font.pixelSize: 14
                 font.bold: true
                 elide: Text.ElideRight
             }
             // 再开一层：把这层后面还没开的那层打开
             // （窗口挡住地图块时，这是多开最直接的路）
-            Item {
+            IconBtn {
                 id: sheetMore
                 objectName: "floorMore"
                 anchors.right: sheetClose.left
-                anchors.rightMargin: 6
+                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "＋"
-                    color: sheetMoreMouse.containsMouse
-                           ? host.amber : host.ink3
-                    font.pixelSize: 12
-                    font.bold: true
-                }
-                MouseArea {
-                    id: sheetMoreMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.openNextFloor(sheetRoot.sheetName)
-                }
+                glyph: "＋"
+                onClicked: host.openNextFloor(sheetRoot.sheetName)
             }
 
-            Item {
+            IconBtn {
                 id: sheetClose
                 objectName: "floorClose"
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: sheetCloseMouse.containsMouse
-                           ? host.danger : host.ink3
-                    font.pixelSize: 11
-                }
-                MouseArea {
-                    id: sheetCloseMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeFloorSheet(sheetRoot.sheetName)
-                }
+                glyph: "✕"
+                glyphSize: 12
+                hoverInk: Theme.danger
+                hoverBack: Theme.dangerSoft
+                onClicked: host.closeFloorSheet(sheetRoot.sheetName)
             }
         }
 
-
-        // 清单：怪 / 资源 / 备忘
+        // 清单：楼梯 / 怪 / 资源 / 路线 / 备忘，各一张白卡
         Flickable {
             id: sheetFlick
             objectName: "floorFlick"
-            x: 6
-            y: 26 + 4
-            width: cardBox.width - 12
+            x: sheetRoot.gap
+            y: sheetRoot.headH
+            width: cardBox.width - 2 * sheetRoot.gap
             height: Math.min(sheetBody.implicitHeight, cardBox.listMax)
             contentWidth: width
             contentHeight: sheetBody.implicitHeight
@@ -333,24 +332,28 @@ Window {
             Column {
                 id: sheetBody
                 width: sheetFlick.width
-                spacing: 0
+                spacing: sheetRoot.gap
 
                 // ---------- 楼梯 ----------
                 // 用户 2026-10-30："谁告诉你一层只有一个上楼或下楼的？谁告诉你0层就
                 // 一定去1层的？" —— 一行一个楼梯，每行自己带"通哪一层"。
                 // 位置：图上长按抓一格拖到这行上松手；目标层：点一下换一个；
                 // 加行：上楼梯、下楼梯各一个按钮。踩到它就切到它记的那一层。
-                Item {
+                Card {
+                    id: stairCard
                     width: sheetBody.width
-                    height: 22
+                    pad: sheetRoot.gap
+                Item {
+                    width: parent.width
+                    height: 28
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "楼梯"
-                        color: host.ink3
-                        font.family: host.uiFont
-                        font.pixelSize: 10
-                        font.letterSpacing: 2
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 12
+                        font.bold: true
                     }
                     Row {
                         anchors.right: parent.right
@@ -376,7 +379,7 @@ Window {
                     delegate: Item {
                         id: stairRow
                         objectName: "floorStairRow"
-                        width: sheetBody.width
+                        width: parent.width
                         // 两行：第一行缩略图 + 目标层 + ✕，第二行"位置 / 落点"（点着选）
                         height: 44
 
@@ -563,24 +566,24 @@ Window {
                     }
                 }
 
-                Item {
-                    width: sheetBody.width
-                    height: 14
                 }
 
-
                 // ---------- 怪 ----------
-                Item {
+                Card {
+                    id: monCard
                     width: sheetBody.width
-                    height: 22
+                    pad: sheetRoot.gap
+                Item {
+                    width: parent.width
+                    height: 28
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "怪物"
-                        color: host.ink3
-                        font.family: host.uiFont
-                        font.pixelSize: 10
-                        font.letterSpacing: 2
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 12
+                        font.bold: true
                     }
                     FlatBtn {
                         id: addMonBtn
@@ -599,7 +602,7 @@ Window {
                     delegate: Item {
                         id: monRow
                         objectName: "floorMonRow"
-                        width: sheetBody.width
+                        width: parent.width
                         // 用户："怪物和资源的行间距太大了" —— 30 → 24。
                         // 一行 24 = 20 的缩略图 + 上下各 2，密但不挤；编辑模式加一行位置
                         height: 24 + (sheetRoot.gridEditActive ? 14 : 0)
@@ -613,7 +616,7 @@ Window {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: Qt.rgba(0.84, 0.62, 0.18, 0.16)
+                            color: Theme.amberSoft
                             visible: monDrop.containsDrag
                         }
 
@@ -776,23 +779,24 @@ Window {
                     }
                 }
 
-                Item {
-                    width: sheetBody.width
-                    height: 10
                 }
 
                 // ---------- 资源 ----------
-                Item {
+                Card {
+                    id: itemCard
                     width: sheetBody.width
-                    height: 22
+                    pad: sheetRoot.gap
+                Item {
+                    width: parent.width
+                    height: 28
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "资源"
-                        color: host.ink3
-                        font.family: host.uiFont
-                        font.pixelSize: 10
-                        font.letterSpacing: 2
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 12
+                        font.bold: true
                     }
                     FlatBtn {
                         id: addItemBtn
@@ -819,7 +823,7 @@ Window {
                     delegate: Item {
                         id: itemRow
                         objectName: "floorItemRow"
-                        width: sheetBody.width
+                        width: parent.width
                         // 和怪物行同一个高度；多段效果那行（黄宝石）要换行，就跟着长
                         // （用户："行间距太大了" —— 单段效果的还是 24）；编辑模式加一行位置
                         height: Math.max(24, effectCell.height + 4)
@@ -832,7 +836,7 @@ Window {
                         Rectangle {
                             anchors.fill: parent
                             radius: 4
-                            color: Qt.rgba(0.84, 0.62, 0.18, 0.16)
+                            color: Theme.amberSoft
                             visible: itemDrop.containsDrag
                         }
 
@@ -1018,12 +1022,13 @@ Window {
                     }
                 }
 
-                Item {
-                    width: sheetBody.width
-                    height: 14
                 }
 
-                // ---------- 提取出来的路线 ----------
+                // ---------- 提取出来的路线 + 备忘 ----------
+                Card {
+                    id: noteCard
+                    width: sheetBody.width
+                    pad: sheetRoot.gap
                 // 长按玩家拖出来的那些（docs/ROUTE.md）：这一层的路线列在这儿。
                 // 点「路线 N」把那条"交互路线"（勇者 → 格1,1 → …）摆出来；
                 // 右边是**备注**（用户："把路线的 xx格 删掉改成备注，备注默认是玩家路线
@@ -1032,7 +1037,7 @@ Window {
                     model: host.floorRoutes(sheetRoot.sheetName)
                     delegate: Row {
                         objectName: "routeRow"
-                        width: sheetBody.width
+                        width: parent.width
                         height: 22
                         spacing: 4
                         Text {
@@ -1117,40 +1122,41 @@ Window {
 
                 // ---------- 备忘 ----------
                 Item {
-                    width: sheetBody.width
-                    height: 24
+                    width: parent.width
+                    height: 28
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 30
+                        width: 34
                         text: "备忘"
-                        color: host.ink3
-                        font.family: host.uiFont
-                        font.pixelSize: 9
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 12
+                        font.bold: true
                     }
                     Rectangle {
                         anchors.left: parent.left
-                        anchors.leftMargin: 32
+                        anchors.leftMargin: 38
                         anchors.right: parent.right
-                        height: 22
-                        radius: 5
+                        height: Theme.controlH
+                        radius: Theme.radius
                         anchors.verticalCenter: parent.verticalCenter
                         color: memoField.activeFocus
-                               ? host.paperLo : "transparent"
+                               ? Theme.paper : Theme.tile
                         border.width: 1
                         border.color: memoField.activeFocus
-                                      ? host.amber : host.hairline
+                                      ? Theme.amber : Theme.hairline
                         TextField {
                             id: memoField
                             objectName: "floorMemo"
                             anchors.fill: parent
-                            anchors.leftMargin: 5
-                            anchors.rightMargin: 5
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
                             verticalAlignment: TextInput.AlignVCenter
                             background: null
-                            color: host.ink
-                            font.family: host.uiFont
-                            font.pixelSize: 10
+                            color: Theme.ink
+                            font.family: Theme.uiFont
+                            font.pixelSize: 11
                             selectByMouse: true
                             // 每扇窗自己带出这一层的备忘
                             text: host.sheetMemo(sheetRoot.sheetName)
@@ -1160,46 +1166,43 @@ Window {
                     }
                 }
 
-                Item {
-                    width: sheetBody.width
-                    height: 6
                 }
             }
         }
 
-        // 底部：刷新本层 / 删除本层 / 完成（右下角 20px 留给拉大的手柄）
-        Row {
-            x: 6
+        // 底部：刷新本层 / 删除本层 靠左，完成靠右（右下角留给拉大的手柄）
+        Item {
+            x: sheetRoot.gap
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 6
-            width: cardBox.width - 12 - 20
-            spacing: 6
+            anchors.bottomMargin: sheetRoot.gap
+            width: cardBox.width - sheetRoot.gap - 24
+            height: Theme.controlH
 
-            FlatBtn {
-                objectName: "floorRefresh"
-                label: "刷新本层"
-                onClicked: controller.refreshFloorCounts(
-                    sheetRoot.sheetName)
-            }
-            FlatBtn {
-                objectName: "floorDelete"
-                danger: true
-                label: sheetRoot.deleteArm ? "再点一次删除" : "删除本层"
-                onClicked: {
-                    if (!sheetRoot.deleteArm) {
-                        sheetRoot.deleteArm = true
-                        return
-                    }
-                    controller.removeFloor(sheetRoot.sheetName)
-                    host.closeFloorSheet(sheetRoot.sheetName)
+            Row {
+                spacing: 6
+                FlatBtn {
+                    objectName: "floorRefresh"
+                    label: "刷新本层"
+                    onClicked: controller.refreshFloorCounts(
+                        sheetRoot.sheetName)
                 }
-            }
-            Item {
-                width: Math.max(0, parent.width - 2 * 74 - 46 - 12)
-                height: 1
+                FlatBtn {
+                    objectName: "floorDelete"
+                    danger: true
+                    label: sheetRoot.deleteArm ? "再点一次删除" : "删除本层"
+                    onClicked: {
+                        if (!sheetRoot.deleteArm) {
+                            sheetRoot.deleteArm = true
+                            return
+                        }
+                        controller.removeFloor(sheetRoot.sheetName)
+                        host.closeFloorSheet(sheetRoot.sheetName)
+                    }
+                }
             }
             FlatBtn {
                 objectName: "floorDone"
+                anchors.right: parent.right
                 solid: true
                 label: "完成"
                 onClicked: {
