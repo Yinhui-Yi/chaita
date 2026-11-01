@@ -11,7 +11,7 @@
 |---|---|---|---|---|---|
 | 1 | 主窗口 | 真窗口 | `views/MainWindow.qml` | 它自己（`win.*`） | 程序启动 |
 | 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
-| 3 | 四张卡（地图 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `MonSection` / `SkillSection` / `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
+| 3 | 四张卡（地图 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `MonSection`（一行 36px：只有头像、名字、「剩 N」、✕）/ `SkillSection`（一排胶囊，放不下换行；点一颗弹技能介绍卡：手册原话可改写、没有的自己写，存在 `logs/skill_notes.json`）/ `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed/skillIntroOpen`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
 | 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
 | 5 | 底部对话（标题行可收起 + 气泡 + 圆角输入栏，纸飞机发送键，你靠右 / AI 靠左，时间常显） | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口 `chatCollapsed`（记在 `ui_state.json`）；对外给 `logHeight` / `inputFocused`；高度 `dockH` = 标题行 `chatHeadH` +（展开时）输入栏 `chatBarH` + 有对话时的气泡区 | 常驻 |
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |

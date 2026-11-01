@@ -21,6 +21,9 @@ SESSION_PATH = os.path.join(_LOGS, "last_session.json")
 # 窗口位置/大小记在这里（下次启动照原样摆回去）。
 # 放 logs 下：这是运行期状态，不是配置；删掉也不影响启动（会回到默认位置）。
 UI_STATE_PATH = os.path.join(_LOGS, "ui_state.json")
+# 用户自己写（或改写）的技能介绍：{技能名: 文字}。不属于某一局，所以单独一个文件，
+# 不随"上次的记录"走（那个要点「恢复」才加载）。
+SKILL_NOTES_PATH = os.path.join(_LOGS, "skill_notes.json")
 
 # 勇者图标：原版 Flash 魔塔 v1.12 的勇者（棕发 / 蓝衣 / 银甲）。
 # 素材取自 xhy1999/MagicTower（Java 复刻版，含原版素材）的

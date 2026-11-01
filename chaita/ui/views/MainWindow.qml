@@ -200,6 +200,8 @@ Window {
     // 整数倍用邻近取样（像素图清楚），非整数倍才开平滑，免得一边粗一边细
     readonly property bool iconThumbSmooth: iconThumbScale !== Math.floor(iconThumbScale)
     property bool skillPicker: false
+    // 技能介绍卡（点技能胶囊弹出的那张）开着：开着时 Esc 只关它，别让 Esc 把整个软件关了
+    property bool skillIntroOpen: false
     // 正在拖怪物行排序（拖动时列表不跟着滚）
     property bool monDragging: false
     // 技能下拉挂在「＋ 加技能」按钮下面（x/y 在打开时按按钮位置算）
@@ -354,10 +356,7 @@ Window {
             // 手册里读到的怪**都列出来**（用户："怪物读不进去"——
             // 以前只要地图上还没记，读完手册这一栏是空的）。地图上的才有 ×N/剩 N。
             rows.push({ name: name, icon: m.icon || "", total: t.total,
-                        left: t.left, dbIndex: i, onMap: t.total > 0,
-                        skill: win.skillText(m), stats: win.statLine(m),
-                        hp: String(m.hp || ""), atk: String(m.atk || ""),
-                        def: String(m.def || "") })
+                        left: t.left, dbIndex: i, onMap: t.total > 0 })
         }
         // 顺序就是"用户自己排的顺序"（_monsters 的顺序）：按住一行能上下拖。
         // 地图上加过、手册里还没读到的怪没有可拖的行，按名字挂在最后。
@@ -366,8 +365,7 @@ Window {
             if (seen[other])
                 continue
             extras.push({ name: other, icon: "", total: totals[other].total,
-                          left: totals[other].left, dbIndex: -1, onMap: true,
-                          skill: "", stats: "", hp: "", atk: "", def: "" })
+                          left: totals[other].left, dbIndex: -1, onMap: true })
         }
         extras.sort(function (a, b) {
             return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
@@ -404,30 +402,6 @@ Window {
     function endMonDrag() {
         win.monDragging = false
         controller.monDragFinish()
-    }
-
-    function skillText(m) {
-        var items = (m && m.skill_items) || []
-        var names = []
-        for (var i = 0; i < items.length; i++) {
-            var token = String((items[i] || {}).name || "").trim()
-            if (token !== "" && names.indexOf(token) < 0)
-                names.push(token)
-        }
-        if (names.length > 0)
-            return names.join(" · ")
-        var raw = String((m && m.skills) || "").trim()
-        if (raw === "")
-            return ""
-        return raw.split(/[\s,，、\/;；]+/).filter(function (x) { return x !== "" }).join(" · ")
-    }
-
-    function statLine(m) {
-        var parts = []
-        if (m && m.hp) parts.push("生命 " + m.hp)
-        if (m && m.atk) parts.push("攻 " + m.atk)
-        if (m && m.def) parts.push("防 " + m.def)
-        return parts.join(" · ")
     }
 
     // 一行一个技能：多少只带它、还剩几只（都按整座塔算）
@@ -3734,8 +3708,8 @@ Window {
 
     Shortcut {
         sequence: "Esc"
-        // 正在打字时 Esc 只收键盘（别把人踢出程序）
-        enabled: !chatLog.inputFocused
+        // 正在打字时 Esc 只收键盘（别把人踢出程序）；技能介绍卡开着时 Esc 只关它
+        enabled: !chatLog.inputFocused && !win.skillIntroOpen
         onActivated: {
             // 先关最上面那层子界面（大图 / 怪物编辑 / 挑选层 / 这一层）
             if (win.closeTopLayer())

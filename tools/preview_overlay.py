@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 import cv2                                                    # noqa: E402
-from PySide6.QtCore import QTimer, QUrl, Qt                    # noqa: E402
+from PySide6.QtCore import Q_ARG, QMetaObject, QTimer, QUrl, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QImage, QPainter     # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine                # noqa: E402
 # 必须 import 一下：PySide 是按"已导入的类"决定实例包成哪个包装类的，
@@ -41,7 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
 SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinned",
-             "chatfold", "chattyping", "mapfold",
+             "chatfold", "chattyping", "mapfold", "skillintro",
              "collapsed-empty", "session", "floor", "flooritems",
              "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
@@ -572,6 +572,18 @@ def main() -> int:
         elif scenario == "mapfold":
             # 只折叠地图：怪物和技能两张卡摆在眼前，看它们紧不紧凑
             window.setProperty("mapCollapsed", True)
+        elif scenario == "skillintro":
+            # 点开第一个技能胶囊：弹出它的介绍卡（地图折起来，技能卡才在眼前）
+            window.setProperty("mapCollapsed", True)
+            window.setProperty("monCollapsed", True)
+            card = _find_by_name(window, "skillSectionCard")
+            chip = _find_by_name(window, "skillRow")
+            name = _find_by_name(window, "skillName").property("text")
+            # 等折叠动画和布局排完，胶囊有了真位置再点开（和真人点的时机一样）
+            QTimer.singleShot(
+                400, lambda: QMetaObject.invokeMethod(
+                    card, "openIntro", Qt.DirectConnection,
+                    Q_ARG("QVariant", name), Q_ARG("QVariant", chip)))
         elif scenario == "chatfold":
             # 对话区收起，且收起后又来了一条新消息：标题行上有小蓝点
             window.setProperty("chatCollapsed", True)

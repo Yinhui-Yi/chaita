@@ -7,6 +7,7 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 from PySide6.QtCore import Slot
 
 from ...toolkit.library import _monster_skill_items
+from ...toolkit.notes import _save_skill_notes
 
 class ReadMixin:
     def _get_monsters(self):
@@ -43,8 +44,6 @@ class ReadMixin:
           mons   —— 带这个技能的怪，一只一行，每行带**这只怪自己的**数值
                     （同名技能在第 1 层和第 50 层不一样，所以值挂在怪身上）
         """
-        from ....game import skillinfo
-
         on_map = set(self._map_monster_names())
         counts = {}
         order = []
@@ -75,8 +74,73 @@ class ReadMixin:
         # values：各只怪给这个技能记的数值（同名技能不同层数值可能不一样）
         return [{"skill": token, "count": counts[token],
                  "values": values[token],
-                 "effect": skillinfo.effect_for(token),
+                 "effect": self._effect_of(token)[0],
                  "mons": rows[token]} for token in order]
+
+    # ---- 技能介绍：用户写的 > 内置的手册原话 > 某只怪上手写的（老数据） ----
+    def _effect_of(self, token) -> tuple:
+        """这个技能现在该显示的介绍：`(文字, 来源)`，来源是 note / builtin / monster / ""。
+
+        - note：用户在技能介绍卡里写（不在内置表里的技能）或改写（不同的魔塔数值不同）的，
+          优先于内置的；
+        - builtin：assets/skill_effects.json 里的手册原话（只读的底）；
+        - monster：以前在怪物编辑卡里给某只怪写的自定义介绍（老数据，读得出来不丢）。
+        """
+        from ....game import skillinfo
+
+        name = (token or "").strip()
+        if not name:
+            return "", ""
+        note = (getattr(self, "_skill_notes", {}) or {}).get(name, "")
+        if note:
+            return note, "note"
+        built = skillinfo.effect_for(name)
+        if built:
+            return built, "builtin"
+        for monster in self._monsters:
+            for entry in _monster_skill_items(monster):
+                text = str(entry.get("effect") or "").strip()
+                if entry["name"] == name and text:
+                    return text, "monster"
+        return "", ""
+
+    @Slot(str, result="QVariantMap")
+    def skillIntro(self, name: str) -> dict:
+        """技能介绍卡要的东西：`{text, source, hasBuiltin, edited}`。
+
+        hasBuiltin：内置表里有这个技能的手册原话；edited：用户改写过它
+        （改写过才有「恢复原话」）。
+        """
+        from ....game import skillinfo
+
+        token = (name or "").strip()
+        text, source = self._effect_of(token)
+        has_builtin = bool(skillinfo.effect_for(token))
+        return {"text": text, "source": source, "hasBuiltin": has_builtin,
+                "edited": source == "note" and has_builtin}
+
+    @Slot(str, str)
+    def setSkillNote(self, name: str, text: str) -> None:
+        """记下用户写/改写的技能介绍。
+
+        写成空、或者和内置原话一字不差，都等于「没有改写」：删掉那一条（也就是恢复原话）。
+        """
+        from ....game import skillinfo
+
+        token = (name or "").strip()
+        if not token:
+            return
+        clean = (text or "").strip()
+        notes = dict(getattr(self, "_skill_notes", {}) or {})
+        if clean == "" or clean == skillinfo.effect_for(token):
+            notes.pop(token, None)
+        else:
+            notes[token] = clean
+        if notes == getattr(self, "_skill_notes", {}):
+            return
+        self._skill_notes = notes
+        _save_skill_notes(notes)
+        self.skillStatsChanged.emit()
 
     def _get_monster_templates(self):
         return list(self._monster_templates)
@@ -103,12 +167,8 @@ class ReadMixin:
 
     @Slot(str, result=str)
     def skillEffect(self, name: str) -> str:
-        """这个技能的介绍（游戏手册上的原话，只读）。"""
-        from ....game import skillinfo
-        token = (name or "").strip()
-        if not token:
-            return ""
-        return skillinfo.effect_for(token)
+        """这个技能现在的介绍（用户写的优先，没有就是游戏手册上的原话）。"""
+        return self._effect_of(name)[0]
 
     @Slot(str, result="QVariantList")
     def skillParams(self, name: str) -> list:

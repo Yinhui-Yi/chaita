@@ -362,22 +362,28 @@ def test_窗口拉高后内容区跟着变高_不留空白():
     assert flick.height() > 560
 
 
-def test_怪物一行40像素_数字只有生命攻击防御三个():
-    """测什么：怪物行 40px 高（一行装下头像、名字、数字、剩余、✕），并且生命/攻击/防御三个数字都在。
+def test_怪物一行只有名字和剩几只():
+    """测什么：怪物行 36px 高，只显示头像、名字、「剩 N」和 ✕——
+    生命/攻击/防御、技能、总数都不在列表里（点一行进编辑卡才看、改）。
 
     走过的界面：主界面怪物卡。
     """
     controller, engine, window = _window()
-    controller._monsters = [{"name": "血蚊", "hp": "1200", "atk": "60", "def": "20"}]
+    controller._monsters = [{"name": "血蚊", "hp": "1200", "atk": "60", "def": "20",
+                             "skills": "破甲"}]
+    controller._map_history = [{
+        "floor": "3层", "url": "", "mons": [{"name": "血蚊", "count": 4, "done": False}],
+        "items": [], "grid": {"cells": []}, "routes": []}]
     controller.monstersChanged.emit()
+    controller.mapHistoryChanged.emit()
     helpers.APP.processEvents()
 
     rows = helpers.find_all(window, "monRow")
-    assert [round(r.height()) for r in rows] == [40]
-    stats = helpers.find_item(window, "monStats")
-    shown = [c.property("text") for c in stats.childItems()
-             if c.isVisible() and c.property("text")]
-    assert shown == ["1200", "60", "20"]
+    assert [round(r.height()) for r in rows] == [36]
+    assert helpers.find_item(window, "monLeft").property("text") == "剩 4"
+    assert helpers.find_item(window, "monName").property("text") == "血蚊"
+    for gone in ("monStats", "monSkill", "monTotal", "monTip"):
+        assert helpers.find_item(window, gone) is None, gone + " 不该再出现在列表里"
 
 
 def test_技能是一排胶囊_放不下才换行():
