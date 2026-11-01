@@ -25,6 +25,16 @@ QtObject {
     readonly property color paper: "#FFFFFF"
     readonly property color paperHi: "#FFFFFF"
     readonly property color paperLo: "#F7F8FA"
+    // 三层面：窗口底（canvas）→ 卡片（paper，Card.qml）→ 卡里凹下去的小块（tile）
+    readonly property color canvas: "#EEF0F3"
+    readonly property color tile: "#F4F5F8"
+    // 卡片外框、卡片底沿的一线暗边（模拟投影，比真阴影便宜）
+    readonly property color cardEdge: "#E2E5EA"
+    readonly property color cardShade: "#DADDE3"
+    // 窗口最外层的投影
+    readonly property color windowShadow: "#40101828"
+    // 小胶囊（Chip）的底
+    readonly property color chip: "#EEF0F4"
     // 悬停和按下的灰底（行、图标按钮）
     readonly property color hover: "#EBECF0"
     // 外框 / 分隔线

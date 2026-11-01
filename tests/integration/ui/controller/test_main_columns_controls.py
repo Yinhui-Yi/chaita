@@ -300,6 +300,42 @@ def test_section_heads_toggle_collapse():
     assert window.property("skillCollapsed") is True
 
 
+def test_状态卡实际高度等于窗口按公式算的高度():
+    """测什么：状态卡（塔名 + 四个小块 + 胶囊）画出来多高，窗口算 chromeH 时就扣多少——
+    两边对不上，窗口会多出一截空白或把内容区顶出去。
+
+    走过的界面：主窗口顶部状态卡。
+    """
+    controller, engine, window = _window()
+    controller._tower_label = "拆个魔塔 通天塔1"
+    controller._last_status = {"hp": "100", "atk": "10", "def": "5", "gold": "7"}
+    controller.statusTextChanged.emit()
+    helpers.APP.processEvents()
+
+    hero = helpers.find_item(window, "hero")
+    assert hero.isVisible()
+    assert round(hero.height()) == window.property("heroH")
+
+
+def test_地图_怪物_技能三张卡竖排_不重叠_间距一致():
+    """测什么：主界面的三张卡自上而下排开，相邻两张之间的缝都等于 gapB。
+
+    走过的界面：主界面内容区（读取记录没有任务时不占位）。
+    """
+    controller, engine, window = _window()
+    _floors(controller)
+    window.setProperty("mapCollapsed", True)
+    helpers.APP.processEvents()
+
+    cards = [helpers.find_item(window, name) for name in
+             ("mapSectionCard", "monSectionCard", "skillSectionCard")]
+    tops = [c.mapToScene(QPointF(0, 0)).y() for c in cards]
+    gaps = [tops[i + 1] - (tops[i] + cards[i].height())
+            for i in range(len(cards) - 1)]
+    assert tops == sorted(tops)
+    assert [round(g) for g in gaps] == [window.property("gapB")] * 2
+
+
 def test_导航条五个图标按钮同尺寸_同一条水平线():
     """测什么：导航条上的刷新 / ＋ / ⚔ / ⇄ / ✕ 是同一种图标按钮——一样大、纵向中心一致，
     从右到左依次排开不重叠。

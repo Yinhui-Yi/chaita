@@ -19,17 +19,17 @@ Item {
     // 自己那几个输入框的「灌草稿 / 收草稿」：原来在主窗口里、跨文件抓
     // headerName、fldHp 这些内部 id —— 那就等于没模块化，现在归这扇界面自己管。
 
-    // 头像框在场景里的位置和大小：素材库选图要贴着它摆。
-    // 主窗口问这里要（别跨文件摸 monIconBox 这个内部 id）。
+    // 头像框在卡片里的位置和大小（坐标系 = 弹层所在的卡片，不是窗口：窗口外圈还有投影边）：
+    // 素材库选图要贴着它摆。主窗口问这里要（别跨文件摸 monIconBox 这个内部 id）。
     function iconAnchorBox() {
-        var at = monIconBox.mapToItem(null, 0, 0)
+        var at = monIconBox.mapToItem(monDialog, 0, 0)
         return { "x": at.x, "y": at.y,
                  "width": monIconBox.width, "height": monIconBox.height }
     }
 
-    // 「加技能」按钮在场景里的矩形：技能下拉贴着它摆（同 iconAnchorBox 的规矩）
+    // 「加技能」按钮在卡片里的矩形：技能下拉贴着它摆（同 iconAnchorBox 的规矩）
     function skillAnchorBox() {
-        var at = skillBtn.mapToItem(null, 0, 0)
+        var at = skillBtn.mapToItem(monDialog, 0, 0)
         return { "x": at.x, "y": at.y,
                  "width": skillBtn.width, "height": skillBtn.height }
     }

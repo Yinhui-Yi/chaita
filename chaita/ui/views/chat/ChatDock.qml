@@ -27,16 +27,20 @@ Rectangle {
     anchors.rightMargin: host.padH
     anchors.bottomMargin: host.padV
     height: host.dockH
-    // 平的：没有外框和底色，只在最上面画一条分隔线，和上面的内容区分开
-    color: "transparent"
+    // 和上面的卡同一个长相：白底圆角 + 细外框 + 底沿一线暗边
+    radius: 8
+    color: Theme.paper
+    border.width: 1
+    border.color: Theme.cardEdge
     visible: !host.collapsed
 
     Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        height: 1
-        color: host.hairline
+        z: -1
+        anchors.fill: parent
+        anchors.topMargin: 2
+        anchors.bottomMargin: -1
+        radius: parent.radius
+        color: Theme.cardShade
     }
 
     // 对话内容：会折行、可能比一屏长，所以放在一个会自己滚到底的小窗里

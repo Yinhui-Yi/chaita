@@ -5,13 +5,13 @@
 
 ---
 
-## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 7 个共用件）
+## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 12 个共用件）
 
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
 | 1 | 主窗口 | 真窗口 | `views/MainWindow.qml` | 它自己（`win.*`） | 程序启动 |
 | 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
-| 3 | 三栏 + 读取记录 | 主窗口的一块 | `views/main_columns/MainColumns.qml` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
+| 3 | 四张卡（地图 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `MonSection` / `SkillSection` / `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
 | 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
 | 5 | 底部对话 | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口；对外给 `logHeight` / `inputFocused` | 常驻 |
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
@@ -33,12 +33,16 @@
 
 （1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那些是共用件，不算界面：
 `Theme` 配色/字体/圆角/控件高度、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`IconBtn` 图标按钮（导航条）、
-`SectionHead` 分区标题条（地图/怪物/技能）、`ReadBtn` 分区标题上的「读取」、`NumberStepper` 加减数、
+`SectionHead` 分区标题条（地图/怪物/技能/读取记录）、`ReadBtn` 分区标题上的「读取」、`Card` 白卡、`Chip` 小胶囊、`NumberStepper` 加减数、
 `EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
 
-**视觉规矩（2026-11-01 重做，PyCharm 浅色一路）**：冷灰白底 + 近黑字 + **唯一一个强调蓝**；
-层次靠 1px 分隔线和极淡的灰底，不靠卡片套卡片；按钮/输入框/图标按钮同高 `Theme.controlH`（24），
-圆角 `Theme.radius`（4）；悬停才出浅灰底。颜色/圆角**只从 `Theme` 取，不在界面里写十六进制**。
+**视觉规矩（2026-11-01 重做，PyCharm 浅色一路 + 分层）**：三层面——灰底窗口（`Theme.canvas`）→
+白色卡片（`shared/Card.qml`：圆角 8 + 细外框 + 底沿一线暗边）→ 卡里凹下去的小块（`Theme.tile`）；
+窗口最外圈留 `win.inset` 的透明边画投影，所以**弹层摆位一律按 `win.cardW / cardH` 和卡片坐标算，
+不是窗口宽高/场景坐标**。字号分档：塔名 17 / 卡标题 14 / 正文 12–13 / 说明 10–11，数字用等宽。
+**唯一一个强调蓝**，只给主操作和当前状态；小标签用 `shared/Chip.qml`。
+按钮/输入框/图标按钮同高 `Theme.controlH`（24），圆角 `Theme.radius`（4），悬停才出浅灰底。
+颜色/圆角**只从 `Theme` 取，不在界面里写十六进制**。
 `Theme.amber` / `amberInk` 是旧名字（现在是强调蓝），逐个窗口换样式时改成 `accent`。
 
 **地图就在主界面那一栏里画**（用户 2026-10-30："把主界面的地图做大！"、"多张地图不要

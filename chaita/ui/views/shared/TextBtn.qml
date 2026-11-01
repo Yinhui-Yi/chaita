@@ -19,25 +19,41 @@ Item {
     // 禁用（灰掉且点不动）
     property bool disabled: false
 
+    // 药丸样式：左右留白 + 悬停浅灰底（成排的小动作用，比如地图底下那一排）
+    property bool pill: false
+
     signal clicked()
 
-    implicitWidth: label.implicitWidth
-    implicitHeight: label.implicitHeight
+    readonly property int padX: btn.pill ? 8 : 0
+    implicitWidth: label.implicitWidth + btn.padX * 2
+    implicitHeight: btn.pill ? 22 : label.implicitHeight
     width: implicitWidth
     height: implicitHeight
     opacity: btn.disabled ? 0.45 : 1.0
 
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.radius
+        color: btn.pill && btn.active ? Theme.amberSoft
+             : (btn.pill && mouse.containsMouse ? Theme.hover : "transparent")
+        Behavior on color { ColorAnimation { duration: 100 } }
+    }
+
     Text {
         id: label
         anchors.fill: parent
+        anchors.leftMargin: btn.padX
+        anchors.rightMargin: btn.padX
+        horizontalAlignment: btn.pill ? Text.AlignHCenter : Text.AlignLeft
+        verticalAlignment: btn.pill ? Text.AlignVCenter : Text.AlignTop
         text: btn.text
         color: btn.active && btn.accent !== "transparent" ? btn.accent
              : (btn.disabled ? Theme.ink3
              : (mouse.containsMouse
                 ? (btn.accent !== "transparent" ? btn.accent : Theme.ink)
-                : Theme.ink3))
+                : (btn.pill ? Theme.ink2 : Theme.ink3)))
         font.family: Theme.uiFont
-        font.pixelSize: 10
+        font.pixelSize: btn.pill ? 11 : 10
         font.bold: btn.active
         elide: Text.ElideRight
     }

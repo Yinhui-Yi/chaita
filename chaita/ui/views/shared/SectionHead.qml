@@ -13,11 +13,13 @@ Item {
     property string key: ""
     property string title: ""
     property bool collapsed: false
+    // false = 不能折叠（没有小三角、点标题没反应），比如「读取记录」
+    property bool collapsible: true
     // 右边的内容（右对齐，垂直居中）
     default property alias rightContent: rightRow.data
     signal toggled()
 
-    height: 28
+    height: 32
 
     Item {
         id: toggle
@@ -29,6 +31,7 @@ Item {
 
         Text {
             objectName: head.key + "Chevron"
+            visible: head.collapsible
             anchors.verticalCenter: parent.verticalCenter
             width: 12
             text: head.collapsed ? "▸" : "▾"
@@ -38,17 +41,18 @@ Item {
         Text {
             id: label
             objectName: head.key + "SectionLabel"
-            x: 14
+            x: head.collapsible ? 14 : 0
             anchors.verticalCenter: parent.verticalCenter
             text: head.title
             color: Theme.ink
             font.family: Theme.uiFont
-            font.pixelSize: 12
+            font.pixelSize: 14
             font.bold: true
         }
         MouseArea {
             id: toggleMouse
             anchors.fill: parent
+            enabled: head.collapsible
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: head.toggled()
@@ -60,13 +64,5 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
-    }
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: 1
-        color: Theme.hairline
     }
 }

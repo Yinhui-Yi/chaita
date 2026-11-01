@@ -36,7 +36,7 @@ Item {
     property var openField: null
     // 这一栏多高：大图（含错开的角）+ 底下那条 22
     height: host.mapCollapsed || host.floorList.length === 0
-            ? 0 : stackH + 22
+            ? 0 : stackH + 32
 
     // 现在这一层的记录
     readonly property var entry: host.mapEntry(host.mapFloor)
@@ -117,23 +117,23 @@ Item {
                 String((modelData || {}).floor || "") === panel.host.mapFloor
 
             Rectangle {
-                x: 0
-                anchors.verticalCenter: parent.verticalCenter
-                width: 2
-                height: Math.min(14, parent.height - 8)
-                radius: 1
-                color: Theme.amber
+                anchors.fill: parent
+                anchors.rightMargin: 4
+                anchors.topMargin: 1
+                anchors.bottomMargin: 1
+                radius: Theme.radius
+                color: Theme.amberSoft
                 visible: parent.active
             }
             Text {
                 objectName: "floorRailName"
-                x: 8
+                x: 10
                 anchors.verticalCenter: parent.verticalCenter
-                width: 20
+                width: 24
                 text: String((modelData || {}).label || "")
-                color: parent.active ? Theme.ink : Theme.ink2
+                color: parent.active ? Theme.amber : Theme.ink2
                 font.family: Theme.monoFont
-                font.pixelSize: 10
+                font.pixelSize: 12
                 font.bold: parent.active
                 elide: Text.ElideRight
             }
@@ -520,9 +520,9 @@ Item {
     // ---------- 底下那一条：这一层的一句话 + 操作 ----------
     Item {
         x: panel.railW + panel.gap
-        y: panel.stackH + 2
+        y: panel.stackH + 8
         width: panel.width - panel.railW - panel.gap
-        height: 18
+        height: 22
 
         Text {
             objectName: "mapFoot"
@@ -541,7 +541,7 @@ Item {
                  : (!panel.hasStairs && !panel.editing ? Theme.amber
                                                        : Theme.ink3)
             font.family: Theme.uiFont
-            font.pixelSize: 9
+            font.pixelSize: 11
             elide: Text.ElideRight
         }
 
@@ -552,15 +552,17 @@ Item {
             id: tools
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 10
+            spacing: 4
 
             TextBtn {
                 objectName: "mapSheet"
+                pill: true
                 text: "清单 ›"
                 onClicked: panel.host.openMapSheet()
             }
             TextBtn {
                 objectName: "mapGridEdit"
+                pill: true
                 text: panel.editing ? "完成" : "编辑"
                 accent: Theme.amber
                 active: panel.editing
@@ -568,6 +570,7 @@ Item {
             }
             TextBtn {
                 objectName: "mapRefresh"
+                pill: true
                 text: "刷新"
                 accent: Theme.amber
                 onClicked: controller.refreshFloorCounts(panel.host.mapFloor)

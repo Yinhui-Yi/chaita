@@ -15,6 +15,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
+import QtQuick.Effects
 // 同目录的其它 QML（多文件加载，见 chaita/ui/loader.py）
 import "."
 // 一层 UI 一个文件夹（见 docs/UI_MAP.md）：
@@ -65,11 +66,16 @@ Window {
     readonly property color markMdef: Theme.markMdef
 
     // ---- 尺寸 ----
-    readonly property int padH: 12
-    readonly property int padV: 12
+    // 窗口最外圈留给投影的透明边；卡片（灰底）画在它里面
+    readonly property int inset: 10
+    // 卡片里面、灰底上各块之间的留白
+    readonly property int padH: 10
+    readonly property int padV: 10
     readonly property int navH: 28
-    readonly property int navGap: 2
-    readonly property int headerH: 24
+    readonly property int navGap: 8
+    readonly property int headerH: 26
+    readonly property int statusH: 78
+    readonly property int heroPad: 12
     // 对话卡高度：跟着**实测**的行高走（文字会折行，不能按条数乘固定值）。
     // 行太多时给个上限（180），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
     readonly property int chatLogMax: 180
@@ -78,8 +84,11 @@ Window {
     readonly property int dockH: Math.max(46, 8 + win.chatLogH
                                               + (win.chatLogH > 0 ? 5 : 0) + 33)
     readonly property int gapA: 10
-    readonly property int gapB: 12
-    readonly property int bodyW: win.width - win.padH * 2
+    readonly property int gapB: 8
+    // 灰底卡片自己的宽高（窗口扣掉投影边）：弹层摆位、内容宽度都按它算
+    readonly property int cardW: win.width - win.frame
+    readonly property int cardH: win.height - win.frame
+    readonly property int bodyW: win.cardW - win.padH * 2
     readonly property int tileW: Math.floor((win.bodyW - 16) / 3)
 
     // ---- 对外契约（startup / controller 会设这些属性） ----
@@ -202,9 +211,7 @@ Window {
     // （用户："还没读到塔这东西删掉"、"折叠模式下的空白删掉"）。
     // 刷新 ↻ 已经挪到导航条上，所以这行不再因为"有数值"而占位。
     readonly property bool headerVisible: win.tower !== ""
-    readonly property int headerBlock: win.headerVisible
-                                       ? win.navGap + win.headerH : 0
-    // 状态区（两行）：第一行 生命/攻击/防御/魔防，第二行 金币 + 四色钥匙
+    // 状态区（两行）：第一行 生命/攻击/防御/魔防四个小块，第二行 金币 + 四色钥匙
     readonly property bool statusVisible: win.statusValue("hp") !== ""
                                          || win.statusValue("atk") !== ""
                                          || win.statusValue("def") !== ""
@@ -214,14 +221,23 @@ Window {
                                          || win.keyValue("blue") !== ""
                                          || win.keyValue("red") !== ""
                                          || win.keyValue("green") !== ""
-    readonly property int statusH: 34
-    readonly property int statusBlock: win.statusVisible ? win.statusH : 0
-    // 抬头 + 状态行 + 导航条 + 上下留白 + 底部对话卡：这些是固定高度，剩下的都归内容区
-    readonly property int chromeH: win.padV * 2 + win.navH + win.headerBlock
-                                   + win.statusBlock + win.gapA * 2 + win.dockH
-    // 折叠态只有导航条 + 抬头 + 状态行（没有内容区、没有对话卡）
-    readonly property int collapseChrome: win.padV * 2 + win.navH + win.headerBlock
-                                          + win.statusBlock
+    // 状态卡（塔名 + 状态）：有塔名或有数值才画，一样都没有就整张不占位
+    readonly property bool heroVisible: win.headerVisible || win.statusVisible
+    // 卡的高度 = 上下内边距 + 塔名行（含下面 6px 间隔）+ 状态区（小块 46 + 8 + 胶囊行 24）
+    readonly property int heroH: win.heroVisible
+        ? win.heroPad * 2 + (win.headerVisible ? win.headerH + 6 : 0)
+          + (win.statusVisible ? win.statusH : 0)
+        : 0
+    // 导航条下面到状态卡之间还有 navGap；没有状态卡就不留
+    readonly property int heroBlock: win.heroVisible ? win.navGap + win.heroH : 0
+    // 窗口最外圈留给投影的透明边，上下左右各 inset
+    readonly property int frame: win.inset * 2
+    // 导航条 + 状态卡 + 上下留白 + 底部对话卡 + 投影边：这些是固定高度，剩下的都归内容区
+    readonly property int chromeH: win.frame + win.padV * 2 + win.navH + win.heroBlock
+                                   + win.gapA * 2 + win.dockH
+    // 折叠态只有导航条 + 状态卡（没有内容区、没有对话卡）
+    readonly property int collapseChrome: win.frame + win.padV * 2 + win.navH
+                                          + win.heroBlock
     // 兼容 startup 的 _apply_ui_state（它会把上次的尺寸写进来）。
     property int savedWidth: expandedWidth
     property int savedHeight: expandedHeight
@@ -3596,10 +3612,10 @@ Window {
     function placeIconPicker() {
         if (!win.iconPicker)
             return
-        var w = Math.min(280, win.width - 16)
-        var height = Math.min(330, win.height - 16)
-        var x = (win.width - w) / 2
-        var y = (win.height - height) / 2
+        var w = Math.min(280, win.cardW - 16)
+        var height = Math.min(330, win.cardH - 16)
+        var x = (win.cardW - w) / 2
+        var y = (win.cardH - height) / 2
         // 头像在修改卡片抬头里；卡片没开（预览/测试直接置位）才摆窗口中间
         if (win.monEdit >= 0) {
             var box = monEditor.iconAnchorBox()
@@ -3607,7 +3623,7 @@ Window {
             var boxH = box.height
             // 面板和窗口边各留 8，所以能用的空间要扣掉两头
             var above = at.y - 16
-            var below = win.height - (at.y + boxH + 16)
+            var below = win.cardH - (at.y + boxH + 16)
             // 上方放得下够用的高度就放上方（用户要的位置），否则翻到下方
             var useAbove = above >= 200 || above >= below
             height = Math.max(120, Math.min(330, useAbove ? above : below))
@@ -3616,8 +3632,8 @@ Window {
         }
         win.iconMenuW = w
         win.iconMenuH = height
-        win.iconMenuX = Math.max(8, Math.min(win.width - 8 - w, x))
-        win.iconMenuY = Math.max(8, Math.min(win.height - 8 - height, y))
+        win.iconMenuX = Math.max(8, Math.min(win.cardW - 8 - w, x))
+        win.iconMenuY = Math.max(8, Math.min(win.cardH - 8 - height, y))
     }
 
     function iconUrlOf(entryId) {
@@ -3764,13 +3780,34 @@ Window {
     // ---- 子界面里用的小按钮（幽灵 / 实心两档） ----
 
     // ---- 面板 ----
+    // 投影：一块同形状的底垫在卡片后面，自己做一层模糊阴影（卡片本身不进 layer，
+    // 不然里面的地图每次重画都要连带重算阴影）
+    Rectangle {
+        id: cardShadow
+        x: win.inset
+        y: win.inset
+        width: win.cardW
+        height: win.cardH
+        radius: card.radius
+        color: Theme.canvas
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Theme.windowShadow
+            shadowBlur: 1.0
+            shadowVerticalOffset: 3
+            shadowHorizontalOffset: 0
+        }
+    }
+
     Rectangle {
         id: card
         anchors.fill: parent
-        radius: 8
-        color: win.paper
+        anchors.margins: win.inset
+        radius: 10
+        color: Theme.canvas
         border.width: 1
-        border.color: win.edge
+        border.color: Theme.cardEdge
         clip: true
 
         // 入场：淡入 + 从 0.992 放大（属性默认是终态，动画没跑也不会把面板弄没）
