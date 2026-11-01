@@ -21,7 +21,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 8
+        radius: 10
         color: Qt.rgba(0.11, 0.10, 0.08, 0.32)
         MouseArea {
             anchors.fill: parent
@@ -81,7 +81,7 @@ Item {
                         text: "数量"
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                     }
                     Rectangle {
                         width: 40
@@ -100,7 +100,7 @@ Item {
                             background: null
                             color: host.ink
                             font.family: host.monoFont
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                             selectByMouse: true
                             text: String(Number((ctx.editData || {}).count || 1))
                             onTextChanged: {
@@ -121,7 +121,7 @@ Item {
                               ? "个" : "只（同样的一只只算）"
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                     }
                 }
 
@@ -140,7 +140,7 @@ Item {
                                 text: modelData[1]
                                 color: host.ink3
                                 font.family: host.uiFont
-                                font.pixelSize: 8
+                                font.pixelSize: 11
                             }
                             Rectangle {
                                 width: 76
@@ -160,7 +160,7 @@ Item {
                                     background: null
                                     color: host.ink
                                     font.family: host.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                     selectByMouse: true
                                     text: String(Number((ctx.editData || {})[modelData[0]] || 0))
                                     onTextChanged: {
@@ -191,7 +191,7 @@ Item {
                         text: "效果"
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                     }
                     EffectEditor {
                         id: routeEffectEditor
@@ -223,7 +223,7 @@ Item {
                                   + modelData.label
                             color: host.ink3
                             font.family: host.uiFont
-                            font.pixelSize: 8
+                            font.pixelSize: 10
                             elide: Text.ElideRight
                         }
                         Rectangle {
@@ -245,7 +245,7 @@ Item {
                                 background: null
                                 color: host.ink
                                 font.family: host.monoFont
-                                font.pixelSize: 9
+                                font.pixelSize: 11
                                 selectByMouse: true
                                 text: String(modelData.value)
                                 onTextChanged: {
@@ -280,7 +280,7 @@ Item {
                                 visible: parent.on
                                 text: "✓"
                                 color: host.paperHi
-                                font.pixelSize: 9
+                                font.pixelSize: 11
                             }
                             MouseArea {
                                 anchors.fill: parent
@@ -315,7 +315,7 @@ Item {
                                         color: on ? host.paperHi
                                                   : host.ink2
                                         font.family: host.uiFont
-                                        font.pixelSize: 8
+                                        font.pixelSize: 11
                                     }
                                     MouseArea {
                                         anchors.fill: parent
@@ -333,7 +333,7 @@ Item {
                             text: String(modelData.unit || "")
                             color: host.ink3
                             font.family: host.uiFont
-                            font.pixelSize: 8
+                            font.pixelSize: 10
                         }
                     }
                 }
@@ -344,7 +344,7 @@ Item {
                     text: "技能参数就按怪物编辑里填的那份算（改这里只影响这条路线）"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 8
+                    font.pixelSize: 10
                     wrapMode: Text.Wrap
                 }
             }
