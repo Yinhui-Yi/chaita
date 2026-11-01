@@ -31,8 +31,10 @@ Window {
             return
         var scale = Math.min(1, previewWindow.maxSide / realWidth,
                              previewWindow.maxSide / realHeight)
-        previewWindow.width = Math.max(120, Math.round(realWidth * scale)) + 10
-        previewWindow.height = Math.max(90, Math.round(realHeight * scale)) + 10
+        // 图 + 卡片里四边各 6 的留白 + 外圈投影边
+        var frame = 12 + 2 * Theme.windowInset
+        previewWindow.width = Math.max(120, Math.round(realWidth * scale)) + frame
+        previewWindow.height = Math.max(90, Math.round(realHeight * scale)) + frame
         previewWindow.place()
     }
 
@@ -66,19 +68,25 @@ Window {
         return true
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: previewCard
+        radius: previewCard.radius
+    }
+
     Rectangle {
+        id: previewCard
         anchors.fill: parent
-        radius: 8
-        color: Theme.paperHi
-        border.width: 1
-        border.color: Theme.edge
+        anchors.margins: Theme.windowInset
+        radius: 10
+        color: Theme.canvas
         clip: true
 
         Image {
             id: shot
             objectName: "previewImage"
             anchors.fill: parent
-            anchors.margins: 5
+            anchors.margins: 6
             source: previewWindow.source
             fillMode: Image.PreserveAspectFit
             // 素材库那套一律不插值放大，看着才是原样

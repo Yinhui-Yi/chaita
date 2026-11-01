@@ -168,7 +168,7 @@ Item {
                     text: "换"
                     color: host.ink
                     font.family: host.uiFont
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 MouseArea {
                     id: iconPickMouse
@@ -269,7 +269,7 @@ Item {
                         text: fieldRow.label
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                     }
                     Rectangle {
                         anchors.left: parent.left
@@ -360,7 +360,7 @@ Item {
                         text: "技能"
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                         font.letterSpacing: 2
                     }
                     FlatBtn {
@@ -409,7 +409,7 @@ Item {
                         TextMetrics {
                             id: effectMetrics
                             font.family: host.uiFont
-                            font.pixelSize: 9
+                            font.pixelSize: 10
                             text: skillRowItem.effectText
                         }
                         radius: 6
@@ -452,7 +452,7 @@ Item {
                                 readOnly: !skillRowItem.custom
                                 color: host.ink
                                 font.family: host.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: 11
                                 selectByMouse: true
                                 text: modelData ? modelData.name : ""
                                 onEditingFinished: host.setSkill(
@@ -492,7 +492,7 @@ Item {
                                 color: skillRowItem.effectText !== ""
                                        ? host.ink2 : host.ink3
                                 font.family: host.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                                 lineHeight: 1.1
                             }
                             // 自定义技能：介绍是自己写的，能改（用户："自定义
@@ -519,7 +519,7 @@ Item {
                                 placeholderText: "写这个技能的介绍（可不填）"
                                 color: host.ink2
                                 font.family: host.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                                 selectByMouse: true
                                 text: skillRowItem.effectText
                                 // 边打边记（和参数格一样，不重画，免得丢焦点）
@@ -550,7 +550,7 @@ Item {
                                             text: String(modelData.label || "")
                                             color: host.ink3
                                             font.family: host.uiFont
-                                            font.pixelSize: 8
+                                            font.pixelSize: 10
                                         }
 
                                         // 数字
@@ -581,7 +581,7 @@ Item {
                                                 selectByMouse: true
                                                 color: host.ink
                                                 font.family: host.monoFont
-                                                font.pixelSize: 9
+                                                font.pixelSize: 11
                                                 text: paramCell.current === undefined
                                                       || paramCell.current === null
                                                       ? ""
@@ -599,7 +599,7 @@ Item {
                                             text: String(modelData.unit || "")
                                             color: host.ink3
                                             font.family: host.uiFont
-                                            font.pixelSize: 8
+                                            font.pixelSize: 10
                                         }
 
                                         // 开关
@@ -618,7 +618,7 @@ Item {
                                                 visible: !!paramCell.current
                                                 text: "✓"
                                                 color: host.paperHi
-                                                font.pixelSize: 9
+                                                font.pixelSize: 11
                                             }
                                             MouseArea {
                                                 anchors.fill: parent
@@ -651,7 +651,7 @@ Item {
                                                         color: paramCell.current === modelData
                                                                ? host.paperHi : host.ink3
                                                         font.family: host.uiFont
-                                                        font.pixelSize: 8
+                                                        font.pixelSize: 10
                                                     }
                                                     MouseArea {
                                                         anchors.fill: parent
@@ -680,7 +680,7 @@ Item {
                             text: "✕"
                             color: skillDelMouse.containsMouse
                                    ? host.danger : host.ink3
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                             MouseArea {
                                 id: skillDelMouse
                                 anchors.fill: parent
@@ -700,7 +700,7 @@ Item {
                     text: "还没有技能，点「＋ 加技能」从下拉里选。"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     verticalAlignment: Text.AlignVCenter
                 }
 

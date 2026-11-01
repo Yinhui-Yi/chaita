@@ -44,8 +44,7 @@ Item {
             text: "加技能"
             color: host.ink3
             font.family: host.uiFont
-            font.pixelSize: 9
-            font.letterSpacing: 1
+            font.pixelSize: 11
         }
 
         Flickable {
@@ -77,7 +76,7 @@ Item {
                         text: "自定义…"
                         color: host.ink
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                     MouseArea {
                         id: customPickMouse
@@ -108,7 +107,7 @@ Item {
                             text: modelData
                             color: host.ink
                             font.family: host.uiFont
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                         }
                         MouseArea {
                             id: skillPickMouse

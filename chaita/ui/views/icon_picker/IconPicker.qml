@@ -34,7 +34,8 @@ Item {
         width: iconCard.width + 2
         height: iconCard.height + 2
         radius: 12
-        color: Qt.rgba(0.1, 0.08, 0.04, 0.06)
+        color: Theme.windowShadow
+        opacity: 0.15
     }
     Rectangle {
         x: iconCard.x - 2
@@ -42,7 +43,8 @@ Item {
         width: iconCard.width + 4
         height: iconCard.height + 4
         radius: 13
-        color: Qt.rgba(0.1, 0.08, 0.04, 0.04)
+        color: Theme.windowShadow
+        opacity: 0.1
     }
 
     Rectangle {
@@ -55,8 +57,7 @@ Item {
         width: host.iconMenuW
         height: host.iconMenuH
         radius: 10
-        // QQ 是纯白面板（不是我们页面那种米色纸）
-        color: "#FFFFFF"
+        color: Theme.paper
         border.width: 1
         border.color: host.hairline
         clip: true
@@ -76,7 +77,7 @@ Item {
             text: host.iconCountText()
             color: host.ink3
             font.family: host.monoFont
-            font.pixelSize: 9
+            font.pixelSize: 10
         }
         Item {
             objectName: "iconClose"
@@ -116,7 +117,7 @@ Item {
                 text: "搜索"
                 color: host.iconSearchMode ? host.ink : host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
             }
             MouseArea {
                 anchors.fill: parent
@@ -141,7 +142,7 @@ Item {
                 text: "表情"
                 color: host.iconSearchMode ? host.ink3 : host.ink
                 font.family: host.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
             }
             MouseArea {
                 anchors.fill: parent
@@ -200,7 +201,7 @@ Item {
                 text: "搜索表情"
                 color: host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
             }
             TextInput {
                 id: iconSearch
@@ -214,7 +215,7 @@ Item {
                 verticalAlignment: TextInput.AlignVCenter
                 color: host.ink
                 font.family: host.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
                 selectByMouse: true
                 clip: true
                 // 双向：打字 → iconQuery；外面（预览/测试）改 iconQuery → 框里跟着变
@@ -255,7 +256,7 @@ Item {
                                   + (modelData.items || []).length
                             color: host.ink3
                             font.family: host.uiFont
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                         }
 
                         Grid {
@@ -276,9 +277,9 @@ Item {
                                     radius: 6
                                     // 照 QQ：格子上不画框，只有"选中的那张"和鼠标下面有点底色
                                     color: host.monIconId === modelData.id
-                                           ? "#EFE7D6"
+                                           ? Theme.amberSoft
                                            : (cellMouse.containsMouse
-                                              ? "#F4F2EC" : "transparent")
+                                              ? Theme.hover : "transparent")
 
                                     Image {
                                         objectName: "iconCellImage"
