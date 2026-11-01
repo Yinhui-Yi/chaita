@@ -34,39 +34,53 @@ Window {
         return Qt.rect(originX, originY, scr.width, scr.height)
     }
     readonly property int maxH: Math.max(220, screenRect.height - 72)
+    // 窗口最外圈留给投影的透明边；灰底卡片（compareCard）画在它里面，和主窗口同一套
+    readonly property int inset: Theme.windowInset
+    // 灰底卡片里自上而下：标题行 34 → 白卡（8 间隔 + 8 内边距）→ 表头 20 → 表体 → 合计 32
+    readonly property int titleH: 34
+    readonly property int headRowY: titleH + 8 + 8
+    readonly property int bodyTop: headRowY + 20
+    readonly property int totalsH: 40
+    readonly property int bottomPad: 8 + 8
     // 列宽：格（缩略图 + 坐标）66、每条路线 72
     readonly property int nameW: 66
     // 缩略图边长：和「这一层」清单里的缩略图同一条规矩（20 太占，18 刚好）
     readonly property int thumbSide: 18
     readonly property int routeW: 72
-    readonly property int autoW: nameW + (host.compareRoutes || []).length * routeW + 26
-    readonly property int autoH: 30 + 22
-        + Math.max(24, Math.min(320, compareCol.implicitHeight)) + 34
+    readonly property int autoW: 2 * inset + 2 * 16 + nameW
+        + (host.compareRoutes || []).length * (routeW + 4) + 12
+    readonly property int autoH: 2 * inset + bodyTop + bottomPad + totalsH
+        + Math.max(24, Math.min(320, compareCol.implicitHeight))
 
     width: Math.max(300, host.compareWinW > 0 ? host.compareWinW : autoW)
     height: Math.max(110, host.compareWinH > 0
                      ? host.compareWinH : Math.min(maxH, autoH))
 
+    // 卡片贴屏幕边就算到头：外圈 10px 透明投影边可以伸出屏幕
     function clampPos() {
         var rect = compareWin.screenRect
         if (!rect)
             return
-        var left = rect.x + 2
-        var top = rect.y + 2
-        var right = Math.max(left, rect.x + rect.width - compareWin.width - 2)
-        var bottom = Math.max(top, rect.y + rect.height - compareWin.height - 2)
+        var left = rect.x + 2 - compareWin.inset
+        var top = rect.y + 2 - compareWin.inset
+        var right = Math.max(left, rect.x + rect.width - compareWin.width - 2
+                                   + compareWin.inset)
+        var bottom = Math.max(top, rect.y + rect.height - compareWin.height - 2
+                                   + compareWin.inset)
         compareWin.x = Math.round(Math.max(left, Math.min(compareWin.x, right)))
         compareWin.y = Math.round(Math.max(top, Math.min(compareWin.y, bottom)))
     }
 
     // 开窗时摆在主窗口右边；伤害计算开着就摆它右边，别两个叠一起
+    // （两张卡片之间留 8px，两边各自还有一圈投影边）
     function place() {
         var rect = compareWin.screenRect
         if (!rect)
             return
-        var baseX = host.x + host.width + 8
+        var baseX = host.x + host.width + 8 - 2 * compareWin.inset
         if (host.battleWindow && host.battleWindow.visible)
             baseX = host.battleWindow.x + host.battleWindow.width + 8
+                    - 2 * compareWin.inset
         compareWin.x = Math.round(Math.max(
             rect.x + 4,
             Math.min(baseX,
@@ -138,24 +152,29 @@ Window {
         }
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: compareCard
+        radius: compareCard.radius
+    }
+
     Rectangle {
         id: compareCard
         objectName: "compareCard"
         anchors.fill: parent
-        radius: 8
-        color: Theme.paperHi
-        border.width: 1
-        border.color: Theme.edge
+        anchors.margins: compareWin.inset
+        radius: 10
+        color: Theme.canvas
         clip: true
         MouseArea { anchors.fill: parent }
 
         // ---- 抬头：拖着走 + 粘贴 + 清空 + 关 ----
         Item {
             id: compareHeader
-            x: 6
-            y: 2
-            width: parent.width - 12
-            height: 28
+            x: 8
+            y: 0
+            width: parent.width - 16
+            height: compareWin.titleH
             MouseArea {
                 objectName: "compareDrag"
                 anchors.fill: parent
@@ -187,69 +206,49 @@ Window {
                 text: "路线对比"
                 color: Theme.ink
                 font.family: Theme.uiFont
-                font.pixelSize: 11
+                font.pixelSize: 14
                 font.bold: true
-                font.letterSpacing: 0.6
             }
-            Text {
-                objectName: "comparePaste"
-                anchors.right: compareClearText.left
-                anchors.rightMargin: 14
-                anchors.verticalCenter: parent.verticalCenter
-                text: "粘贴"
-                color: pasteMouse.containsMouse ? Theme.amber : Theme.ink2
-                font.family: Theme.uiFont
-                font.pixelSize: 9
-                MouseArea {
-                    id: pasteMouse
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.comparePaste()
-                }
-            }
-            Text {
-                id: compareClearText
-                objectName: "compareClear"
-                anchors.right: compareClose.left
-                anchors.rightMargin: 14
-                anchors.verticalCenter: parent.verticalCenter
-                text: "清空"
-                color: clearMouse.containsMouse ? Theme.danger : Theme.ink3
-                font.family: Theme.uiFont
-                font.pixelSize: 9
-                MouseArea {
-                    id: clearMouse
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.compareClear()
-                }
-            }
-            Item {
+            IconBtn {
                 id: compareClose
                 objectName: "compareClose"
                 anchors.right: parent.right
-                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: closeMouse.containsMouse ? Theme.danger : Theme.ink3
-                    font.pixelSize: 11
-                }
-                MouseArea {
-                    id: closeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeCompare()
-                }
+                glyph: "✕"
+                glyphSize: 12
+                hoverInk: Theme.danger
+                hoverBack: Theme.dangerSoft
+                onClicked: host.closeCompare()
             }
+            TextBtn {
+                id: compareClearText
+                objectName: "compareClear"
+                pill: true
+                anchors.right: compareClose.left
+                anchors.rightMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                text: "清空"
+                accent: Theme.danger
+                onClicked: host.compareClear()
+            }
+            TextBtn {
+                objectName: "comparePaste"
+                pill: true
+                anchors.right: compareClearText.left
+                anchors.rightMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                text: "粘贴"
+                accent: Theme.amber
+                onClicked: host.comparePaste()
+            }
+        }
+
+        // 表格那张白卡（表头 + 表体 + 合计）
+        Card {
+            x: 8
+            y: compareWin.titleH
+            width: parent.width - 16
+            height: parent.height - compareWin.titleH - 8
         }
 
         // ---- 表头：格 | 路线1 | 路线2 … ----
@@ -257,8 +256,8 @@ Window {
         // 所以表头就叫「格」：下面是缩略图 + 第几行第几列。
         Row {
             id: headRow
-            x: 10
-            y: 30
+            x: 16
+            y: compareWin.headRowY
             spacing: 4
             visible: (host.compareRoutes || []).length > 0
             Text {
@@ -266,7 +265,7 @@ Window {
                 text: "格"
                 color: Theme.ink3
                 font.family: Theme.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 11
             }
             Repeater {
                 model: host.compareRoutes || []
@@ -276,7 +275,7 @@ Window {
                     text: modelData.label
                     color: Theme.ink2
                     font.family: Theme.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     elide: Text.ElideRight
                 }
             }
@@ -286,10 +285,11 @@ Window {
         Flickable {
             id: compareFlick
             objectName: "compareFlick"
-            x: 10
-            y: 52
-            width: parent.width - 20
-            height: Math.max(40, compareCard.height - 52 - 30)
+            x: 16
+            y: compareWin.bodyTop
+            width: parent.width - 32
+            height: Math.max(40, compareCard.height - compareWin.bodyTop
+                                 - compareWin.totalsH - compareWin.bottomPad)
             contentWidth: width
             contentHeight: compareCol.implicitHeight
             clip: true
@@ -308,7 +308,7 @@ Window {
                         id: rowItem
                         objectName: "compareRow"
                         width: compareCol.width
-                        height: 22
+                        height: 24
                         // 这一行是不是地图上正圈着的那一格（没坐标的行永远不算）
                         readonly property bool active:
                             hasSpot
@@ -328,11 +328,10 @@ Window {
                         // 底：悬停 / 正圈着才有一点颜色，平时干净
                         Rectangle {
                             anchors.fill: parent
-                            radius: 3
-                            color: Qt.rgba(0.84, 0.62, 0.18,
-                                           rowItem.active ? 0.18
-                                                          : (rowArea.containsMouse
-                                                             ? 0.12 : 0))
+                            radius: 4
+                            color: rowItem.active ? Theme.amberSoft
+                                   : (rowArea.containsMouse ? Theme.tile
+                                                            : "transparent")
                         }
                         MouseArea {
                             id: rowArea
@@ -369,7 +368,7 @@ Window {
                                       ? String(modelData.name).charAt(0) : "?"
                                 color: Theme.ink3
                                 font.family: Theme.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                             }
                         }
                         Text {
@@ -383,7 +382,7 @@ Window {
                                   : "—"
                             color: rowItem.active ? Theme.amber : Theme.ink2
                             font.family: Theme.monoFont
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                             elide: Text.ElideRight
                         }
                         Row {
@@ -402,7 +401,7 @@ Window {
                                            : (modelData.bad || modelData.lethal
                                               ? Theme.danger : Theme.ink))
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 9
+                                    font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
                             }
@@ -416,23 +415,33 @@ Window {
         Text {
             objectName: "compareEmpty"
             visible: (host.compareRoutes || []).length === 0
-            x: 10
-            y: 52
-            width: compareCard.width - 20
+            x: 16
+            y: compareWin.headRowY
+            width: compareCard.width - 32
             text: "还没有路线。复制一条算好的路线（路线链上的「复制」/ Ctrl+C），\n"
                   + "再点「粘贴」；也可以把路线链上的「拖」拖进来。"
             color: Theme.ink3
             font.family: Theme.uiFont
-            font.pixelSize: 9
+            font.pixelSize: 11
             lineHeight: 1.4
+        }
+
+        // 合计和表体之间的分隔线
+        Rectangle {
+            x: 16
+            y: compareCard.height - compareWin.bottomPad - compareWin.totalsH
+            width: compareCard.width - 32
+            height: 1
+            color: Theme.hairline
+            visible: (host.compareRoutes || []).length > 0
         }
 
         // ---- 合计：总掉血 / 剩血 ----
         Row {
             id: totalRow
             objectName: "compareTotals"
-            x: 10
-            y: compareCard.height - 26
+            x: 16
+            y: compareCard.height - compareWin.bottomPad - compareWin.totalsH + 8
             spacing: 4
             visible: (host.compareRoutes || []).length > 0
             Text {
@@ -440,7 +449,7 @@ Window {
                 text: "总掉血"
                 color: Theme.ink3
                 font.family: Theme.uiFont
-                font.pixelSize: 9
+                font.pixelSize: 11
             }
             Repeater {
                 model: host.compareTotals() || []
@@ -453,7 +462,7 @@ Window {
                               ? "—" : host.fmt(modelData.total)
                         color: modelData.dead ? Theme.danger : Theme.ink
                         font.family: Theme.monoFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         font.bold: true
                     }
                     Text {
@@ -462,7 +471,7 @@ Window {
                               ? "" : ("剩 " + host.fmt(modelData.hp))
                         color: modelData.dead ? Theme.danger : Theme.ink3
                         font.family: Theme.uiFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                     }
                 }
             }
