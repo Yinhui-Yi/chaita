@@ -89,6 +89,76 @@ def test_你的话靠右_AI的话靠左_每条都带时间():
     assert round(scene(theirs).x()) == round(scene(flick).x() + 12)
 
 
+def test_点标题行收起和展开对话区_收起后只剩标题行():
+    """测什么：点「对话」标题行 → 气泡区和输入栏都藏起来，整块只剩标题行那么高；再点一下恢复。
+
+    走过的界面：底部对话区标题行。
+    """
+    controller, engine, window = helpers.make_controller()
+    controller._chat_log = [{"who": "你", "text": "红头怪还剩几只？", "at": "14:32"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+    dock = helpers.find_item(window, "chatBar")
+    head_h = window.property("chatHeadH")
+    assert window.property("chatCollapsed") is False
+    assert helpers.find_item(window, "chatInput").isVisible()
+    expanded_h = dock.height()
+    assert expanded_h > head_h
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))
+    assert window.property("chatCollapsed") is True
+    assert not helpers.find_item(window, "chatInput").isVisible()
+    assert not helpers.find_item(window, "chatFlick").isVisible()
+    assert round(dock.height()) == head_h == window.property("dockH")
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))
+    assert window.property("chatCollapsed") is False
+    assert helpers.find_item(window, "chatInput").isVisible()
+    assert round(dock.height()) == round(expanded_h)
+
+
+def test_收起着来了新消息_标题行亮小蓝点_展开后消失():
+    """测什么：对话区收起时 AI 回了一条 → 标题行上出现小蓝点；展开看过就没了。
+
+    走过的界面：底部对话区标题行。
+    """
+    controller, engine, window = helpers.make_controller()
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))     # 收起
+    dot = helpers.find_item(window, "chatUnreadDot")
+    assert not dot.isVisible()
+
+    controller._chat_log = [{"who": "AI", "text": "还剩 4 只", "at": "14:33"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+    assert dot.isVisible()
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))     # 展开
+    assert not dot.isVisible()
+
+
+def test_发送键_没字是灰的点了不发_有字才能发():
+    """测什么：输入框空着时发送键是「不可发」状态，点它什么都不发生；打了字就变「可发」。
+
+    走过的界面：输入栏里的发送键（纸飞机）。
+    """
+    controller, engine, window = helpers.make_controller()
+    send = helpers.find_item(window, "chatSend")
+    field = helpers.find_item(window, "chatInput")
+    assert send.property("ready") is False
+
+    helpers.click_item(window, send)
+    assert controller.chatReply == ""
+    assert controller.chatting is False
+
+    field.setProperty("text", "   ")
+    helpers.APP.processEvents()
+    assert send.property("ready") is False       # 只有空格也不算
+
+    field.setProperty("text", "红头怪还剩几只")
+    helpers.APP.processEvents()
+    assert send.property("ready") is True
+
+
 def test_chat_input_enter_sends_and_clears(monkeypatch):
     """测什么：输入框里打字回车 → 话发出去、模型回的字段写进状态、输入框清空。
 

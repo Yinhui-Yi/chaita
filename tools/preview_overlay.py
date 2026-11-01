@@ -41,6 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
 SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinned",
+             "chatfold", "chattyping",
              "collapsed-empty", "session", "floor", "flooritems",
              "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
@@ -568,6 +569,15 @@ def main() -> int:
             # 地图/怪物两栏都折叠：看空两格标题（用户："地图和怪物怎么不能折叠"）
             window.setProperty("mapCollapsed", True)
             window.setProperty("monCollapsed", True)
+        elif scenario == "chatfold":
+            # 对话区收起，且收起后又来了一条新消息：标题行上有小蓝点
+            window.setProperty("chatCollapsed", True)
+            controller._chat_log = controller._chat_log + [
+                {"who": "AI", "text": "新的一句", "at": "14:40"}]
+            controller.chatLogChanged.emit()
+        elif scenario == "chattyping":
+            # 输入框里有字：发送键变蓝
+            _find_by_name(window, "chatInput").setProperty("text", "红头怪还剩几只")
         elif scenario == "pinned":
             # 导航条「置顶」开着：药丸变成淡蓝底 + 蓝色粗体字
             window.setProperty("pinned", True)

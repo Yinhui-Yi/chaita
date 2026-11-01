@@ -153,6 +153,28 @@ def test_restore_pinned_只在上次记着置顶时才置顶(monkeypatch):
     assert "pinned" not in c._win.props
 
 
+def test_set_chat_collapsed_更新窗口属性_并记住(monkeypatch):
+    c, _, saved = _pin_mix(monkeypatch, {"x": 1, "pinned": True})
+
+    c.setChatCollapsed(True)
+
+    assert c._win.props["chatCollapsed"] is True
+    assert saved == [{"x": 1, "pinned": True, "chatCollapsed": True}]   # 别的状态不能被冲掉
+
+    c.setChatCollapsed(False)
+    assert saved[-1]["chatCollapsed"] is False
+
+
+def test_restore_chat_collapsed_只在上次收起过才收起(monkeypatch):
+    c, _, _ = _pin_mix(monkeypatch, {"chatCollapsed": True})
+    c.restoreChatCollapsed()
+    assert c._win.props["chatCollapsed"] is True
+
+    c, _, _ = _pin_mix(monkeypatch, {"x": 1})            # 没记录 = 展开
+    c.restoreChatCollapsed()
+    assert "chatCollapsed" not in c._win.props
+
+
 def test_set_pinned_没有窗口也不报错(monkeypatch):
     c, topmost_calls, _ = _pin_mix(monkeypatch, {})
     c._win = None

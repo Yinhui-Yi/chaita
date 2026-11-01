@@ -75,14 +75,31 @@ class WindowMixin:
         self._win = window
 
     # ---- 窗口位置/大小：记下来，下次启动照原样 ----
+    # ---- 窗口上的两个开关：置顶（默认关）、对话区收起（默认展开），都记下来 ----
+    def _remember_toggle(self, key: str, value: bool) -> None:
+        data = _load_ui_state()
+        data[key] = bool(value)
+        _save_ui_state(data)
+
+    @Slot(bool)
+    def setChatCollapsed(self, collapsed: bool) -> None:
+        """对话区收起 / 展开，并记住（下次启动照原样）。"""
+        if self._win is not None:
+            self._win.setProperty("chatCollapsed", bool(collapsed))
+        self._remember_toggle("chatCollapsed", collapsed)
+
+    @Slot()
+    def restoreChatCollapsed(self) -> None:
+        """启动时按上次的选择摆好（没记录 = 展开，什么都不用做）。"""
+        if self._win is not None and bool(_load_ui_state().get("chatCollapsed")):
+            self._win.setProperty("chatCollapsed", True)
+
     # ---- 置顶开关：默认不置顶，点导航条上的「置顶」才永远在最前面 ----
     @Slot(bool)
     def setPinned(self, pinned: bool) -> None:
         """切换置顶，并记下来（下次启动照原样）。"""
         self._apply_pinned(bool(pinned))
-        data = _load_ui_state()
-        data["pinned"] = bool(pinned)
-        _save_ui_state(data)
+        self._remember_toggle("pinned", pinned)
 
     @Slot()
     def restorePinned(self) -> None:

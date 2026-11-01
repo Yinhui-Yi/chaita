@@ -8,7 +8,6 @@
 
 import ctypes
 
-import pytest
 from PySide6.QtCore import Qt
 
 from ... import helpers
@@ -16,11 +15,6 @@ from ... import helpers
 _GWL_EXSTYLE = -20
 _WS_EX_TOPMOST = 0x00000008
 _WS_EX_TOOLWINDOW = 0x00000080
-
-
-@pytest.fixture(autouse=True)
-def _no_ui_state(monkeypatch):
-    monkeypatch.setenv("CHAITA_NO_UI_STATE", "1")
 
 
 def _exstyle(window):

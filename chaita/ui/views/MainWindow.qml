@@ -88,10 +88,14 @@ Window {
     // 对话太长时给个上限（220），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
     readonly property int chatLogMax: 220
     readonly property int chatLogH: Math.min(chatLogMax, chatLog.logHeight)
-    // 输入栏 48；有对话时再加：上边距 8 + 对话 + 下边距 8 + 中间那条分隔线 1
+    // 对话区（底部那块）收起时只剩一条标题行；记在 ui_state.json 的 chatCollapsed
+    property bool chatCollapsed: false
+    readonly property int chatHeadH: 28
     readonly property int chatBarH: 48
-    readonly property int dockH: win.chatBarH
-                                 + (win.chatLogH > 0 ? win.chatLogH + 17 : 0)
+    // 标题行 + （展开时）输入栏；有对话时再加：上边距 8 + 对话 + 下边距 8 + 中间那条分隔线 1
+    readonly property int dockH: win.chatHeadH
+        + (win.chatCollapsed ? 0
+           : win.chatBarH + (win.chatLogH > 0 ? win.chatLogH + 17 : 0))
     readonly property int gapA: 10
     readonly property int gapB: 8
     // 灰底卡片自己的宽高（窗口扣掉投影边）：弹层摆位、内容宽度都按它算

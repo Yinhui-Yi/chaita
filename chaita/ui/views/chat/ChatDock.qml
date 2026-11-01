@@ -24,6 +24,20 @@ Rectangle {
     // 输入框有没有焦点（Esc 先收别的层、别把窗口关了，靠它判断）
     readonly property bool inputFocused: chatInput.activeFocus
 
+    // 收起着的时候来了新消息，标题行上亮一个小蓝点：数一数"看过几条"
+    readonly property int count: host.chats ? host.chats.length : 0
+    property int seenCount: 0
+    readonly property bool unread: host.chatCollapsed && dock.count > dock.seenCount
+    onCountChanged: if (!host.chatCollapsed) dock.seenCount = dock.count
+    Component.onCompleted: dock.seenCount = dock.count
+    Connections {
+        target: host
+        function onChatCollapsedChanged() {
+            if (!host.chatCollapsed)
+                dock.seenCount = dock.count
+        }
+    }
+
     objectName: "chatBar"
     anchors.left: parent.left
     anchors.right: parent.right
@@ -48,18 +62,76 @@ Rectangle {
         color: Theme.cardShade
     }
 
+    // 标题行：点一下收起 / 展开整块对话（收起后只剩这一行）
+    Item {
+        id: head
+        objectName: "chatHead"
+        x: 0
+        y: 0
+        width: parent.width
+        height: host.chatHeadH
+
+        Text {
+            objectName: "chatChevron"
+            x: 12
+            anchors.verticalCenter: parent.verticalCenter
+            width: 12
+            text: host.chatCollapsed ? "▸" : "▾"
+            color: headMouse.containsMouse ? Theme.amber : Theme.ink3
+            font.pixelSize: 10
+        }
+        Text {
+            id: headLabel
+            x: 26
+            anchors.verticalCenter: parent.verticalCenter
+            text: "对话"
+            color: Theme.ink
+            font.family: Theme.uiFont
+            font.pixelSize: 12
+            font.bold: true
+        }
+        // 收起着时来了新消息：一颗小蓝点
+        Rectangle {
+            objectName: "chatUnreadDot"
+            visible: dock.unread
+            anchors.left: headLabel.right
+            anchors.leftMargin: 6
+            anchors.verticalCenter: parent.verticalCenter
+            width: 7
+            height: 7
+            radius: 3.5
+            color: Theme.amber
+        }
+        Text {
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            text: dock.count > 0 ? dock.count + " 条" : ""
+            color: Theme.ink3
+            font.family: Theme.monoFont
+            font.pixelSize: 10
+        }
+        MouseArea {
+            id: headMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: controller.setChatCollapsed(!host.chatCollapsed)
+        }
+    }
+
     // 对话内容：会折行、可能比一屏长，所以放在一个会自己滚到底的小窗里
     Flickable {
         id: chatFlick
         objectName: "chatFlick"
         x: 12
-        y: 8
+        y: host.chatHeadH + 8
         width: parent.width - 24
         height: host.chatLogH
         contentWidth: width
         contentHeight: chatCol.implicitHeight
         clip: true
-        visible: host.chatLogH > 0
+        visible: host.chatLogH > 0 && !host.chatCollapsed
         boundsBehavior: Flickable.StopAtBounds
         // 新的那句在最下面：内容或可视高度变了都滚到底（看完整历史的最后一句）
         onContentHeightChanged: dock.scrollChatToEnd()
@@ -143,7 +215,7 @@ Rectangle {
         anchors.bottomMargin: host.chatBarH
         height: 1
         color: Theme.hairline
-        visible: host.chatLogH > 0
+        visible: host.chatLogH > 0 && !host.chatCollapsed
     }
 
     // 输入栏
@@ -152,6 +224,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: host.chatBarH
+        visible: !host.chatCollapsed
 
         // 圆角输入框；发送键在框里右边，所以字要给它让出位置
         Rectangle {
@@ -183,31 +256,50 @@ Rectangle {
             }
             // 没有 placeholder：用户说"默认提示真low"，空着就空着
 
-            // 发送：框里右边的小圆按钮
+            // 发送：框里右边的小圆按钮，画一只纸飞机（矢量，不用字体字符）。
+            // 框里没字时是灰的、点了不发；有字才变蓝，让"能不能发"一眼看得出
             Rectangle {
                 id: sendBtn
                 objectName: "chatSend"
+                readonly property bool ready: chatInput.text.trim() !== ""
                 anchors.right: parent.right
                 anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 width: 24
                 height: 24
                 radius: 12
-                color: sendMouse.pressed ? Theme.amberPress
-                     : (sendMouse.containsMouse ? Theme.amberHover : Theme.amber)
+                color: !sendBtn.ready ? Theme.hover
+                     : (sendMouse.pressed ? Theme.amberPress
+                        : (sendMouse.containsMouse ? Theme.amberHover : Theme.amber))
                 Behavior on color { ColorAnimation { duration: 100 } }
-                Text {
+
+                Canvas {
+                    id: plane
                     anchors.centerIn: parent
-                    text: "↑"
-                    color: Theme.amberInk
-                    font.pixelSize: 13
-                    font.bold: true
+                    width: 14
+                    height: 14
+                    property color ink: sendBtn.ready ? Theme.amberInk : Theme.ink3
+                    onInkChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        // 24×24 的纸飞机轮廓缩到 14×14
+                        var k = width / 24
+                        ctx.fillStyle = plane.ink
+                        ctx.beginPath()
+                        ctx.moveTo(3 * k, 11 * k)
+                        ctx.lineTo(21 * k, 3 * k)
+                        ctx.lineTo(13 * k, 21 * k)
+                        ctx.lineTo(10.5 * k, 13.5 * k)
+                        ctx.closePath()
+                        ctx.fill()
+                    }
                 }
                 MouseArea {
                     id: sendMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
+                    cursorShape: sendBtn.ready ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: dock.sendChat()
                 }
             }
