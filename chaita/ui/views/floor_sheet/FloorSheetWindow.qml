@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Effects
 import QtQuick.Window
 // 配色/按钮在上一层（docs/UI_MAP.md）
 import ".."
@@ -150,7 +149,7 @@ Window {
     // 数量框的宽（含右边那两个箭头）：一个数字 + 两个箭头，别留一大截空白
     readonly property int countBoxW: 34
     // 窗口最外圈留给投影的透明边；灰底卡片（cardBox）画在它里面，和主窗口同一套
-    readonly property int inset: 10
+    readonly property int inset: Theme.windowInset
     // 灰底上的标题行高 / 底部按钮行高 / 两边和各块之间的留白
     readonly property int headH: 34
     readonly property int footH: 44
@@ -199,18 +198,9 @@ Window {
     }
 
     // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
-    Rectangle {
+    WindowShadow {
         anchors.fill: cardBox
         radius: cardBox.radius
-        color: Theme.canvas
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Theme.windowShadow
-            shadowBlur: 1.0
-            shadowVerticalOffset: 3
-            shadowHorizontalOffset: 0
-        }
     }
 
     Rectangle {

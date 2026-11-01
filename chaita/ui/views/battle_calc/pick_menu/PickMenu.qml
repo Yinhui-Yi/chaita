@@ -48,7 +48,7 @@ Item {
                      : "接在最后")
             color: host.ink3
             font.family: host.uiFont
-            font.pixelSize: 9
+            font.pixelSize: 11
         }
 
         // 两个标签页：怪物 / 资源（用户："应该只有两个标签页分别是
@@ -76,7 +76,7 @@ Item {
                         color: host.battlePickTab === "monster"
                                ? host.ink : host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -98,7 +98,7 @@ Item {
                         color: host.battlePickTab === "item"
                                ? host.ink : host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -138,7 +138,7 @@ Item {
                           : "手册里还没有怪，先读一次怪物手册"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     wrapMode: Text.WordWrap
                 }
 
@@ -189,7 +189,7 @@ Item {
                                       : ""))
                             color: host.ink
                             font.family: host.uiFont
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                             elide: Text.ElideRight
                         }
                     }

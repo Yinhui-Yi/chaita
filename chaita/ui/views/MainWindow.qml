@@ -75,7 +75,7 @@ Window {
 
     // ---- 尺寸 ----
     // 窗口最外圈留给投影的透明边；卡片（灰底）画在它里面
-    readonly property int inset: 10
+    readonly property int inset: Theme.windowInset
     // 卡片里面、灰底上各块之间的留白
     readonly property int padH: 10
     readonly property int padV: 10

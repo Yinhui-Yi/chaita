@@ -31,8 +31,10 @@ QtObject {
     // 卡片外框、卡片底沿的一线暗边（模拟投影，比真阴影便宜）
     readonly property color cardEdge: "#E2E5EA"
     readonly property color cardShade: "#DADDE3"
-    // 窗口最外层的投影
+    // 窗口投影
     readonly property color windowShadow: "#40101828"
+    // 窗口最外圈留给投影的透明边（主窗口和所有子窗口一样宽）
+    readonly property int windowInset: 10
     // 小胶囊（Chip）的底
     readonly property color chip: "#EEF0F4"
     // 悬停和按下的灰底（行、图标按钮）
