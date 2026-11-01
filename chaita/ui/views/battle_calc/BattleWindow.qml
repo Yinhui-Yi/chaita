@@ -10,7 +10,7 @@ import "pick_menu"
 // 它自己的覆盖层（一个界面一个文件夹）
 import "edit_card"
 
-// 伤害计算（另一扇独立窗口：无边框 + 置顶 + Qt.Tool，能摆在游戏旁边）。
+// 伤害计算（另一扇独立窗口：无边框 + Qt.Tool，置顶跟着主窗口开关，能摆在游戏旁边）。
 //
 // 从 MainWindow.qml 搬出来的第一块（2026-10-28）。为什么搬：主界面那份 7000+ 行，
 // 不同东西要各自一份文件。搬的代价只有一个 —— 它原来直接读主窗口的属性和函数
@@ -66,7 +66,10 @@ Window {
     objectName: "battleWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
     readonly property var screenRect: {
         var scr = battleWin.screen
         if (!scr)

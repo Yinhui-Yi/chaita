@@ -49,8 +49,7 @@ def _sheet(floors=None, mons=None, routes=None):
 
 def _type(window, item, text):
     """在输入框里打完字再按回车（走 editingFinished）。"""
-    item.forceActiveFocus()
-    helpers.APP.processEvents()
+    helpers.focus_field(item)
     item.setProperty("text", text)
     helpers.APP.processEvents()
     helpers.APP.sendEvent(item.window(),

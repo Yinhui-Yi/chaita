@@ -10,6 +10,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QGuiApplication
 
 from ..constants import DRAG_INTERVAL_MS
+from ..toolkit import desktop
 from ..toolkit.state import (_apply_ui_state, _geometry_from_state,
                              _load_ui_state, _place_right, _save_session,
                              _save_ui_state)
@@ -74,6 +75,27 @@ class WindowMixin:
         self._win = window
 
     # ---- 窗口位置/大小：记下来，下次启动照原样 ----
+    # ---- 置顶开关：默认不置顶，点导航条上的「置顶」才永远在最前面 ----
+    @Slot(bool)
+    def setPinned(self, pinned: bool) -> None:
+        """切换置顶，并记下来（下次启动照原样）。"""
+        self._apply_pinned(bool(pinned))
+        data = _load_ui_state()
+        data["pinned"] = bool(pinned)
+        _save_ui_state(data)
+
+    @Slot()
+    def restorePinned(self) -> None:
+        """启动时按上次的选择摆好置顶状态（没记录 = 不置顶，什么都不用做）。"""
+        if bool(_load_ui_state().get("pinned")):
+            self._apply_pinned(True)
+
+    def _apply_pinned(self, pinned: bool) -> None:
+        if self._win is None:
+            return
+        self._win.setProperty("pinned", pinned)
+        desktop.set_topmost(int(self._win.winId()), pinned)
+
     @Slot()
     def markGeometryReady(self) -> None:
         """启动摆位完成后调一次：之前的坐标都是窗口创建时的 0,0，不能记。"""

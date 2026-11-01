@@ -99,6 +99,21 @@ Item {
             onClicked: controller.updateStatus()
         }
 
+        // 置顶：默认关。开了窗口（连同所有子窗口）永远在别的应用上面；关了就和普通
+        // 窗口一样，切到别的应用会被盖住，点任务栏图标 / Alt+Tab 叫回来。
+        TextBtn {
+            id: pinBtn
+            objectName: "pinToggle"
+            anchors.right: gainBtn.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            pill: true
+            text: "置顶"
+            accent: Theme.amber
+            active: host.pinned
+            onClicked: controller.setPinned(!host.pinned)
+        }
+
         // 加属性收益：自己的工具，和伤害计算并列（用户："这是新功能！！！不要和
         // 之前的混在一起！！！"），所以给它自己的入口，放在 ⚔ 左边。
         IconBtn {

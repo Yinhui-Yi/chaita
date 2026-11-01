@@ -82,8 +82,7 @@ def _pick_row(window, name):
 
 def _type(window, item, text):
     """真的在这个输入框里打完字再按回车（走 editingFinished）。"""
-    item.forceActiveFocus()
-    helpers.APP.processEvents()
+    helpers.focus_field(item)
     item.setProperty("text", text)
     helpers.APP.processEvents()
     helpers.APP.sendEvent(item.window(),

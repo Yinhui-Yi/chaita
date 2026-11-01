@@ -13,7 +13,7 @@ import "edit_card"
 // 只摆怪/宝石/血瓶（空的走过格不摆），掉血写在格后、总掉血在右端。
 // 公式在 `chaita/game/battle.py` —— 和伤害计算共用同一份（`battle.run_plan`）。
 //
-// 它是**一扇真窗口**（无边框 + 置顶 + Qt.Tool，和伤害计算同一个形状），能摆在
+// 它是**一扇真窗口**（无边框 + Qt.Tool，置顶跟着主窗口开关，和伤害计算同一个形状），能摆在
 // 游戏旁边边看边走。状态都在主窗口的 `route*` 上，这里读 `host.xxx`。
 Window {
     id: routeWin
@@ -34,7 +34,10 @@ Window {
     objectName: "routeWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
 
     readonly property var screenRect: {
         var scr = routeWin.screen

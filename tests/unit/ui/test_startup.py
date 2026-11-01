@@ -284,6 +284,7 @@ class _Controller:
         self.window = None
         self.ready = False
         self.shutdown = False
+        self.pin_restored = False
 
     def attach(self, window):
         self.window = window
@@ -293,6 +294,9 @@ class _Controller:
 
     def markGeometryReady(self):
         self.ready = True
+
+    def restorePinned(self):
+        self.pin_restored = True
 
     def deleteLater(self):
         pass
@@ -337,6 +341,7 @@ def test_run_wires_the_window_in_order(monkeypatch):
     assert window.props["collapsed"] is False
     assert window.props["entered"] is True
     assert controller.ready is True
+    assert controller.pin_restored is True   # 上次点过「置顶」启动就照原样
     assert calls["placed"] is window       # 没有存档才贴右边
     assert app.filters == [("hit", window)]
     assert calls["torn"] == (app, engine, window, controller)

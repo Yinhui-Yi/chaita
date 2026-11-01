@@ -14,6 +14,27 @@ _SW_RESTORE = 9
 _HWND_TOPMOST = -1
 _HWND_NOTOPMOST = -2
 _SWP_NOMOVE_NOSIZE = 0x0001 | 0x0002
+_SWP_NOACTIVATE = 0x0010
+
+
+def set_topmost(hwnd: int, on: bool) -> bool:
+    """把一扇窗口设成置顶 / 取消置顶（不改位置、大小，也不抢焦点）。
+
+    用 Win32 直接切、不改 Qt 的窗口标志：改标志会让 Qt 重建原生窗口，句柄一换，
+    边缘命中测试和样式补丁（`NativeHitTest`）就全对不上了。
+    它名下的窗口（子窗口挂在主窗口下）会跟着一起置顶/取消，实测过。
+
+    HWND 参数必须按指针传（`c_void_p`）：直接传 Python 的 -1 会被当成 32 位整数，
+    64 位 Windows 上 `HWND_TOPMOST` 就对不上，调用成功了也没效果。
+    """
+    try:
+        user32 = ctypes.windll.user32
+        after = _HWND_TOPMOST if on else _HWND_NOTOPMOST
+        return bool(user32.SetWindowPos(
+            ctypes.c_void_p(hwnd), ctypes.c_void_p(after), 0, 0, 0, 0,
+            _SWP_NOMOVE_NOSIZE | _SWP_NOACTIVATE))
+    except Exception:
+        return False
 
 
 def _top_windows_of(pid: int) -> list:

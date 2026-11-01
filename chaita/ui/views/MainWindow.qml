@@ -40,7 +40,15 @@ Window {
     x: 0
     visible: true
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 普通顶层窗口（不是 Qt.Tool）：任务栏和 Alt+Tab 里都有它；不再永远置顶，
+    // 要置顶点导航条上的「置顶」（`pinned`，由 controller.setPinned 用 Win32 切，
+    // 窗口句柄不变）。子窗口的置顶标志绑定这个 `pinned`。
+    // 必须带 Qt.Window：只写 FramelessWindowHint 会丢掉窗口类型，Qt 当它是工具窗口，
+    // 又不进任务栏了。
+    flags: Qt.Window | Qt.FramelessWindowHint
+    title: win.appTitle
+    // 置顶开关的当前状态（只读显示；改它走 controller.setPinned）
+    property bool pinned: false
 
     // ---- 设计 tokens：颜色/字号只从这里取 ----
     // 暖纸底 + 墨字 + 一点琥珀金这套已经换了：现在是冷灰白底 + 近黑字 + 一个强调蓝。

@@ -14,7 +14,7 @@ import "pick_menu"
 // 坐标系、对比高亮、楼梯全搬到 `views/map_view/MapWindow.qml` 那一份大图上，
 // 一份地图只在一个地方画，不再两边各一套。这扇窗只剩**清单**。
 //
-// 它是**一扇真窗口**（无边框 + 置顶 + Qt.Tool）：能拖到桌面任何地方、能多开
+// 它是**一扇真窗口**（无边框 + Qt.Tool，置顶跟着主窗口开关）：能拖到桌面任何地方、能多开
 // （每层一个），所以和主面板各一份文件（docs/UI_MAP.md 第 2 项）。
 //
 // 状态不在这儿：名字、位置、拉过的尺寸都在主窗口的 `floorWindows` /
@@ -124,7 +124,10 @@ Window {
     }
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
     // 这扇窗是主窗口开的（测试按它把"自己开的窗"挑出来）
     property var ownerWindow: host
     // 能放多大、能拖到哪，由**屏幕**说话（以前是按主窗口算的）。

@@ -5,7 +5,7 @@ import QtQuick.Window
 // 配色/按钮在上一层：views/shared
 import "../shared"
 
-// 加属性收益（独立窗口：无边框 + 置顶 + Qt.Tool，能摆在游戏旁边）。
+// 加属性收益（独立窗口：无边框 + Qt.Tool，置顶跟着主窗口开关，能摆在游戏旁边）。
 //
 // 用户 2026-11-01："基于当前的属性计算，每增加 x 点攻击防御魔防，剩下的怪会减少多少
 // 伤害：对于每一只怪 / 对于每一种（一只 × 数量）/ 对于剩下所有怪，需要可以配上界，
@@ -32,7 +32,10 @@ Window {
     objectName: "gainWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
 
     // ---- 四格输入 + 结果：都在主窗口（`host.gain*`），关掉再开还在 ----
     readonly property var result: host.gainResult || ({})

@@ -158,6 +158,8 @@ def _run() -> int:
     # NativeEvent），且必须留引用，否则被 GC 后静默失效。
     hit_test = NativeHitTest(window)
     app.installNativeEventFilter(hit_test)
+    # 上次点过「置顶」就照原样；默认不置顶
+    controller.restorePinned()
 
     code = app.exec()
     _teardown(app, engine, window, controller)

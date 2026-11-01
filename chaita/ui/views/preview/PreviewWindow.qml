@@ -4,13 +4,16 @@ import "../shared"
 
 // 点缩略图看大图（用户 2026-10-31："我现在点队列里的缩略图怎么不放大"）。
 //
-// 无边框 + 置顶 + Qt.Tool，和其它窗口同一个长相；**点一下或按 Esc 就关**。
+// 无边框 + Qt.Tool，置顶跟着主窗口开关，和其它窗口同一个长相；**点一下或按 Esc 就关**。
 // 铁律：**任何显示路径都不许放大** —— 图多大就摆多大，只有比屏幕/上限还大才缩。
 Window {
     id: previewWindow
     objectName: "previewWindow"
 
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
     color: "transparent"
     visible: false
     title: "看图"

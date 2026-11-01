@@ -40,7 +40,7 @@ from chaita.ui import main as ov                            # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
-SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
+SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinned",
              "collapsed-empty", "session", "floor", "flooritems",
              "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
@@ -568,6 +568,9 @@ def main() -> int:
             # 地图/怪物两栏都折叠：看空两格标题（用户："地图和怪物怎么不能折叠"）
             window.setProperty("mapCollapsed", True)
             window.setProperty("monCollapsed", True)
+        elif scenario == "pinned":
+            # 导航条「置顶」开着：药丸变成淡蓝底 + 蓝色粗体字
+            window.setProperty("pinned", True)
         elif scenario == "reading":
             # 读取中只有"点了读取按钮"才有：地图那栏的按钮显示成「读取中」
             window.setProperty("readingMode", "map")

@@ -111,6 +111,36 @@ def test_hit_null_message_not_handled():
     assert hit._handle(0) == (False, 0)
 
 
+def test_set_topmost_按指针传HWND参数_不抢焦点(monkeypatch):
+    """HWND 和 HWND_TOPMOST(-1) 必须按指针（c_void_p）传，直接传 Python 整数在 64 位上无效；
+    置顶/取消置顶两个方向、都带上「不动位置大小、不抢焦点」的标志。"""
+    calls = []
+    user32 = type("User32", (), {
+        "SetWindowPos": staticmethod(lambda *args: calls.append(args) or 1)})
+    monkeypatch.setattr(desk.ctypes, "windll",
+                        type("Windll", (), {"user32": user32}), raising=False)
+
+    assert desk.set_topmost(1234, True) is True
+    assert desk.set_topmost(1234, False) is True
+
+    flags = desk._SWP_NOMOVE_NOSIZE | desk._SWP_NOACTIVATE
+    for args, after in zip(calls, (desk._HWND_TOPMOST, desk._HWND_NOTOPMOST)):
+        hwnd, insert_after, *rest = args
+        assert isinstance(hwnd, ctypes.c_void_p) and hwnd.value == 1234
+        assert isinstance(insert_after, ctypes.c_void_p)
+        assert insert_after.value == after & 0xFFFFFFFFFFFFFFFF
+        assert rest == [0, 0, 0, 0, flags]
+
+
+def test_set_topmost_调用失败返回False(monkeypatch):
+    def boom(*args):
+        raise OSError("no window")
+    user32 = type("User32", (), {"SetWindowPos": staticmethod(boom)})
+    monkeypatch.setattr(desk.ctypes, "windll",
+                        type("Windll", (), {"user32": user32}), raising=False)
+    assert desk.set_topmost(1234, True) is False
+
+
 def test_focus_window_of_process_rejects_invalid_pid():
     """PID 不合法就直接 False，不去枚举窗口（0 在 Win32 里有"当前进程"的意思）。"""
     assert desk.focus_window_of_process(0) is False

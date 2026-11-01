@@ -5,7 +5,7 @@ import QtQuick.Window
 // 配色/按钮在上一层：views/shared
 import "../shared"
 
-// 路线对比（独立窗口：无边框 + 置顶 + Qt.Tool，能摆在游戏旁边）。
+// 路线对比（独立窗口：无边框 + Qt.Tool，置顶跟着主窗口开关，能摆在游戏旁边）。
 //
 // 用户："实现一个路线对比功能，入口就在伤害计算的右边；将一条算好的路线通过
 // 复制或拖动导入后，显示每个怪物的掉血；有多条路线时对比每个怪在不同路线的掉血"。
@@ -20,7 +20,10 @@ Window {
     objectName: "compareWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
 
     readonly property var screenRect: {
         var scr = compareWin.screen
