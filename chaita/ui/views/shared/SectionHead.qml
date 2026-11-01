@@ -19,7 +19,7 @@ Item {
     default property alias rightContent: rightRow.data
     signal toggled()
 
-    height: 32
+    height: 28
 
     Item {
         id: toggle

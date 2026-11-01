@@ -41,7 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
 SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinned",
-             "chatfold", "chattyping",
+             "chatfold", "chattyping", "mapfold",
              "collapsed-empty", "session", "floor", "flooritems",
              "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
@@ -569,6 +569,9 @@ def main() -> int:
             # 地图/怪物两栏都折叠：看空两格标题（用户："地图和怪物怎么不能折叠"）
             window.setProperty("mapCollapsed", True)
             window.setProperty("monCollapsed", True)
+        elif scenario == "mapfold":
+            # 只折叠地图：怪物和技能两张卡摆在眼前，看它们紧不紧凑
+            window.setProperty("mapCollapsed", True)
         elif scenario == "chatfold":
             # 对话区收起，且收起后又来了一条新消息：标题行上有小蓝点
             window.setProperty("chatCollapsed", True)

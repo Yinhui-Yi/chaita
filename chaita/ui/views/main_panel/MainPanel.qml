@@ -230,40 +230,29 @@ Item {
                         ]
                         delegate: Rectangle {
                             width: (stats.width - 3 * stats.spacing) / 4
-                            height: 46
+                            height: 32
                             radius: 6
                             color: Theme.tile
-                            visible: true
+                            // 图标 + 数字，居中成一行（图标认得出是哪一项，不再写字）
                             Row {
-                                x: 8
-                                y: 7
-                                spacing: 4
+                                anchors.centerIn: parent
+                                spacing: 5
                                 Image {
-                                    width: 12
-                                    height: 12
+                                    width: 14
+                                    height: 14
                                     anchors.verticalCenter: parent.verticalCenter
                                     source: host.iconBase
                                             ? host.iconBase + modelData[0] + ".png" : ""
                                     smooth: false
                                 }
                                 Text {
-                                    text: modelData[1]
-                                    color: host.ink3
-                                    font.family: host.uiFont
-                                    font.pixelSize: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData[2] !== "" ? modelData[2] : "—"
+                                    color: modelData[2] !== "" ? host.ink : host.ink3
+                                    font.family: host.monoFont
+                                    font.pixelSize: 14
+                                    font.bold: true
                                 }
-                            }
-                            Text {
-                                x: 8
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 6
-                                width: parent.width - 12
-                                text: modelData[2] !== "" ? modelData[2] : "—"
-                                color: modelData[2] !== "" ? host.ink : host.ink3
-                                font.family: host.monoFont
-                                font.pixelSize: 16
-                                font.bold: true
-                                elide: Text.ElideRight
                             }
                         }
                     }

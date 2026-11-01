@@ -362,6 +362,52 @@ def test_窗口拉高后内容区跟着变高_不留空白():
     assert flick.height() > 560
 
 
+def test_怪物一行40像素_数字只有生命攻击防御三个():
+    """测什么：怪物行 40px 高（一行装下头像、名字、数字、剩余、✕），并且生命/攻击/防御三个数字都在。
+
+    走过的界面：主界面怪物卡。
+    """
+    controller, engine, window = _window()
+    controller._monsters = [{"name": "血蚊", "hp": "1200", "atk": "60", "def": "20"}]
+    controller.monstersChanged.emit()
+    helpers.APP.processEvents()
+
+    rows = helpers.find_all(window, "monRow")
+    assert [round(r.height()) for r in rows] == [40]
+    stats = helpers.find_item(window, "monStats")
+    shown = [c.property("text") for c in stats.childItems()
+             if c.isVisible() and c.property("text")]
+    assert shown == ["1200", "60", "20"]
+
+
+def test_技能是一排胶囊_放不下才换行():
+    """测什么：三个技能挤在同一行（不再一个技能占一整行）；技能多到放不下就自动换行。
+
+    走过的界面：主界面技能卡。
+    """
+    from PySide6.QtCore import QPointF
+
+    controller, engine, window = _window()
+
+    def show(count):
+        window.setProperty("skills", [
+            {"name": "技能%d" % i, "total": 2, "left": 1, "members": []}
+            for i in range(count)])
+        helpers.APP.processEvents()
+
+    def rows_y():
+        found = helpers.find_all(window, "skillRow")
+        return sorted(round(c.mapToScene(QPointF(0, 0)).y()) for c in found)
+
+    show(3)
+    assert len(rows_y()) == 3 and len(set(rows_y())) == 1     # 同一行
+
+    show(14)
+    # Flow 的换行在下一帧才排好，等一下
+    assert helpers.wait_for(lambda: len(set(rows_y())) >= 2), "放不下却没换行"
+    assert all(round(c.height()) == 26 for c in helpers.find_all(window, "skillRow"))
+
+
 def test_导航条五个图标按钮同尺寸_同一条水平线():
     """测什么：导航条上的刷新 / ＋ / ⚔ / ⇄ / ✕ 是同一种图标按钮——一样大、纵向中心一致，
     从右到左依次排开不重叠。

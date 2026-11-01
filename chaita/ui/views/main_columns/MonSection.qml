@@ -1,14 +1,22 @@
 import QtQuick
+import QtQuick.Controls.Basic
 import "../shared"
 
 // 怪物那一张卡：手册数值 × 地图数量。点一行开编辑，按住上下拖 = 调顺序，
 // 行尾 ✕ 删掉这只（连各层地图里的记录一起删）。
+//
+// 一行 40px：头像 · 名字 · 技能小标签 ……… 生命·攻击·防御 · 「剩 N/总数」· ✕。
+// 数字不带"生命/攻击/防御"字样（攻击红、防御蓝，沿用伤害计算里的两个标记色），
+// 完整的文字在鼠标停在这一行上时弹出。
 Card {
     id: section
     objectName: "monSectionCard"
 
     // 归属：主窗口（列表数据、折叠状态、拖动状态都在它身上）
     property var host
+
+    // 一行多高（主窗口按它换算拖动落点）
+    readonly property int rowH: 40
 
     // 第一行怪在场景里的上沿（-1 = 还没有行）：拖动排序时要把屏幕坐标对上
     function firstRowTop() {
@@ -40,7 +48,7 @@ Card {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    Item { width: parent.width; height: 4 }
+    Item { width: parent.width; height: 2 }
 
     Repeater {
         id: monRep
@@ -49,7 +57,7 @@ Card {
             id: row
             objectName: "monRow"
             width: parent.width
-            height: 56
+            height: section.rowH
             // 怪物这张卡折叠起来时整行让位（Column 会跳过不可见的子项）
             visible: !host.monCollapsed
             // 正在被拖的那一行淡一点：看得出"它在跟着手走"
@@ -63,8 +71,8 @@ Card {
             // 悬停：整行一层浅灰底（点得开、拖得动的提示）
             Rectangle {
                 anchors.fill: parent
-                anchors.topMargin: 2
-                anchors.bottomMargin: 2
+                anchors.topMargin: 1
+                anchors.bottomMargin: 1
                 radius: 6
                 color: rowMouse.containsMouse ? Theme.paperLo : "transparent"
             }
@@ -139,14 +147,14 @@ Card {
                 }
             }
 
-            // 头像放进一块浅色底里
+            // 头像放进一块小的浅色底里（头像本身 24px，不放大）
             Rectangle {
                 id: iconTile
-                x: 6
+                x: 2
                 anchors.verticalCenter: parent.verticalCenter
-                width: 40
-                height: 40
-                radius: 8
+                width: 28
+                height: 28
+                radius: 6
                 color: Theme.tile
 
                 Image {
@@ -173,7 +181,7 @@ Card {
                           ? modelData.name.charAt(0) : "?"
                     color: Theme.ink2
                     font.family: Theme.uiFont
-                    font.pixelSize: 14
+                    font.pixelSize: 12
                     font.bold: true
                 }
             }
@@ -182,83 +190,87 @@ Card {
                 id: monName
                 objectName: "monName"
                 anchors.left: iconTile.right
-                anchors.leftMargin: 10
-                anchors.top: parent.top
-                anchors.topMargin: 9
+                anchors.leftMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                // 名字太长就截断，别把右边那组数字顶出去
+                width: Math.min(implicitWidth,
+                                Math.max(40, monStats.x - x - 8))
                 text: modelData ? modelData.name : ""
                 color: Theme.ink
                 font.family: Theme.uiFont
-                font.pixelSize: 14
+                font.pixelSize: 13
                 font.bold: true
+                elide: Text.ElideRight
             }
-            // 技能：名字后面一颗灰胶囊
+            // 技能：名字后面一颗灰胶囊；剩下的位置放不下就不画
             Chip {
+                id: monSkill
                 objectName: "monSkill"
                 anchors.left: monName.right
-                anchors.leftMargin: 8
-                anchors.verticalCenter: monName.verticalCenter
+                anchors.leftMargin: 6
+                anchors.verticalCenter: parent.verticalCenter
                 height: 18
-                visible: text !== ""
                 text: modelData ? modelData.skill : ""
                 fontSize: 10
-                // 放不下就别超出右边那一组数字
-                width: Math.min(implicitWidth,
-                                Math.max(0, monTotal.x - x - 8))
-            }
-            Text {
-                objectName: "monStats"
-                anchors.left: iconTile.right
-                anchors.leftMargin: 10
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 9
-                text: modelData ? modelData.stats : ""
-                color: Theme.ink3
-                font.family: Theme.uiFont
-                font.pixelSize: 11
+                readonly property real room: monStats.x - x - 8
+                visible: text !== "" && room >= 30
+                width: Math.min(implicitWidth, room)
+                clip: true
             }
 
-            // 右边：×总数 + 「剩 N」胶囊（手册里读过、地图上还没记的怪没有这两个）
-            Text {
-                id: monTotal
-                objectName: "monTotal"
-                x: monLeft.x - width - 8
+            // 生命 · 攻击 · 防御：只有数字，攻击红、防御蓝；没读到的那一项不画
+            Row {
+                id: monStats
+                objectName: "monStats"
+                x: (monLeft.visible ? monLeft.x : row.width - 24) - width - 10
                 anchors.verticalCenter: parent.verticalCenter
-                visible: modelData && modelData.onMap
-                text: modelData ? "×" + modelData.total : ""
-                color: Theme.ink3
-                font.family: Theme.monoFont
-                font.pixelSize: 11
+                spacing: 6
+                Text {
+                    visible: !!modelData && modelData.hp !== ""
+                    text: modelData ? modelData.hp : ""
+                    color: Theme.ink
+                    font.family: Theme.monoFont
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+                Text {
+                    visible: !!modelData && modelData.atk !== ""
+                    text: modelData ? modelData.atk : ""
+                    color: Theme.markAtk
+                    font.family: Theme.monoFont
+                    font.pixelSize: 12
+                }
+                Text {
+                    visible: !!modelData && modelData.def !== ""
+                    text: modelData ? modelData.def : ""
+                    color: Theme.markDef
+                    font.family: Theme.monoFont
+                    font.pixelSize: 12
+                }
             }
+
+            // 「剩 N/总数」：地图上还有几只/一共几只（手册里读过、地图上还没记的怪没有这个）
             Chip {
                 id: monLeft
                 objectName: "monLeft"
-                x: parent.width - 28 - width
+                x: row.width - 24 - width
                 anchors.verticalCenter: parent.verticalCenter
                 height: 22
-                visible: modelData && modelData.onMap
+                visible: !!modelData && modelData.onMap
                 tone: modelData && modelData.left > 0 ? "accent" : "muted"
-                text: modelData ? "剩 " + modelData.left : ""
+                text: modelData ? "剩 " + modelData.left + "/" + modelData.total : ""
                 mono: true
                 bold: true
-                fontSize: 12
-            }
-
-            Rectangle {
-                anchors.left: iconTile.right
-                anchors.leftMargin: 10
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: Theme.hairline
+                fontSize: 11
             }
 
             // 最右边：删掉这只（连各层地图里的记录一起删 —— 只删手册
             // 记录的话，地图上用到它的层还会把这行顶出来，看着像没删掉）
             Item {
                 objectName: "monDeleteRow"
-                x: parent.width - 22
+                x: row.width - 18
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
+                width: 14
                 height: 20
                 visible: !!modelData && String(modelData.name || "") !== ""
                 Text {
@@ -266,7 +278,7 @@ Card {
                     text: "✕"
                     color: monDeleteMouse.containsMouse
                            ? Theme.danger : Theme.ink3
-                    font.pixelSize: 11
+                    font.pixelSize: 10
                 }
                 MouseArea {
                     id: monDeleteMouse
@@ -276,6 +288,57 @@ Card {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: controller.removeMonsterByName(
                                    modelData.name)
+                }
+            }
+
+            Rectangle {
+                anchors.left: iconTile.right
+                anchors.leftMargin: 8
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: Theme.hairline
+            }
+
+            // 鼠标停在这一行上：弹出完整文字（数字压缩后看不到"生命/攻击/防御"）
+            ToolTip {
+                id: tip
+                objectName: "monTip"
+                visible: rowMouse.containsMouse && !rowMouse.pressed
+                         && !!modelData && modelData.stats !== ""
+                delay: 450
+                x: 30
+                y: row.height + 2
+                padding: 8
+                contentItem: Column {
+                    spacing: 2
+                    Text {
+                        text: modelData ? modelData.stats : ""
+                        color: Theme.ink
+                        font.family: Theme.uiFont
+                        font.pixelSize: 11
+                    }
+                    Text {
+                        visible: !!modelData && modelData.skill !== ""
+                        text: modelData ? "技能：" + modelData.skill : ""
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 11
+                    }
+                    Text {
+                        visible: !!modelData && modelData.onMap
+                        text: modelData ? "地图上共 " + modelData.total
+                                          + " 只，剩 " + modelData.left + " 只" : ""
+                        color: Theme.ink2
+                        font.family: Theme.uiFont
+                        font.pixelSize: 11
+                    }
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: Theme.paper
+                    border.width: 1
+                    border.color: Theme.cardEdge
                 }
             }
         }

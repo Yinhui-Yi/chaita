@@ -82,8 +82,8 @@ Window {
     readonly property int navH: 28
     readonly property int navGap: 8
     readonly property int headerH: 26
-    readonly property int statusH: 78
-    readonly property int heroPad: 12
+    readonly property int statusH: 64
+    readonly property int heroPad: 10
     // 对话卡高度：跟着**实测**的气泡高度走（文字会折行，不能按条数乘固定值）。
     // 对话太长时给个上限（220），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
     readonly property int chatLogMax: 220
@@ -97,7 +97,7 @@ Window {
         + (win.chatCollapsed ? 0
            : win.chatBarH + (win.chatLogH > 0 ? win.chatLogH + 17 : 0))
     readonly property int gapA: 10
-    readonly property int gapB: 8
+    readonly property int gapB: 6
     // 灰底卡片自己的宽高（窗口扣掉投影边）：弹层摆位、内容宽度都按它算
     readonly property int cardW: win.width - win.frame
     readonly property int cardH: win.height - win.frame
@@ -355,7 +355,9 @@ Window {
             // 以前只要地图上还没记，读完手册这一栏是空的）。地图上的才有 ×N/剩 N。
             rows.push({ name: name, icon: m.icon || "", total: t.total,
                         left: t.left, dbIndex: i, onMap: t.total > 0,
-                        skill: win.skillText(m), stats: win.statLine(m) })
+                        skill: win.skillText(m), stats: win.statLine(m),
+                        hp: String(m.hp || ""), atk: String(m.atk || ""),
+                        def: String(m.def || "") })
         }
         // 顺序就是"用户自己排的顺序"（_monsters 的顺序）：按住一行能上下拖。
         // 地图上加过、手册里还没读到的怪没有可拖的行，按名字挂在最后。
@@ -365,7 +367,7 @@ Window {
                 continue
             extras.push({ name: other, icon: "", total: totals[other].total,
                           left: totals[other].left, dbIndex: -1, onMap: true,
-                          skill: "", stats: "" })
+                          skill: "", stats: "", hp: "", atk: "", def: "" })
         }
         extras.sort(function (a, b) {
             return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)

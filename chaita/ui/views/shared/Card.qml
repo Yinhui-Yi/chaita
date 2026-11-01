@@ -10,7 +10,7 @@ Rectangle {
     id: card
 
     // 内边距
-    property int pad: 12
+    property int pad: 10
     default property alias content: col.data
 
     implicitHeight: col.implicitHeight + card.pad * 2
