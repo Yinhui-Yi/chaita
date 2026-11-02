@@ -1,10 +1,13 @@
-"""图像工具：给模型看的放大裁剪（look）和按比例框裁图标（crop_box）。不碰模型调用。
+"""图像工具：给模型看的放大裁剪（look）、按比例框裁图标（crop_box）、抠图（crop_cutout）。
 
-怪物图标**不再抠图**（用户 2026-11-02："不一定要抠图，截图也行"）：框准了，
-直接裁那一整格就是图标，没有模型、没有半透明雾、也不依赖本机装没装 rembg。
+怪物图标：框准了裁出来，再用 rembg 把底纹抠掉（白色边框由 AI 框的时候就排除在外）。
+没有抠图模型时退回直接裁的截图。不碰模型调用。
 """
 
 import json
+import os
+import threading
+import time
 
 import cv2
 import numpy as np
@@ -43,6 +46,120 @@ def crop_box(image, box):
     crop = _crop_ratio(image, box.get("x"), box.get("y"),
                        box.get("w"), box.get("h"))
     return None if crop is None else crop.copy()
+
+
+# ---- 抠图（rembg / u2net）：把怪物从格子底纹里分出来 ----
+
+_REMBG_SESSIONS = {}
+_REMBG_LOCK = threading.Lock()
+_REMBG_MODEL = "u2net.onnx"
+# 模型给的是软 alpha（边缘一圈半透明、浅色怪周围还有一层雾）。像素风小怪要锐利：
+# 一刀切成要 / 不要，雾（alpha 很低）就自然没了
+_ALPHA_CUT = 127
+
+
+def _rembg_home() -> str:
+    """老版本 rembg 的模型缓存目录（rembg 自己认 `U2NET_HOME`，默认 `~/.u2net`）。"""
+    home = os.environ.get("U2NET_HOME") or os.path.join(os.path.expanduser("~"),
+                                                        ".u2net")
+    if os.path.basename(home) != ".u2net":
+        home = os.path.join(home, ".u2net")
+    return home
+
+
+def _model_ready() -> bool:
+    """抠图模型在不在本地。
+
+    **问 rembg 自己它把模型放哪**，别自己猜路径：rembg 2.0.8x 起放在
+    `~/.rembg/models/u2net/`（`REMBG_HOME` / `U2NET_HOME` 也认），旧版放 `~/.u2net/`。
+    `resolve_existing` 两处都找、而且不会下载。
+
+    为什么非要先看这一眼：`new_session("u2net")` 在模型缺失时**会去下载**
+    （约 176 MB）。实测下不动时 sprite 卡了 5 分钟以上一点动静都没有 —— 用户看到的就是
+    「点了读怪物，界面没反应」。按钮不该触发下载，所以模型不在就退回不抠图的截图。
+    想恢复抠图：`python -c "from rembg import new_session; new_session('u2net')"`
+    跑一次（把模型缓存下来）。
+    """
+    try:
+        from rembg.sessions.u2net import U2netSession
+    except Exception:
+        return False
+    resolve = getattr(U2netSession, "resolve_existing", None)
+    if resolve is None:
+        # 老版本 rembg 没有这个接口：只能按它当年固定的目录找
+        return os.path.exists(os.path.join(_rembg_home(), _REMBG_MODEL))
+    return resolve(_REMBG_MODEL) is not None
+
+
+def _rembg_session():
+    """懒加载 rembg 会话（u2net）。有 CUDA 就用，没有自动退回 CPU。
+
+    加锁：多只怪同时抠时不能各自建一个会话（实测重复建了 5 次，白花 25 秒）。
+    """
+    with _REMBG_LOCK:
+        if "u2net" in _REMBG_SESSIONS:
+            return _REMBG_SESSIONS["u2net"]
+        from rembg import new_session
+
+        providers = None
+        try:
+            import onnxruntime as ort
+            available = ort.get_available_providers()
+            providers = [name for name in ("CUDAExecutionProvider",
+                                           "CPUExecutionProvider")
+                         if name in available] or None
+        except Exception as exc:
+            trace.note("agent.ort_unavailable", error=repr(exc)[:120])
+        started = time.time()
+        session = new_session("u2net", providers=providers)
+        trace.note("agent.rembg_ready", providers=providers,
+                   seconds=round(time.time() - started, 1))
+        _REMBG_SESSIONS["u2net"] = session
+    return session
+
+
+def _cutout(crop):
+    """用 rembg(u2net) 把图案从底纹里抠出来，返回透明底的 BGRA（alpha 只有 0 / 255）。
+
+    **不裁紧**：保持整块的原始尺寸，图案在格子里占多大就多大 ——
+    "怪物图标的大小要和游戏里一致"：裁紧会让每只怪都填满整张图，小怪和大怪就一样大了。
+
+    抠不了（模型不在 / 报错 / 前景太少）就原样返回这块图，宁可带一点底纹也不要空白；
+    模型不在本地时**不去下载**（见 `_model_ready`）。
+    """
+    height, width = crop.shape[:2]
+    plain = cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
+    if height < 8 or width < 8:
+        return plain
+    if not _model_ready():
+        trace.note("agent.cutout_no_model")
+        return plain
+    try:
+        from rembg import remove
+        rgba = remove(crop, session=_rembg_session())
+    except Exception as exc:
+        trace.note("agent.cutout_failed", error=repr(exc)[:200])
+        return plain
+    if rgba is None or getattr(rgba, "size", 0) == 0:
+        return plain
+    if rgba.shape[2] == 3:
+        rgba = cv2.cvtColor(rgba, cv2.COLOR_BGR2BGRA)
+    solid = rgba[:, :, 3] > _ALPHA_CUT
+    foreground = float(solid.mean())
+    if foreground < 0.02:
+        trace.note("agent.cutout_empty", ratio=round(foreground, 3))
+        return plain
+    rgba = rgba.copy()
+    rgba[:, :, 3] = np.where(solid, 255, 0).astype(np.uint8)
+    trace.note("agent.cutout", ratio=round(foreground, 3),
+               size=(width, height))
+    return rgba
+
+
+def crop_cutout(image, box):
+    """按 box（0~1 比例，{x,y,w,h}）裁，再抠；box 不合法返回 None。"""
+    crop = crop_box(image, box)
+    return None if crop is None else _cutout(crop)
 
 
 def look_tool(image, limit: int = 6):

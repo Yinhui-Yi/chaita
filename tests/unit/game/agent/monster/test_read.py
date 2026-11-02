@@ -121,6 +121,8 @@ def _patch(monkeypatch, answers):
     _Session.images = []
     monkeypatch.setattr(monster_read.core, "Session", _Session)
     monkeypatch.setattr(monster_read.icons, "look_tool", lambda *a, **k: None)
+    # 单测不真跑抠图模型：只验证"裁哪一块"，抠图本身在 test_icons.py 里测
+    monkeypatch.setattr(monster_read.icons, "_cutout", lambda crop: crop)
     import chaita.trace as trace
     monkeypatch.setattr(trace, "note", lambda *a, **k: None)
 
@@ -144,9 +146,9 @@ def test_read_两遍精确定位后按精确框略放宽来裁(monkeypatch):
     assert [row["name"] for row in rows] == ["红头怪"]
     assert "icon_box" not in rows[0]             # 框用完就丢，别带进数据
     assert _Session.asked == ["manual", "icon_boxes", "icon_boxes"]
-    # 精确框 (0.4,0.4,0.1,0.1) 每边放宽 FINAL_PAD=0.15 → 宽高 0.13 → 整图 1000px 里是 130px
+    # 精确框 (0.4,0.4,0.1,0.1) 每边往里收 6%（FINAL_GROW=-0.06，切掉白边）→ 宽高 0.088 → 88px
     width, height = _side(rows[0]["icon"])
-    assert abs(width - 130) <= 1 and abs(height - 130) <= 1
+    assert abs(width - 88) <= 1 and abs(height - 88) <= 1
 
 
 def test_read_第二步把所有怪的小图一次发出去_不是一只一问(monkeypatch):
@@ -176,7 +178,7 @@ def test_read_第二遍没结果就保留第一遍的精确框(monkeypatch):
     rows = monster_read.read(IMAGE)
 
     width, height = _side(rows[0]["icon"])
-    assert abs(width - 130) <= 1 and abs(height - 130) <= 1
+    assert abs(width - 88) <= 1 and abs(height - 88) <= 1
 
 
 def test_read_精确定位那一问报错_也不丢怪_退回第一步的框(monkeypatch):

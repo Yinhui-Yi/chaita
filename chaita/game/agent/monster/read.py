@@ -1,15 +1,18 @@
-"""读怪物手册：一个会话，模型读文字 + 给每只怪图标的框；图标由代码按框裁（**不抠图**）。
+"""读怪物手册：一个会话，模型读文字 + 给每只怪图标的框；图标由代码按框裁，再抠掉底纹。
 
 两步定位（用户："位置不对，截图不全"）：
   1) 第一次看整张图，读字段，并给每只怪图标的**大概**框 —— 图标只占整图 3% 宽，
      在 2582×1390 的大图上给比例，偏个 1~2%（二三十像素）就切掉一角或带进隔壁
      （样图实测：框只盖住真值的 76%~100%，而且每次读都不一样）。
   2) 代码以每只怪目前最好的框为中心，放宽一圈裁成小图，**一次**发给模型，让它在小图里
-     精确框出图标那一整格；再以新框为中心用更小的窗口问第二遍。图标在小图里占比大得多，
-     位置准得多；代码把小图里的比例换算回整图，再略放宽一点点，按这个框裁。
+     精确框出图标那一整格（连边框）；再以新框为中心用更小的窗口问第二遍。图标在小图里
+     占比大得多，位置准得多；代码把小图里的比例换算回整图，再放宽一点点保证怪物不被切，
+     裁下来用 rembg 抠掉白边框和底纹（用户："周围的白框太丑了"；没有模型就是截图）。
+     框只让它框整格、不让它框"边框里面"：实测后者模型会一会儿框大一会儿只框怪物本身，
+     把怪物切掉一块；整格的框稳得多，白边交给抠图去掉。
      模型出错 / 没给可用的框就退回前一遍的结果（最差退回第一步的框，略放宽）。
 
-红线不变：框是模型看着图给的（代码不做识别/测量），代码只做"裁剪"。
+红线不变：框是模型看着图给的（代码不做识别/测量），代码只做"裁剪 + 抠图"。
 """
 
 import time
@@ -20,8 +23,10 @@ from .. import icons
 
 # 精确定位问几遍：每遍小窗是"目前最好的框"每边放宽这么多倍（第一遍宽、第二遍窄）
 REFINE_GROWS = (0.5, 0.3)
-# 最终的精确框再放宽这么多倍：差几个像素也别切掉图案
-FINAL_PAD = 0.15
+# 最终的精确框（整格，连白边）往里收这么多倍：把白边框切掉再抠图。
+# 实测整格带着白边框喂给抠图，浅色怪（骷髅人）会被连底纹一起当前景、整块不透明；
+# 怪物在格子里四周都留着空，收 6% 切不到它
+FINAL_GROW = -0.06
 # 精确定位完全没有结果时，退回第一步的框，每边放宽这么多倍（宁可多带一点边）
 FALLBACK_GROW = 0.1
 # 小图里精确框的宽/高至少占小图的这么多，再小就当模型瞎给
@@ -65,7 +70,7 @@ KEEP = ("name", "hp", "atk", "def", "exp", "skills")
 REFINE_PROMPT = """下面按顺序给你 {count} 张小图，每张是怪物手册里**一只怪的图标附近**的截图，依次是：
 {names}
 
-请在每张小图里框出**图标那一整格**（带边框的方块，把里面的怪连同边框完整框住，
+请在每张小图里框出**图标那一整格**（带白色边框的方块，把里面的怪连同边框完整框住，
 别切掉一角，也别框到旁边的文字或隔壁那格）。框用**这张小图自己**的 0~1 比例
 {{x,y,w,h}}（x,y 是左上角，w,h 是宽高）。
 
@@ -111,7 +116,7 @@ def _parse(text: str) -> list:
 
 
 def _grown(box: dict, grow: float) -> dict:
-    """把框每边放宽 `grow` 倍框宽/框高（夹在 0~1 里）；没有框就返回 {}。"""
+    """把框每边放宽 `grow` 倍框宽/框高（夹在 0~1 里；负数 = 往里收）；没有框就返回 {}。"""
     if not box:
         return {}
     left = max(0.0, box["x"] - box["w"] * grow)
@@ -175,7 +180,7 @@ def _refine(session, image, names: list, windows: list) -> list:
 
 
 def read(image, api_key: str = None) -> list:
-    """返回每只怪：name/hp/atk/def/exp/skills/icon（icon 是代码按精确框裁的整格截图）。"""
+    """返回每只怪：name/hp/atk/def/exp/skills/icon（icon 是代码按精确框裁后抠掉底纹的 BGRA）。"""
     if image is None or getattr(image, "size", 0) == 0:
         return []
     started = time.time()
@@ -210,11 +215,11 @@ def read(image, api_key: str = None) -> list:
     precise = 0
     for item, exact in zip(monsters, refined):
         rough_box = item.pop("icon_box", None)
-        # 精确框再放宽一点点：差几个像素也别切掉图案（截图里多带一圈边无所谓）
-        box = (_grown(exact, FINAL_PAD) if exact
+        # 精确框是整格（连白边）：往里收一点切掉白边，再抠掉底纹
+        box = (_grown(exact, FINAL_GROW) if exact
                else _grown(rough_box, FALLBACK_GROW))
         precise += 1 if exact else 0
-        item["icon"] = icons.crop_box(image, box) if box else None
+        item["icon"] = icons.crop_cutout(image, box) if box else None
         if item["icon"] is not None:
             icons_done += 1
         out.append(item)

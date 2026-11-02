@@ -1,8 +1,8 @@
 """图像工具单元测试（`chaita/game/agent/icons.py`）。
 
 真值来自规则：比例框不缩放不补边、框不合法/太小返回 None、
-crop_box 裁出独立的一份、collect_icons 按 call_id 把名字和图标对上。
-（抠图已经整个拿掉：怪物图标直接裁整格截图。）
+crop_box 裁出独立的一份、抠图保持原尺寸且 alpha 只有 0/255、抠不了就退回截图、
+模型在哪问 rembg 自己、collect_icons 按 call_id 把名字和图标对上。
 """
 
 import numpy as np
@@ -56,6 +56,188 @@ def test_crop_box_框不合法就是None():
     assert ic.crop_box(img, None) is None
     assert ic.crop_box(img, {}) is None
     assert ic.crop_box(img, {"x": 2, "y": 0, "w": 0.5, "h": 0.5}) is None
+
+
+# ---- 抠图：模型在哪 / 抠不了就退回截图 / alpha 只有 0 和 255 ----
+
+def _quiet(monkeypatch):
+    import chaita.trace as trace
+    monkeypatch.setattr(trace, "note", lambda *a, **k: None)
+
+
+def _fake_u2net_session(monkeypatch, resolve):
+    """把 `rembg.sessions.u2net.U2netSession` 换成只会回答"模型在哪"的假货。"""
+    import sys
+    import types
+    session = types.SimpleNamespace(
+        U2netSession=types.SimpleNamespace(resolve_existing=resolve))
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net", session)
+
+
+def test_model_ready_问rembg自己模型放在哪_而不是猜路径(monkeypatch):
+    """rembg 2.0.8x 把模型放在 ~/.rembg/models/u2net/，旧版放 ~/.u2net/：
+    本机 u2net.onnx 就在前者，按旧路径找会一直"没有模型"、永远不抠。"""
+    asked = []
+    _fake_u2net_session(
+        monkeypatch,
+        lambda fname: asked.append(fname) or r"C:\Users\x\.rembg\models\u2net\u2net.onnx")
+    monkeypatch.setattr(ic, "_rembg_home", lambda: "/nowhere/.u2net")
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: False)
+
+    assert ic._model_ready() is True
+    assert asked == ["u2net.onnx"]
+
+
+def test_model_not_ready_rembg说没有就是没有(monkeypatch):
+    _fake_u2net_session(monkeypatch, lambda fname: None)
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: True)   # 旧路径有也不算
+
+    assert ic._model_ready() is False
+
+
+def test_model_ready_老版本rembg没有resolve_existing_退回看旧目录(monkeypatch):
+    import sys
+    import types
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net",
+                        types.SimpleNamespace(U2netSession=types.SimpleNamespace()))
+    monkeypatch.setattr(ic, "_rembg_home", lambda: "/home/.u2net")
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: p.endswith("u2net.onnx"))
+    assert ic._model_ready() is True
+
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: False)
+    assert ic._model_ready() is False
+
+
+def test_model_ready_rembg导不进来就当没有(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net", None)   # import 会抛 ImportError
+    assert ic._model_ready() is False
+
+
+def test_rembg_home_env_with_dot_u2net(monkeypatch):
+    monkeypatch.setenv("U2NET_HOME", "/some/.u2net")
+    assert ic._rembg_home().endswith(".u2net")
+
+
+def test_rembg_home_appends_dot_u2net(monkeypatch):
+    monkeypatch.setenv("U2NET_HOME", "/some/foo")
+    assert ic._rembg_home().endswith(".u2net")
+
+
+def _stub_rembg(monkeypatch, remove_fn):
+    import sys
+    import types
+    fake = types.ModuleType("rembg")
+    fake.remove = remove_fn
+    monkeypatch.setitem(sys.modules, "rembg", fake)
+    monkeypatch.setattr(ic, "_model_ready", lambda: True)
+    monkeypatch.setattr(ic, "_rembg_session", lambda: object())
+    _quiet(monkeypatch)
+
+
+def _crop(size=10):
+    return np.full((size, size, 3), 50, np.uint8)
+
+
+def test_cutout_太小的图直接转BGRA():
+    assert ic._cutout(np.zeros((4, 4, 3), np.uint8)).shape == (4, 4, 4)
+
+
+def test_cutout_没有模型就退回不抠的截图_完全不透明(monkeypatch):
+    _quiet(monkeypatch)
+    monkeypatch.setattr(ic, "_model_ready", lambda: False)
+
+    out = ic._cutout(_crop())
+
+    assert out.shape == (10, 10, 4)
+    assert (out[:, :, 3] == 255).all()
+    assert (out[:, :, :3] == 50).all()
+
+
+def test_cutout_模型报错_返回空结果_前景太少_都退回截图(monkeypatch):
+    for remove in (lambda crop, session=None: (_ for _ in ()).throw(Exception("boom")),
+                   lambda crop, session=None: None,
+                   lambda crop, session=None: np.zeros((10, 10, 4), np.uint8)):
+        _stub_rembg(monkeypatch, remove)
+        out = ic._cutout(_crop())
+        assert out.shape == (10, 10, 4)
+        assert (out[:, :, 3] == 255).all()        # 宁可带底纹也不要空白
+
+
+def test_cutout_三通道的结果也转成BGRA(monkeypatch):
+    _stub_rembg(monkeypatch, lambda crop, session=None: np.zeros((10, 10, 3), np.uint8))
+    assert ic._cutout(_crop()).shape[2] == 4
+
+
+def test_cutout_alpha只留0和255_软边和雾都被切掉(monkeypatch):
+    soft = np.zeros((10, 10, 4), np.uint8)
+    soft[:, :, 3] = np.tile(np.array([0, 30, 100, 126, 128, 200, 255, 255, 255, 255],
+                                     np.uint8), (10, 1))
+    _stub_rembg(monkeypatch, lambda crop, session=None: soft)
+
+    out = ic._cutout(_crop())
+
+    assert set(np.unique(out[:, :, 3]).tolist()) == {0, 255}
+    assert (out[:, :, 3][:, :4] == 0).all()       # ≤127（雾 / 半透明）不要
+    assert (out[:, :, 3][:, 4:] == 255).all()
+
+
+def test_cutout_保持原尺寸_不裁紧(monkeypatch):
+    """怪物图标的大小要和游戏里一致：小怪和大怪抠完整块一样大。"""
+    mask = np.zeros((10, 10, 4), np.uint8)
+    mask[4:6, 4:6, 3] = 255
+    _stub_rembg(monkeypatch, lambda crop, session=None: mask)
+
+    assert ic._cutout(_crop()).shape == (10, 10, 4)
+
+
+def test_crop_cutout_框不合法是None_合法就裁了再抠(monkeypatch):
+    img = np.zeros((20, 20, 3), np.uint8)
+    assert ic.crop_cutout(None, {"x": 0, "y": 0, "w": 1, "h": 1}) is None
+    assert ic.crop_cutout(img, "not dict") is None
+    assert ic.crop_cutout(img, {"x": 2, "y": 0, "w": 0.5, "h": 0.5}) is None
+
+    monkeypatch.setattr(ic, "_cutout", lambda crop: ("CUT", crop.shape[:2]))
+    assert ic.crop_cutout(img, {"x": 0, "y": 0, "w": 0.5, "h": 0.5}) == ("CUT", (10, 10))
+
+
+def _fake_rembg(monkeypatch, providers=None):
+    import sys
+    import types
+    made = []
+    fake = types.ModuleType("rembg")
+
+    def new_session(name, providers=None):
+        made.append((name, providers))
+        return "SESSION"
+
+    fake.new_session = new_session
+    monkeypatch.setitem(sys.modules, "rembg", fake)
+    if providers is None:
+        monkeypatch.setitem(sys.modules, "onnxruntime", None)
+    else:
+        ort = types.ModuleType("onnxruntime")
+        ort.get_available_providers = lambda: list(providers)
+        monkeypatch.setitem(sys.modules, "onnxruntime", ort)
+    monkeypatch.setattr(ic, "_REMBG_SESSIONS", {})
+    return made
+
+
+def test_rembg_session只建一次_有哪个provider就带哪个(monkeypatch):
+    _quiet(monkeypatch)
+    made = _fake_rembg(monkeypatch, providers=["CPUExecutionProvider"])
+
+    assert ic._rembg_session() == "SESSION"
+    assert ic._rembg_session() == "SESSION"     # 第二次直接用缓存
+    assert made == [("u2net", ["CPUExecutionProvider"])]
+
+
+def test_rembg_session_没装onnxruntime就不传provider(monkeypatch):
+    _quiet(monkeypatch)
+    made = _fake_rembg(monkeypatch, providers=None)
+
+    assert ic._rembg_session() == "SESSION"
+    assert made == [("u2net", None)]
 
 
 # ---- look 工具：给图 + 有上限 + 框不合法要说清楚 ----
