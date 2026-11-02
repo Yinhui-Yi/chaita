@@ -180,7 +180,10 @@ UI 层（悬浮层）      PySide6 + QML，透明置顶
 
 ### 10.1 形态
 
-透明置顶悬浮层（`Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool`），默认展开。
+透明悬浮层：主窗口是普通顶层窗口（`Qt.Window | Qt.FramelessWindowHint`，任务栏和 Alt+Tab 里有它），
+**默认不置顶**，导航条上的「置顶」点一下才永远在最前面（用 Win32 `SetWindowPos` 切，
+窗口句柄不变；状态记在 `ui_state.json` 的 `pinned`）。子窗口是 `Qt.Tool`，不进任务栏，
+它们的 `WindowStaysOnTopHint` 绑定主窗口的 `pinned`，一起置顶/取消。默认展开。
 
 | 能力 | 说明 |
 |---|---|

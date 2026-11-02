@@ -16,6 +16,7 @@ statusData`、`window` 的属性、界面上的文字），不读 `controller._x
 """
 
 import numpy as np
+from PySide6.QtCore import QPointF
 
 from chaita.game import read as game_read
 
@@ -297,6 +298,141 @@ def test_section_heads_toggle_collapse():
 
     helpers.click_item(window, helpers.find_item(window, "skillSectionHead"))
     assert window.property("skillCollapsed") is True
+
+
+def test_状态卡实际高度等于窗口按公式算的高度():
+    """测什么：状态卡（塔名 + 四个小块 + 胶囊）画出来多高，窗口算 chromeH 时就扣多少——
+    两边对不上，窗口会多出一截空白或把内容区顶出去。
+
+    走过的界面：主窗口顶部状态卡。
+    """
+    controller, engine, window = _window()
+    controller._tower_label = "拆个魔塔 通天塔1"
+    controller._last_status = {"hp": "100", "atk": "10", "def": "5", "gold": "7"}
+    controller.statusTextChanged.emit()
+    helpers.APP.processEvents()
+
+    hero = helpers.find_item(window, "hero")
+    assert hero.isVisible()
+    assert round(hero.height()) == window.property("heroH")
+
+
+def test_地图_怪物_技能三张卡竖排_不重叠_间距一致():
+    """测什么：主界面的三张卡自上而下排开，相邻两张之间的缝都等于 gapB。
+
+    走过的界面：主界面内容区（读取记录没有任务时不占位）。
+    """
+    controller, engine, window = _window()
+    _floors(controller)
+    window.setProperty("mapCollapsed", True)
+    helpers.APP.processEvents()
+
+    cards = [helpers.find_item(window, name) for name in
+             ("mapSectionCard", "monSectionCard", "skillSectionCard")]
+    tops = [c.mapToScene(QPointF(0, 0)).y() for c in cards]
+    gaps = [tops[i + 1] - (tops[i] + cards[i].height())
+            for i in range(len(cards) - 1)]
+    assert tops == sorted(tops)
+    assert [round(g) for g in gaps] == [window.property("gapB")] * 2
+
+
+def test_窗口拉高后内容区跟着变高_不留空白():
+    """测什么：内容比较长时，把窗口拉到比"自动高度"更高 → 内容区吃满剩余空间
+    （窗口高度 − 固定部分），不被 `middleCap()` 卡在一个小数上，上面不空出一大块。
+
+    走过的界面：主窗口拉高后的内容区（Flickable）。
+    """
+    controller, engine, window = _window()
+    controller._monsters = [
+        {"name": "怪%d" % i, "hp": "100", "atk": "10", "def": "5"}
+        for i in range(14)]
+    controller.monstersChanged.emit()
+    _floors(controller)
+    helpers.APP.processEvents()
+
+    tall = 1500
+    window.setProperty("height", tall)
+    helpers.APP.processEvents()
+
+    flick = helpers.find_item(window, "contentFlick")
+    room = tall - window.property("chromeH")
+    assert flick.property("contentHeight") > window.property("chromeH")
+    assert round(flick.height()) == round(min(flick.property("contentHeight"), room))
+    # 比原来那个封顶值大，才说明它不再被封顶卡住
+    assert flick.height() > 560
+
+
+def test_怪物一行只有名字和剩几只():
+    """测什么：怪物行 36px 高，只显示头像、名字、「剩 N」和 ✕——
+    生命/攻击/防御、技能、总数都不在列表里（点一行进编辑卡才看、改）。
+
+    走过的界面：主界面怪物卡。
+    """
+    controller, engine, window = _window()
+    controller._monsters = [{"name": "血蚊", "hp": "1200", "atk": "60", "def": "20",
+                             "skills": "破甲"}]
+    controller._map_history = [{
+        "floor": "3层", "url": "", "mons": [{"name": "血蚊", "count": 4, "done": False}],
+        "items": [], "grid": {"cells": []}, "routes": []}]
+    controller.monstersChanged.emit()
+    controller.mapHistoryChanged.emit()
+    helpers.APP.processEvents()
+
+    rows = helpers.find_all(window, "monRow")
+    assert [round(r.height()) for r in rows] == [36]
+    assert helpers.find_item(window, "monLeft").property("text") == "剩 4"
+    assert helpers.find_item(window, "monName").property("text") == "血蚊"
+    for gone in ("monStats", "monSkill", "monTotal", "monTip"):
+        assert helpers.find_item(window, gone) is None, gone + " 不该再出现在列表里"
+
+
+def test_技能是一排胶囊_放不下才换行():
+    """测什么：三个技能挤在同一行（不再一个技能占一整行）；技能多到放不下就自动换行。
+
+    走过的界面：主界面技能卡。
+    """
+    from PySide6.QtCore import QPointF
+
+    controller, engine, window = _window()
+
+    def show(count):
+        window.setProperty("skills", [
+            {"name": "技能%d" % i, "total": 2, "left": 1, "members": []}
+            for i in range(count)])
+        helpers.APP.processEvents()
+
+    def rows_y():
+        found = helpers.find_all(window, "skillRow")
+        return sorted(round(c.mapToScene(QPointF(0, 0)).y()) for c in found)
+
+    show(3)
+    assert len(rows_y()) == 3 and len(set(rows_y())) == 1     # 同一行
+
+    show(14)
+    # Flow 的换行在下一帧才排好，等一下
+    assert helpers.wait_for(lambda: len(set(rows_y())) >= 2), "放不下却没换行"
+    assert all(round(c.height()) == 26 for c in helpers.find_all(window, "skillRow"))
+
+
+def test_导航条五个图标按钮同尺寸_同一条水平线():
+    """测什么：导航条上的刷新 / ＋ / ⚔ / ⇄ / ✕ 是同一种图标按钮——一样大、纵向中心一致，
+    从右到左依次排开不重叠。
+
+    走过的界面：主窗口导航条。
+    """
+    controller, engine, window = _window()
+    names = ("statusRefresh", "gainOpen", "battleOpen", "compareOpen", "closeBtn")
+    buttons = [helpers.find_item(window, name) for name in names]
+
+    assert len({(b.width(), b.height()) for b in buttons}) == 1
+    centres = {round(b.mapToScene(QPointF(0, b.height() / 2)).y())
+               for b in buttons}
+    assert len(centres) == 1
+    right_group = [b.mapToScene(QPointF(0, 0)).x() for b in buttons[1:]]
+    assert right_group == sorted(right_group)
+    gaps = [right_group[i + 1] - right_group[i] - buttons[0].width()
+            for i in range(len(right_group) - 1)]
+    assert all(gap >= 0 for gap in gaps)
 
 
 def test_monster_row_delete_removes_that_monster():

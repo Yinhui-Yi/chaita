@@ -21,6 +21,9 @@ SESSION_PATH = os.path.join(_LOGS, "last_session.json")
 # 窗口位置/大小记在这里（下次启动照原样摆回去）。
 # 放 logs 下：这是运行期状态，不是配置；删掉也不影响启动（会回到默认位置）。
 UI_STATE_PATH = os.path.join(_LOGS, "ui_state.json")
+# 用户自己写（或改写）的技能介绍：{技能名: 文字}。不属于某一局，所以单独一个文件，
+# 不随"上次的记录"走（那个要点「恢复」才加载）。
+SKILL_NOTES_PATH = os.path.join(_LOGS, "skill_notes.json")
 
 # 勇者图标：原版 Flash 魔塔 v1.12 的勇者（棕发 / 蓝衣 / 银甲）。
 # 素材取自 xhy1999/MagicTower（Java 复刻版，含原版素材）的
@@ -28,7 +31,11 @@ UI_STATE_PATH = os.path.join(_LOGS, "ui_state.json")
 # 命名规律 player01_<行>_<列>：行 0 背面 / 行 1 正面 / 行 2-3 左右行走。
 _ASSETS = _ASSETS_ROOT
 
-HERO_ICON = "file:///" + os.path.join(_ASSETS, "hero_icon.png").replace("\\", "/")
+HERO_ICON_PATH = os.path.join(_ASSETS, "hero_icon.png")
+HERO_ICON = "file:///" + HERO_ICON_PATH.replace("\\", "/")
+
+# 任务栏分组用的应用 ID：没有它，任务栏会把这个软件归到 python.exe 名下、用 Python 的图标
+APP_USER_MODEL_ID = "ChaitaAssistant.Overlay"
 
 # 状态图标目录（由 tools/make_icons.py 生成）
 ICON_BASE = "file:///" + os.path.join(_ASSETS, "icons").replace("\\", "/") + "/"
@@ -46,7 +53,10 @@ MON_DRAG_INTERVAL_MS = 40
 # 无边框窗口（Qt.FramelessWindowHint）会让 Windows 失去边缘缩放与光标反馈。
 # 自己在 WM_NCHITTEST 里回答"鼠标在哪个部位"，系统就会把缩放、光标形状、
 # 双击标题栏、贴边这些原生行为全都装回来 —— 和普通窗口完全一致。
-_BORDER = 6  # 边缘判定宽度（物理像素）
+_BORDER = 6  # 边缘判定宽度（物理像素），从**可见卡片**的边往里量
+# 主窗口最外圈有一圈透明的投影边（QML 里的 `inset`），可见卡片的边在窗口边的里面。
+# 热区必须跟着可见的边走，再往外让出这么多逻辑像素（光标刚碰到卡片外沿就能拉）。
+_BORDER_OUTSIDE = 4
 
 _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT = 10, 11, 12, 13, 14
 _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT = 15, 16, 17

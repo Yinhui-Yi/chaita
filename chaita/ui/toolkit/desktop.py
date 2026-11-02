@@ -7,13 +7,34 @@ from .. import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import QAbstractNativeEventFilter
 
-from ..constants import APP_TITLE, _BORDER, _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT, _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT
+from ..constants import APP_TITLE, _BORDER, _BORDER_OUTSIDE, _HTBOTTOM, _HTBOTTOMLEFT, _HTBOTTOMRIGHT, _HTLEFT, _HTRIGHT, _HTTOP, _HTTOPLEFT, _HTTOPRIGHT
 
 # ShowWindow / SetWindowPos 的参数（只用到这几个）
 _SW_RESTORE = 9
 _HWND_TOPMOST = -1
 _HWND_NOTOPMOST = -2
 _SWP_NOMOVE_NOSIZE = 0x0001 | 0x0002
+_SWP_NOACTIVATE = 0x0010
+
+
+def set_topmost(hwnd: int, on: bool) -> bool:
+    """把一扇窗口设成置顶 / 取消置顶（不改位置、大小，也不抢焦点）。
+
+    用 Win32 直接切、不改 Qt 的窗口标志：改标志会让 Qt 重建原生窗口，句柄一换，
+    边缘命中测试和样式补丁（`NativeHitTest`）就全对不上了。
+    它名下的窗口（子窗口挂在主窗口下）会跟着一起置顶/取消，实测过。
+
+    HWND 参数必须按指针传（`c_void_p`）：直接传 Python 的 -1 会被当成 32 位整数，
+    64 位 Windows 上 `HWND_TOPMOST` 就对不上，调用成功了也没效果。
+    """
+    try:
+        user32 = ctypes.windll.user32
+        after = _HWND_TOPMOST if on else _HWND_NOTOPMOST
+        return bool(user32.SetWindowPos(
+            ctypes.c_void_p(hwnd), ctypes.c_void_p(after), 0, 0, 0, 0,
+            _SWP_NOMOVE_NOSIZE | _SWP_NOACTIVATE))
+    except Exception:
+        return False
 
 
 def _top_windows_of(pid: int) -> list:
@@ -73,10 +94,12 @@ def focus_window_of_process(pid: int) -> bool:
         hwnd = _main_window_of(pid)
         if not hwnd:
             return False
-        user32.ShowWindow(hwnd, _SW_RESTORE)
-        user32.SetWindowPos(hwnd, _HWND_TOPMOST, 0, 0, 0, 0, _SWP_NOMOVE_NOSIZE)
-        user32.SetWindowPos(hwnd, _HWND_NOTOPMOST, 0, 0, 0, 0, _SWP_NOMOVE_NOSIZE)
-        user32.SetForegroundWindow(hwnd)
+        handle = ctypes.c_void_p(hwnd)
+        user32.ShowWindow(handle, _SW_RESTORE)
+        # HWND_TOPMOST / HWND_NOTOPMOST 是 -1 / -2，必须按指针传（见 `set_topmost`）
+        set_topmost(hwnd, True)
+        set_topmost(hwnd, False)
+        user32.SetForegroundWindow(handle)
         return True
     except Exception:
         return False
@@ -87,6 +110,15 @@ def _cursor_pos():
     """当前光标位置（物理像素）。测试里会把它换掉。"""
     import win32api
     return win32api.GetCursorPos()
+
+def _cursor_to(x, y):
+    """把**系统鼠标**挪到 (x, y)（物理像素）。测试里会把它换掉。
+
+    用在"切层之后指针要跟到落点那一格"：光改数据不够，用户的鼠标还停在上一层
+    那个位置，接着拖就接不上（用户 2026-11-01："切层后改鼠标坐标"、"鼠标就是鼠标"）。
+    """
+    import win32api
+    win32api.SetCursorPos((int(round(x)), int(round(y))))
 
 def _cursor_down():
     """鼠标左键是不是还按着。松开事件可能送不到那一行，所以靠这个兜底。"""
@@ -153,6 +185,13 @@ class NativeHitTest(QAbstractNativeEventFilter):
                     pass
             return False, 0
 
+    def _inset(self, dpr: float) -> int:
+        """窗口最外圈透明投影边的宽度（物理像素）。窗口没有 `inset` 属性就是 0。"""
+        try:
+            return max(0, int(float(self._window.property("inset")) * dpr))
+        except (AttributeError, TypeError, ValueError):
+            return 0
+
     def _handle(self, message):
         ptr = int(message)
         if not ptr:
@@ -170,16 +209,21 @@ class NativeHitTest(QAbstractNativeEventFilter):
         y = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
 
         geometry = self._window.geometry()
-        left = geometry.x() * dpr
-        top = geometry.y() * dpr
-        right = (geometry.x() + geometry.width()) * dpr
-        bottom = (geometry.y() + geometry.height()) * dpr
+        # 窗口最外圈是透明的投影边：热区按**可见卡片**的边算（没有这个属性的窗口 = 0）
+        inset = self._inset(dpr)
+        left = geometry.x() * dpr + inset
+        top = geometry.y() * dpr + inset
+        right = (geometry.x() + geometry.width()) * dpr - inset
+        bottom = (geometry.y() + geometry.height()) * dpr - inset
         border = max(5, int(_BORDER * dpr))
+        outside = min(inset, int(_BORDER_OUTSIDE * dpr))
 
-        on_left = x < left + border
-        on_right = x >= right - border
-        on_top = y < top + border
-        on_bottom = y >= bottom - border
+        within_v = top - outside <= y < bottom + outside
+        within_h = left - outside <= x < right + outside
+        on_left = within_v and left - outside <= x < left + border
+        on_right = within_v and right - border <= x < right + outside
+        on_top = within_h and top - outside <= y < top + border
+        on_bottom = within_h and bottom - border <= y < bottom + outside
 
         if on_top and on_left:
             return True, _HTTOPLEFT

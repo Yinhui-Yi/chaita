@@ -108,6 +108,42 @@ def test_load_session_cleans_missing_floor_url(monkeypatch):
     assert out["floors"][0]["url"] == ""
 
 
+def test_load_session_drops_bogus_floors_and_fixes_stair_targets(monkeypatch):
+    """那个 bug 造出来的 `"→ 3"` 假层：加载时丢掉，楼梯的 `to` 洗干净。
+
+    用户 2026-10-31："楼梯坐标我粘贴后再选中楼层信息就没了" —— 当时「通到…」把显示
+    文字（带 "→ "）当层名提交，存档里就多出一条假层、楼梯也指向它。显示/提交已经
+    修了，这里负责把**旧存档**洗干净：假层丢掉、`to` 能对上真层就对上，对不上置空。
+    """
+    import io
+    payload = json.dumps({"monsters": [{"name": "血蚊"}], "floors": [
+        {"floor": "0层", "mons": [], "items": [],
+         "stairs": [{"row": 0, "col": 6, "dir": "up", "to": "→ 3"}]},
+        {"floor": "3层", "mons": [], "items": [], "stairs": []},
+        {"floor": "→ 3", "mons": [], "items": [], "stairs": []},
+    ]}, ensure_ascii=False)
+    monkeypatch.setattr("builtins.open",
+                        lambda *a, **k: io.StringIO(payload))
+
+    out = st._load_session()
+
+    assert [f["floor"] for f in out["floors"]] == ["0层", "3层"]
+    assert out["floors"][0]["stairs"][0]["to"] == "3层", \
+        "楼梯的 to 应该洗成真的那一层"
+
+
+def test_load_session_clears_a_stair_target_that_matches_no_floor():
+    """`to` 洗完还是对不上任何一层（"→ 7" 而这座塔没有 7 层）→ 置空。"""
+    floors = [
+        {"floor": "0层", "stairs": [{"row": 0, "col": 6, "dir": "up",
+                                     "to": "→ 7"}]},
+        {"floor": "→ 7", "stairs": []},
+    ]
+    out = st._drop_bogus_floors(floors)
+    assert [f["floor"] for f in out] == ["0层"]
+    assert out[0]["stairs"][0]["to"] == ""
+
+
 def test_geometry_from_state_normal(monkeypatch):
     area = _Area(0, 0, 1920, 1040)
     got = st._geometry_from_state({"x": 100, "y": 200, "width": 400,

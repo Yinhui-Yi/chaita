@@ -11,8 +11,8 @@
 往拖放区真发拖放事件、点表上的行、点「清空」/关闭。剪贴板是外部边界，用替身。
 
 **不符合标准、已经删掉的**：
-  · `test_compare_highlight_needs_a_coord` —— 直调 `compareAdd()` + `compareHighlight()`
-  · `test_compare_highlight_moves_with_the_next_click` —— 直调 `compareHighlight()`（点击那条
+  · `test_compare_highlight_needs_a_coord` —— 直调 `compareAdd()` + `highlightCell()`
+  · `test_compare_highlight_moves_with_the_next_click` —— 直调 `highlightCell()`（点击那条
     已经并进 `test_closing_the_window_clears_the_highlight`）
   · `test_compare_clear_and_remove` —— `compareRemove()/compareClear()` 直调；「清空」改成点按钮
     保留，「删一条」没有界面上能点的入口，**现在没人覆盖**

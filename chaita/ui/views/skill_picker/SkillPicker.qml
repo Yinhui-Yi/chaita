@@ -44,8 +44,7 @@ Item {
             text: "加技能"
             color: host.ink3
             font.family: host.uiFont
-            font.pixelSize: 9
-            font.letterSpacing: 1
+            font.pixelSize: 11
         }
 
         Flickable {
@@ -77,7 +76,7 @@ Item {
                         text: "自定义…"
                         color: host.ink
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                     MouseArea {
                         id: customPickMouse
@@ -108,7 +107,7 @@ Item {
                             text: modelData
                             color: host.ink
                             font.family: host.uiFont
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                         }
                         MouseArea {
                             id: skillPickMouse
@@ -135,10 +134,10 @@ Item {
         var w = skillCard.width
         var h = skillCard.height
         var top = box.y + box.height + 4
-        if (top + h > host.height - 8)
+        if (top + h > host.cardH - 8)
             top = Math.max(8, box.y - h - 8)
         host.skillMenuY = top
-        host.skillMenuX = Math.max(8, Math.min(host.width - 8 - w,
+        host.skillMenuX = Math.max(8, Math.min(host.cardW - 8 - w,
                                               box.x + box.width - w))
     }
 }

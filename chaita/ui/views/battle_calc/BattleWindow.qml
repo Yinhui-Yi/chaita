@@ -10,7 +10,7 @@ import "pick_menu"
 // 它自己的覆盖层（一个界面一个文件夹）
 import "edit_card"
 
-// 伤害计算（另一扇独立窗口：无边框 + 置顶 + Qt.Tool，能摆在游戏旁边）。
+// 伤害计算（另一扇独立窗口：无边框 + Qt.Tool，置顶跟着主窗口开关，能摆在游戏旁边）。
 //
 // 从 MainWindow.qml 搬出来的第一块（2026-10-28）。为什么搬：主界面那份 7000+ 行，
 // 不同东西要各自一份文件。搬的代价只有一个 —— 它原来直接读主窗口的属性和函数
@@ -66,7 +66,10 @@ Window {
     objectName: "battleWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
     readonly property var screenRect: {
         var scr = battleWin.screen
         if (!scr)
@@ -77,12 +80,18 @@ Window {
     }
     readonly property int maxH: Math.max(320, screenRect.height - 72)
     readonly property int autoW: 430
-    // 抬头 28 + 人物一行 26 + 按钮一行 22 + 各自的间距 = 92；
-    // 底部留 24 给"没算进去的技能"那行小字（底栏的大黄块已经删了）
-    readonly property int chainTop: 92
-    readonly property int chainBottom: 24
+    // 窗口最外圈留给投影的透明边；灰底卡片（battleCard）画在它里面，和主窗口同一套
+    readonly property int inset: Theme.windowInset
+    // 灰底卡片里自上而下：标题行 34 → 人物卡 44 → 按钮行（8 间隔 + 24）→
+    // 链那张白卡（8 间隔 + 8 内边距）；底部留 38 给"没算进去的技能"那行小字
+    // （白卡的 8 内边距 + 8 间隔 + 一行小字 14）
+    readonly property int headH: 34
+    readonly property int heroH: 44
+    readonly property int btnTop: headH + heroH + 8
+    readonly property int chainTop: btnTop + 24 + 8 + 8
+    readonly property int chainBottom: 8 + 8 + 14 + 8
     // 还没被用户拉过时按内容撑高（链折行以后内容会更高，窗口跟着长）
-    readonly property int autoH: chainTop + chainBottom
+    readonly property int autoH: 2 * inset + chainTop + chainBottom
         + Math.max(host.battleRowH,
                    Math.min(320, battleCol.implicitHeight))
     // 用户："伤害计算界面怎么不能拉伸窗口" —— 宽高都能拉（见下面的
@@ -90,25 +99,29 @@ Window {
     width: Math.max(320, host.battleWinW > 0 ? host.battleWinW : autoW)
     height: Math.max(200, Math.min(maxH, host.battleWinH > 0
                                         ? host.battleWinH : autoH))
-    // 整块钳在屏幕里（拖抬头/改大小以后不会掉出去）
+    // 整块钳在屏幕里（拖抬头/改大小以后不会掉出去）；卡片贴屏幕边就算到头，
+    // 外圈 10px 透明投影边可以伸出屏幕
     function clampPos() {
         var rect = battleWin.screenRect
         if (!rect)
             return
-        var left = rect.x + 2
-        var top = rect.y + 2
-        var right = Math.max(left, rect.x + rect.width - battleWin.width - 2)
-        var bottom = Math.max(top, rect.y + rect.height - battleWin.height - 2)
+        var left = rect.x + 2 - battleWin.inset
+        var top = rect.y + 2 - battleWin.inset
+        var right = Math.max(left, rect.x + rect.width - battleWin.width - 2
+                                   + battleWin.inset)
+        var bottom = Math.max(top, rect.y + rect.height - battleWin.height - 2
+                                   + battleWin.inset)
         battleWin.x = Math.round(Math.max(left, Math.min(battleWin.x, right)))
         battleWin.y = Math.round(Math.max(top, Math.min(battleWin.y, bottom)))
     }
+    // 摆在主窗口右边：两张卡片之间留 8px（两边各自还有一圈投影边）
     function place() {
         var rect = battleWin.screenRect
         if (!rect)
             return
         battleWin.x = Math.round(Math.max(
             rect.x + 4,
-            Math.min(host.x + host.width + 8,
+            Math.min(host.x + host.width + 8 - 2 * battleWin.inset,
                      rect.x + rect.width - battleWin.width - 12)))
         battleWin.y = Math.round(Math.max(
             rect.y + 4,
@@ -180,7 +193,7 @@ Window {
                 width: 11
                 height: 1
                 color: gripMouse.containsMouse
-                       ? host.amber : host.ink3
+                       ? host.accent : host.ink3
                 opacity: 0.6
                 x: grip.width - width - 1
                 y: grip.height - modelData
@@ -244,13 +257,18 @@ Window {
         }
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: battleCard
+        radius: battleCard.radius
+    }
+
     Rectangle {
         id: battleCard
         anchors.fill: parent
-        radius: 8
-        color: host.paperHi
-        border.width: 1
-        border.color: host.edge
+        anchors.margins: battleWin.inset
+        radius: 10
+        color: Theme.canvas
         clip: true
         focus: true
         // Esc 关掉这一扇（Shortcut 要窗口是 active 才响，这里再兜一层）
@@ -260,10 +278,10 @@ Window {
         // ---- 抬头：拖着走 + 读取当前状态 + 关 ----
         Item {
             id: battleHeader
-            x: 6
-            y: 2
-            width: parent.width - 12
-            height: 28
+            x: 8
+            y: 0
+            width: parent.width - 16
+            height: battleWin.headH
 
             // 用户："不能移动" —— 拖抬头挪窗口（和「这一层」同一种算法：
             // 用屏幕坐标，窗口跟着鼠标走不会漂）
@@ -295,118 +313,88 @@ Window {
             }
 
             Text {
+                id: battleTitle
                 anchors.left: parent.left
                 anchors.leftMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 text: "伤害计算"
-                color: host.ink
-                font.family: host.uiFont
-                font.pixelSize: 11
+                color: Theme.ink
+                font.family: Theme.uiFont
+                font.pixelSize: 14
                 font.bold: true
-                font.letterSpacing: 0.6
             }
             Text {
                 objectName: "battleHint"
-                anchors.left: parent.left
-                anchors.leftMargin: 64
+                anchors.left: battleTitle.right
+                anchors.leftMargin: 10
                 anchors.right: battleRead.left
-                anchors.rightMargin: 6
+                anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
                 text: "点缩略图改数值 · 点箭头插入 · 点问号接着加"
-                color: host.ink3
-                font.family: host.uiFont
-                font.pixelSize: 8
+                color: Theme.ink3
+                font.family: Theme.uiFont
+                font.pixelSize: 11
                 elide: Text.ElideRight
             }
             // 用户："不能读取当前状态" —— 就在这儿读一次人物面板
-            Item {
+            FlatBtn {
                 id: battleRead
                 objectName: "battleRead"
                 anchors.right: battleClose.left
-                anchors.rightMargin: 10
+                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 30
-                height: 18
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 5
-                    color: battleReadMouse.containsMouse
-                           ? host.paperLo : "transparent"
-                    border.width: 1
-                    border.color: host.hairline
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text: controller && controller.updating ? "…" : "读取"
-                    color: controller && controller.updating
-                           ? host.ink3
-                           : (battleReadMouse.containsMouse
-                              ? host.amber : host.ink2)
-                    font.family: host.uiFont
-                    font.pixelSize: 8
-                }
-                MouseArea {
-                    id: battleReadMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (controller && !controller.updating)
-                            controller.updateStatus()
-                    }
+                label: controller && controller.updating ? "…" : "读取"
+                onClicked: {
+                    if (controller && !controller.updating)
+                        controller.updateStatus()
                 }
             }
-            Item {
+            IconBtn {
                 id: battleClose
                 objectName: "battleClose"
                 anchors.right: parent.right
-                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: battleCloseMouse.containsMouse
-                           ? host.danger : host.ink3
-                    font.pixelSize: 11
-                }
-                MouseArea {
-                    id: battleCloseMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeBattle()
-                }
+                glyph: "✕"
+                glyphSize: 12
+                hoverInk: Theme.danger
+                hoverBack: Theme.dangerSoft
+                onClicked: host.closeBattle()
             }
         }
 
         // ---- 人物状态：血 / 攻 / 防 / 魔防（状态行带出来，可改） ----
         // 用户："血攻防魔防怎么不像状态一样显示" —— 和主窗口状态行同一套
-        // 写法：一个图标挨着一个数（这里的数能改，点进去有浅底和琥珀框）
-        Row {
-            id: battleHeroRow
-            objectName: "battleHeroRow"
-            x: 10
-            anchors.top: battleHeader.bottom
-            anchors.topMargin: 4
-            width: parent.width - 20
-            spacing: 14
-            Repeater {
-                model: [["hp", "血"], ["atk", "攻"],
-                        ["def", "防"], ["mdef", "魔防"]]
-                delegate: Item {
-                    id: heroCell
-                    objectName: "battleHero_" + modelData[0]
-                    width: heroCellRow.implicitWidth
-                    height: 26
-                    Row {
-                        id: heroCellRow
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 3
+        // 写法：一个图标挨着一个数（这里的数能改，点进去有白底和蓝框）
+        Card {
+            id: battleHeroCard
+            x: 8
+            y: battleWin.headH
+            width: parent.width - 16
+            height: battleWin.heroH
+            pad: 8
+            Row {
+                id: battleHeroRow
+                objectName: "battleHeroRow"
+                width: parent.width
+                spacing: 6
+                Repeater {
+                    model: [["hp", "血"], ["atk", "攻"],
+                            ["def", "防"], ["mdef", "魔防"]]
+                    delegate: Rectangle {
+                        id: heroCell
+                        objectName: "battleHero_" + modelData[0]
+                        width: (battleHeroRow.width - 3 * battleHeroRow.spacing) / 4
+                        height: 28
+                        radius: 6
+                        color: heroField.activeFocus ? Theme.paper : Theme.tile
+                        border.width: 1
+                        border.color: heroField.activeFocus
+                                      ? Theme.accent : "transparent"
                         Image {
-                            width: 12
-                            height: 12
+                            id: heroIcon
+                            x: 8
+                            width: 14
+                            height: 14
                             anchors.verticalCenter: parent.verticalCenter
                             source: host.iconBase && modelData[0] !== ""
                                     ? host.iconBase + modelData[0] + ".png"
@@ -416,57 +404,47 @@ Window {
                         }
                         // 没配素材目录时退回一个字，位置不跳
                         Text {
+                            x: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            visible: !host.hasUrl(
-                                host.iconBase && modelData[0] !== ""
-                                ? host.iconBase + modelData[0] + ".png"
-                                : "")
+                            visible: !heroIcon.visible
                             text: modelData[1]
-                            color: host.ink3
-                            font.family: host.uiFont
-                            font.pixelSize: 9
+                            color: Theme.ink3
+                            font.family: Theme.uiFont
+                            font.pixelSize: 11
                         }
-                        Rectangle {
-                            width: heroField.width
-                            height: heroField.height + 2
+                        TextField {
+                            id: heroField
+                            objectName: "battleHero_" + modelData[0] + "Field"
+                            anchors.left: parent.left
+                            anchors.leftMargin: 26
+                            anchors.right: parent.right
+                            anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
-                            radius: 4
-                            color: heroField.activeFocus ? host.paperLo
-                                                         : "transparent"
-                            border.width: 1
-                            border.color: heroField.activeFocus
-                                          ? host.amber : "transparent"
-                            TextField {
-                                id: heroField
-                                objectName: "battleHero_" + modelData[0] + "Field"
-                                anchors.centerIn: parent
-                                width: 44
-                                height: 18
-                                verticalAlignment: TextInput.AlignVCenter
-                                background: null
-                                padding: 0
-                                leftPadding: 2
-                                rightPadding: 2
-                                topPadding: 0
-                                bottomPadding: 0
-                                color: host.ink
-                                font.family: host.monoFont
-                                font.pixelSize: 11
-                                selectByMouse: true
-                                text: String(Number((host.battleHero || {})[modelData[0]] || 0))
-                                // 边改边算（不用等回车，看着数字变最直观）。
-                                // 只认数字，而且值没变就别写回去 —— 不然
-                                // 绑定循环（text ← battleHero ← text）
-                                onTextChanged: {
-                                    var clean = String(text).replace(/[^0-9]/g, "")
-                                    if (clean !== String(text)) {
-                                        text = clean
-                                        return
-                                    }
-                                    var now = clean === "" ? 0 : Number(clean)
-                                    if (now !== Number((host.battleHero || {})[modelData[0]] || 0))
-                                        host.battleSetHero(modelData[0], clean)
+                            height: 22
+                            verticalAlignment: TextInput.AlignVCenter
+                            background: null
+                            padding: 0
+                            leftPadding: 2
+                            rightPadding: 2
+                            topPadding: 0
+                            bottomPadding: 0
+                            color: Theme.ink
+                            font.family: Theme.monoFont
+                            font.pixelSize: 12
+                            selectByMouse: true
+                            text: String(Number((host.battleHero || {})[modelData[0]] || 0))
+                            // 边改边算（不用等回车，看着数字变最直观）。
+                            // 只认数字，而且值没变就别写回去 —— 不然
+                            // 绑定循环（text ← battleHero ← text）
+                            onTextChanged: {
+                                var clean = String(text).replace(/[^0-9]/g, "")
+                                if (clean !== String(text)) {
+                                    text = clean
+                                    return
                                 }
+                                var now = clean === "" ? 0 : Number(clean)
+                                if (now !== Number((host.battleHero || {})[modelData[0]] || 0))
+                                    host.battleSetHero(modelData[0], clean)
                             }
                         }
                     }
@@ -478,27 +456,33 @@ Window {
         Row {
             id: battleBtnRow
             objectName: "battleBtnRow"
-            x: 10
-            anchors.top: battleHeroRow.bottom
-            anchors.topMargin: 4
-            width: parent.width - 20
-            height: 22
+            x: 8
+            y: battleWin.btnTop
+            width: parent.width - 16
+            height: Theme.controlH
             spacing: 6
             FlatBtn {
+                id: battleAddRow
                 objectName: "battleAddRow"
                 label: "＋ 新的计算"
                 onClicked: host.battleAddPlan()
             }
             FlatBtn {
+                id: battlePaste
                 objectName: "battlePaste"
                 label: "粘贴"
                 onClicked: host.battlePaste()
             }
+            // 弹簧：把「清空」顶到右边（宽度按实际按钮算，别写死数字）
             Item {
-                width: Math.max(0, parent.width - 96 - 46 - 46)
+                width: Math.max(0, battleBtnRow.width - battleAddRow.width
+                                   - battlePaste.width
+                                   - battleClearBtn.width
+                                   - 2 * battleBtnRow.spacing)
                 height: 1
             }
             FlatBtn {
+                id: battleClearBtn
                 objectName: "battleClear"
                 label: "清空"
                 onClicked: host.battleClear()
@@ -512,13 +496,19 @@ Window {
         // 用户："一行！！！"：一次计算就是一整行；"我加的怪和资源一多就该
         // 换行" —— 一条链是 Flow，摆不下自动折到下一行，行高跟着长。
         // 掉血写在每个怪后面（加括号），右边钉着这一行的总掉血。
+        // 链那张白卡（里面是滚动区）
+        Card {
+            x: 8
+            y: battleWin.btnTop + Theme.controlH + 8
+            width: parent.width - 16
+            height: battleFlick.height + 16
+        }
         Flickable {
             id: battleFlick
             objectName: "battleFlick"
-            x: 10
-            anchors.top: battleBtnRow.bottom
-            anchors.topMargin: 6
-            width: parent.width - 20
+            x: 16
+            y: battleWin.chainTop
+            width: parent.width - 32
             height: Math.max(host.battleRowH,
                              battleCard.height - battleWin.chainTop
                              - battleWin.chainBottom)
@@ -542,7 +532,7 @@ Window {
                     text: "点上面的「＋ 新的计算」，再点那一行的问号选怪或资源。"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     wrapMode: Text.Wrap
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -568,8 +558,8 @@ Window {
 
                         Rectangle {
                             anchors.fill: parent
-                            radius: 5
-                            color: best ? host.paperLo : "transparent"
+                            radius: 6
+                            color: best ? Theme.tile : "transparent"
                         }
 
                         // 这一行的链：摆不下就折行（用户："一多就该换行"）
@@ -601,7 +591,7 @@ Window {
                                     text: "勇"
                                     color: host.ink2
                                     font.family: host.uiFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                 }
                             }
 
@@ -642,7 +632,7 @@ Window {
                                                       === "item" ? "物" : "怪"
                                                 color: host.ink3
                                                 font.family: host.uiFont
-                                                font.pixelSize: 8
+                                                font.pixelSize: 10
                                             }
                                             // 点这一格 = 改它的数值
                                             MouseArea {
@@ -672,7 +662,7 @@ Window {
                                                     text: modelData.text
                                                     color: modelData.color
                                                     font.family: Theme.uiFont
-                                                    font.pixelSize: 7
+                                                    font.pixelSize: 8
                                                     font.bold: true
                                                 }
                                             }
@@ -709,7 +699,7 @@ Window {
                                                        ? host.danger : host.ink
                                             }
                                             font.family: host.monoFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: 11
                                         }
                                     }
                                 }
@@ -742,14 +732,14 @@ Window {
                                                ? host.paperLo : "transparent"
                                         border.width: 1
                                         border.color: askMouse.containsMouse
-                                                      ? host.amber : host.ink3
+                                                      ? host.accent : host.ink3
                                         Text {
                                             anchors.centerIn: parent
                                             text: "?"
                                             color: askMouse.containsMouse
-                                                   ? host.amber : host.ink3
+                                                   ? host.accent : host.ink3
                                             font.family: host.uiFont
-                                            font.pixelSize: 10
+                                            font.pixelSize: 11
                                         }
                                         MouseArea {
                                             id: askMouse
@@ -789,9 +779,10 @@ Window {
                                     width: parent.width
                                     horizontalAlignment: Text.AlignRight
                                     text: host.battlePlanTotal(plan.index)
-                                    color: best ? host.amber : host.ink
+                                    color: best ? host.accent : host.ink
                                     font.family: host.monoFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
+                                    font.bold: best
                                 }
                                 Text {
                                     objectName: "battlePlanLeftHp"
@@ -800,7 +791,7 @@ Window {
                                     text: host.battlePlanLeft(plan.index)
                                     color: host.ink3
                                     font.family: host.uiFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 10
                                 }
                             }
                         }
@@ -818,7 +809,7 @@ Window {
                             opacity: deleteMouse.containsMouse ? 1 : 0.4
                             color: deleteMouse.containsMouse
                                    ? host.danger : host.ink3
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                             MouseArea {
                                 id: deleteMouse
                                 anchors.fill: parent
@@ -836,10 +827,10 @@ Window {
         // ---- 没算进去的技能（薄薄一行小字，底栏的大黄块已经删了） ----
         Text {
             objectName: "battleUnhandled"
-            x: 10
+            x: 12
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 6
-            width: parent.width - 20
+            anchors.bottomMargin: 8
+            width: parent.width - 24
             visible: text !== ""
             text: {
                 var plans = host.battlePlanResults || []
@@ -857,7 +848,7 @@ Window {
             }
             color: host.ink3
             font.family: host.uiFont
-            font.pixelSize: 8
+            font.pixelSize: 10
             elide: Text.ElideRight
         }
 
@@ -913,10 +904,17 @@ Window {
         }
     }
 
-    // ---- 点缩略图改参数（用户："点击缩略图可以修改参数"）----
-            EditCard { host: battleWin.host }
+    // 两层覆盖层（改参数卡片 / 问号菜单）只盖灰底卡片那一块，不盖外圈的投影边；
+    // 菜单坐标（battleMenuX/Y）也是按这一块算的
+    Item {
+        anchors.fill: parent
+        anchors.margins: battleWin.inset
 
-    // ---- 问号的下拉菜单：怪 + 资源摆一个列表 ----
-    // （用户："点问号选怪或资源"）
-            PickMenu { host: battleWin.host }
+        // ---- 点缩略图改参数（用户："点击缩略图可以修改参数"）----
+        EditCard { host: battleWin.host }
+
+        // ---- 问号的下拉菜单：怪 + 资源摆一个列表 ----
+        // （用户："点问号选怪或资源"）
+        PickMenu { host: battleWin.host }
+    }
 }

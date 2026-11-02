@@ -55,8 +55,7 @@ def _items(window):
 
 def _type(window, item, text):
     """在某个输入框里打字回车（真实键盘事件收尾）。"""
-    item.forceActiveFocus()
-    helpers.APP.processEvents()
+    helpers.focus_field(item)
     item.setProperty("text", text)
     helpers.APP.processEvents()
     helpers.APP.sendEvent(item.window(),

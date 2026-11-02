@@ -82,8 +82,7 @@ def _pick_row(window, name):
 
 def _type(window, item, text):
     """真的在这个输入框里打完字再按回车（走 editingFinished）。"""
-    item.forceActiveFocus()
-    helpers.APP.processEvents()
+    helpers.focus_field(item)
     item.setProperty("text", text)
     helpers.APP.processEvents()
     helpers.APP.sendEvent(item.window(),
@@ -104,7 +103,8 @@ def test_add_monster_from_pick_menu():
 
     helpers.click_item(window, _pick_row(window, "血蚊"))
 
-    assert _entry(controller)["mons"] == [{"name": "血蚊", "count": 1}]
+    assert _entry(controller)["mons"] == [{"name": "血蚊", "count": 1,
+                                           "manual": True}]
     assert str(window.property("pickMode")) == ""      # 选完自己收起来
 
 
@@ -124,7 +124,7 @@ def test_add_item_from_pick_menu_carries_icon_and_effect(monkeypatch):
 
     assert _entry(controller)["items"] == [
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1,
-         "icon": "gem_red"}]
+         "icon": "gem_red", "manual": True}]
 
 
 def test_item_icon_pick_changes_kind(monkeypatch):

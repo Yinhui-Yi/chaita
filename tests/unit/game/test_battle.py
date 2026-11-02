@@ -433,3 +433,101 @@ def test_run_plan_applies_shield_per_battle():
     r = battle.run_plan(hero, steps)
     assert [row["damage"] for row in r["rows"]] == [5, 5]
     assert r["total_damage"] == 10
+
+
+# ---------- damage_gain：再加 X 点攻/防/魔防，剩下的怪少掉多少血 ----------
+# 基线（H = 血100 攻50 防20 魔防0，M = 血100 攻30 防10）：
+#   每回合打 40 → ceil(100/40)=3 回合；它倒那回合不还手 → 挨 2 下 × (30-20) = 20
+
+
+def test_damage_gain_attack_saves_a_round_trip():
+    # 攻 50 → 71（每回合打 61）→ ceil(100/61)=2 回合 → 只挨 1 下 = 10 → 少掉 10
+    out = battle.damage_gain(H, [dict(M, name="怪", count=1)], {"atk": 21})
+    assert out["per_monster"] == [{"name": "怪", "floor": "", "count": 1,
+                                   "before": 20, "after": 10, "saved": 10}]
+    assert out["total_saved"] == 10
+
+
+def test_damage_gain_keeps_the_floor_each_monster_came_from():
+    """测什么：`per_monster` 带着这一格来自哪一层（界面按层分组靠它）。"""
+    out = battle.damage_gain(H, [dict(M, name="怪", count=1, floor="3层")],
+                             {"atk": 21})
+    assert out["per_monster"][0]["floor"] == "3层"
+
+
+def test_damage_gain_defense_cuts_every_round():
+    # 防 20 → 25：每下 30-25=5，2 下 = 10 → 少掉 10
+    out = battle.damage_gain(H, [dict(M, name="怪", count=1)], {"def": 5})
+    assert out["per_monster"][0]["saved"] == 10
+
+
+def test_damage_gain_mdef_is_a_one_off_shield():
+    # 魔防就是护盾：整场只减一次 → 加 5 点魔防就少掉 5，加 40 点也最多把 20 减到 0
+    saved_5 = battle.damage_gain(H, [dict(M, name="怪", count=1)],
+                                 {"mdef": 5})["total_saved"]
+    saved_40 = battle.damage_gain(H, [dict(M, name="怪", count=1)],
+                                  {"mdef": 40})["total_saved"]
+    assert (saved_5, saved_40) == (5, 20)
+
+
+def test_damage_gain_multiplies_by_the_remaining_count():
+    # 同一只怪剩 3 只：每只少 10 → 这种少 30
+    out = battle.damage_gain(H, [dict(M, name="怪", count=3)], {"def": 5})
+    assert out["per_species"] == [{"name": "怪", "count": 3, "saved_one": 10,
+                                   "saved_all": 30}]
+    assert out["total_saved"] == 30
+
+
+def test_damage_gain_merges_the_same_species():
+    # 同一只怪分两层列出来（各 2 只 / 1 只）→ 按一种算，数量 3
+    out = battle.damage_gain(H, [dict(M, name="怪", count=2),
+                                 dict(M, name="怪", count=1)], {"def": 5})
+    assert out["per_species"] == [{"name": "怪", "count": 3, "saved_one": 10,
+                                   "saved_all": 30}]
+
+
+def test_damage_gain_caps_the_total():
+    # 合计 30 超过上界 20 → 按上界算，而且要说明封了
+    out = battle.damage_gain(H, [dict(M, name="怪", count=3)], {"def": 5},
+                             cap=20)
+    assert (out["total_saved"], out["capped_saved"], out["capped"]) == \
+        (30, 20, True)
+
+
+def test_damage_gain_no_cap_means_no_cap():
+    out = battle.damage_gain(H, [dict(M, name="怪", count=3)], {"def": 5},
+                             cap=0)
+    assert (out["capped_saved"], out["capped"]) == (30, False)
+
+
+def test_damage_gain_missing_count_means_one():
+    out = battle.damage_gain(H, [dict(M, name="怪", count=None)], {"def": 5})
+    assert out["per_species"][0]["count"] == 1
+
+
+def test_damage_gain_reports_uncomputable_monsters():
+    # 打不动（攻 10 < 防 50）→ 不进合计，单独列出来说清
+    out = battle.damage_gain({"hp": 100, "atk": 10, "def": 0, "mdef": 0},
+                             [{"name": "铁卫", "hp": 100, "atk": 10,
+                               "def": 50, "count": 2}], {"atk": 5})
+    assert out["per_monster"] == []
+    assert out["uncomputable"] == [{"name": "铁卫", "reason": "打不动"}]
+    assert out["total_saved"] == 0
+
+
+# ---- 合计封顶：规则只写一处（`battle.apply_cap`），外面按层分组时也用它 ----
+
+def test_apply_cap_leaves_the_total_alone_without_an_upper_bound():
+    assert battle.apply_cap(244, 0) == {"cap": 0, "capped": False,
+                                        "capped_saved": 244}
+
+
+def test_apply_cap_cuts_the_total_down_to_the_upper_bound():
+    assert battle.apply_cap(244, 100) == {"cap": 100, "capped": True,
+                                          "capped_saved": 100}
+
+
+def test_apply_cap_does_not_inflate_a_small_total():
+    # 合计 30、上界 100 → 还是 30（上界只封上面，不抬下限）
+    assert battle.apply_cap(30, 100) == {"cap": 100, "capped": False,
+                                         "capped_saved": 30}

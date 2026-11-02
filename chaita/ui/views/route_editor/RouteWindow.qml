@@ -13,7 +13,7 @@ import "edit_card"
 // 只摆怪/宝石/血瓶（空的走过格不摆），掉血写在格后、总掉血在右端。
 // 公式在 `chaita/game/battle.py` —— 和伤害计算共用同一份（`battle.run_plan`）。
 //
-// 它是**一扇真窗口**（无边框 + 置顶 + Qt.Tool，和伤害计算同一个形状），能摆在
+// 它是**一扇真窗口**（无边框 + Qt.Tool，置顶跟着主窗口开关，和伤害计算同一个形状），能摆在
 // 游戏旁边边看边走。状态都在主窗口的 `route*` 上，这里读 `host.xxx`。
 Window {
     id: routeWin
@@ -34,7 +34,10 @@ Window {
     objectName: "routeWindow"
     visible: false
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
 
     readonly property var screenRect: {
         var scr = routeWin.screen
@@ -44,10 +47,15 @@ Window {
         var originY = scr.virtualY !== undefined ? scr.virtualY : 0
         return Qt.rect(originX, originY, scr.width, scr.height)
     }
-    // 抬头 28 + 人物一行 20 + 间距；链最少 40（一格行高）
-    readonly property int headH: 54
+    // 窗口最外圈留给投影的透明边；灰底卡片（cardBox）画在它里面，和主窗口同一套
+    readonly property int inset: Theme.windowInset
+    // 灰底卡片里自上而下：标题行 34 → 人物一行 20 → 链那张白卡（8 间隔 + 8 内边距）
+    readonly property int titleH: 34
+    readonly property int heroLineH: 20
+    readonly property int chainTop: titleH + heroLineH + 4 + 8
+    readonly property int chainBottom: 16
     readonly property int autoW: 420
-    readonly property int autoH: headH + 8
+    readonly property int autoH: 2 * inset + chainTop + chainBottom
         + Math.min(300, Math.max(38, chainCol.implicitHeight))
     readonly property int maxH: Math.max(170, screenRect.height - 72)
     // 点开格子菜单时窗口长高一截（菜单挂在格子下面，得放得下）；拉过就按拉的来
@@ -58,27 +66,30 @@ Window {
     width: Math.max(320, routeWin.winW > 0 ? routeWin.winW : autoW)
     height: Math.max(170, routeWin.winH > 0 ? routeWin.winH : autoHeight)
 
-    // 整块钳在屏幕里（拖抬头以后不会掉出去）
+    // 整块钳在屏幕里（拖抬头以后不会掉出去）；卡片贴屏幕边就算到头，
+    // 外圈 10px 透明投影边可以伸出屏幕
     function clampPos() {
         var rect = routeWin.screenRect
         if (!rect)
             return
-        var left = rect.x + 2
-        var top = rect.y + 2
-        var right = Math.max(left, rect.x + rect.width - routeWin.width - 2)
-        var bottom = Math.max(top, rect.y + rect.height - routeWin.height - 2)
+        var left = rect.x + 2 - routeWin.inset
+        var top = rect.y + 2 - routeWin.inset
+        var right = Math.max(left, rect.x + rect.width - routeWin.width - 2
+                                   + routeWin.inset)
+        var bottom = Math.max(top, rect.y + rect.height - routeWin.height - 2
+                                   + routeWin.inset)
         routeWin.x = Math.round(Math.max(left, Math.min(routeWin.x, right)))
         routeWin.y = Math.round(Math.max(top, Math.min(routeWin.y, bottom)))
     }
 
-    // 开窗时摆在主窗口右边（和伤害计算同一个落点规矩）
+    // 开窗时摆在主窗口右边（和伤害计算同一个落点规矩：两张卡片之间留 8px）
     function place() {
         var rect = routeWin.screenRect
         if (!rect)
             return
         routeWin.x = Math.round(Math.max(
             rect.x + 4,
-            Math.min(host.x + host.width + 8,
+            Math.min(host.x + host.width + 8 - 2 * routeWin.inset,
                      rect.x + rect.width - routeWin.width - 12)))
         routeWin.y = Math.round(Math.max(
             rect.y + 4,
@@ -144,7 +155,7 @@ Window {
             delegate: Rectangle {
                 width: 11
                 height: 1
-                color: gripMouse.containsMouse ? Theme.amber : Theme.ink3
+                color: gripMouse.containsMouse ? Theme.accent : Theme.ink3
                 opacity: 0.6
                 x: grip.width - width - 1
                 y: grip.height - modelData
@@ -203,24 +214,29 @@ Window {
         }
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: cardBox
+        radius: cardBox.radius
+    }
+
     Rectangle {
         id: cardBox
         objectName: "routeCard"
         anchors.fill: parent
-        radius: 8
-        color: Theme.paperHi
-        border.width: 1
-        border.color: Theme.edge
+        anchors.margins: routeWin.inset
+        radius: 10
+        color: Theme.canvas
         clip: true
         MouseArea { anchors.fill: parent }
 
         // ---- 抬头：拖着走 + 关 ----
         Item {
             id: routeHeader
-            x: 6
-            y: 2
-            width: parent.width - 12
-            height: 28
+            x: 8
+            y: 0
+            width: parent.width - 16
+            height: routeWin.titleH
             MouseArea {
                 id: routeDrag
                 objectName: "routeDrag"
@@ -247,80 +263,84 @@ Window {
                 }
             }
             Text {
+                id: routeTitle
                 anchors.left: parent.left
                 anchors.leftMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 text: "路线链"
                 color: Theme.ink
                 font.family: Theme.uiFont
-                font.pixelSize: 11
+                font.pixelSize: 14
                 font.bold: true
-                font.letterSpacing: 0.6
             }
             Text {
                 objectName: "routeFloorLabel"
-                anchors.left: parent.left
-                anchors.leftMargin: 52
+                anchors.left: routeTitle.right
+                anchors.leftMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
                 text: ctx.floor
                 color: Theme.ink2
                 font.family: Theme.uiFont
-                font.pixelSize: 10
+                font.pixelSize: 11
                 elide: Text.ElideRight
                 width: Math.min(implicitWidth, 90)
             }
-            Text {
-                id: routeCopyText
-                objectName: "routeCopy"
-                anchors.right: routeDeleteText.left
-                anchors.rightMargin: 14
+            IconBtn {
+                id: routeClose
+                objectName: "routeClose"
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: "复制"
-                color: copyMouse.containsMouse ? Theme.amber : Theme.ink2
-                font.family: Theme.uiFont
-                font.pixelSize: 9
-                MouseArea {
-                    id: copyMouse
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.routeCopy(ctx)
-                }
+                glyph: "✕"
+                glyphSize: 12
+                hoverInk: Theme.danger
+                hoverBack: Theme.dangerSoft
+                onClicked: host.closeRoute(ctx)
             }
-            Text {
+            TextBtn {
                 id: routeDeleteText
                 objectName: "routeDelete"
+                pill: true
                 anchors.right: routeClose.left
-                anchors.rightMargin: 14
+                anchors.rightMargin: 2
                 anchors.verticalCenter: parent.verticalCenter
                 text: "删"
-                color: deleteMouse.containsMouse ? Theme.danger : Theme.ink3
-                font.family: Theme.uiFont
-                font.pixelSize: 9
-                MouseArea {
-                    id: deleteMouse
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.routeRemove(ctx)
-                }
+                accent: Theme.danger
+                onClicked: host.routeRemove(ctx)
+            }
+            TextBtn {
+                id: routeCopyText
+                objectName: "routeCopy"
+                pill: true
+                anchors.right: routeDeleteText.left
+                anchors.rightMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                text: "复制"
+                accent: Theme.accent
+                onClicked: host.routeCopy(ctx)
             }
             // 拖拽入口：按住「拖」把这条路线拖到「路线对比」窗口上松手
-            Text {
+            // （要在按下那一下就起拖，所以不用 TextBtn 的 clicked）
+            Rectangle {
+                id: routeDragOutPill
                 objectName: "routeDragOut"
                 anchors.right: routeCopyText.left
-                anchors.rightMargin: 14
+                anchors.rightMargin: 2
                 anchors.verticalCenter: parent.verticalCenter
-                text: "拖"
-                color: dragOutMouse.containsMouse ? Theme.amber : Theme.ink2
-                font.family: Theme.uiFont
-                font.pixelSize: 9
+                width: dragOutText.implicitWidth + 16
+                height: 22
+                radius: Theme.radius
+                color: dragOutMouse.containsMouse ? Theme.hover : "transparent"
+                Text {
+                    id: dragOutText
+                    anchors.centerIn: parent
+                    text: "拖"
+                    color: dragOutMouse.containsMouse ? Theme.accent : Theme.ink2
+                    font.family: Theme.uiFont
+                    font.pixelSize: 11
+                }
                 MouseArea {
                     id: dragOutMouse
                     anchors.fill: parent
-                    anchors.margins: -4
                     hoverEnabled: true
                     cursorShape: Qt.OpenHandCursor
                     onPressed: function (m) {
@@ -348,39 +368,15 @@ Window {
                 Rectangle {
                     anchors.fill: parent
                     radius: 4
-                    color: Theme.amber
+                    color: Theme.accent
                     Text {
                         anchors.centerIn: parent
                         text: "路线"
                         color: Theme.paperHi
                         font.family: Theme.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         font.bold: true
                     }
-                }
-            }
-
-            Item {
-                id: routeClose
-                objectName: "routeClose"
-                anchors.right: parent.right
-                anchors.rightMargin: 4
-                anchors.verticalCenter: parent.verticalCenter
-                width: 16
-                height: 16
-                Text {
-                    anchors.centerIn: parent
-                    text: "✕"
-                    color: routeCloseMouse.containsMouse
-                           ? Theme.danger : Theme.ink3
-                    font.pixelSize: 11
-                }
-                MouseArea {
-                    id: routeCloseMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: host.closeRoute(ctx)
                 }
             }
         }
@@ -389,10 +385,10 @@ Window {
         Text {
             id: routeHeroLine
             objectName: "routeHeroLine"
-            x: 10
-            y: 30
-            width: parent.width - 20
-            height: 20
+            x: 12
+            y: routeWin.titleH
+            width: parent.width - 24
+            height: routeWin.heroLineH
             verticalAlignment: Text.AlignVCenter
             text: "血 " + host.fmt(ctx.hero.hp)
                   + "  ·  攻 " + host.fmt(ctx.hero.atk)
@@ -400,18 +396,27 @@ Window {
                   + "  ·  魔防 " + host.fmt(ctx.hero.mdef)
             color: Theme.ink2
             font.family: Theme.uiFont
-            font.pixelSize: 9
+            font.pixelSize: 11
             elide: Text.ElideRight
+        }
+
+        // 链那张白卡（里面是滚动区）
+        Card {
+            x: 8
+            y: routeWin.chainTop - 8
+            width: parent.width - 16
+            height: routeFlick.height + 16
         }
 
         // ---- 链：勇者 → 格1,1 → 格1,2 …（摆不下折行） ----
         Flickable {
             id: routeFlick
             objectName: "routeFlick"
-            x: 10
-            y: routeWin.headH
-            width: parent.width - 20
-            height: Math.max(38, cardBox.height - routeWin.headH - 8)
+            x: 16
+            y: routeWin.chainTop
+            width: parent.width - 32
+            height: Math.max(38, cardBox.height - routeWin.chainTop
+                                 - routeWin.chainBottom)
             contentWidth: width
             contentHeight: chainCol.implicitHeight
             clip: true
@@ -432,7 +437,7 @@ Window {
                     text: "这条路线没有格子。回地图上长按玩家再拖一次。"
                     color: Theme.ink3
                     font.family: Theme.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                 }
 
                 // 链照伤害计算的样子：勇者 → 缩略图 → 缩略图 …
@@ -465,7 +470,7 @@ Window {
                             text: "勇"
                             color: Theme.ink2
                             font.family: Theme.uiFont
-                            font.pixelSize: 9
+                            font.pixelSize: 10
                         }
                     }
 
@@ -515,7 +520,7 @@ Window {
                                         text: stepItem.glyph
                                         color: Theme.ink2
                                         font.family: Theme.uiFont
-                                        font.pixelSize: 8
+                                        font.pixelSize: 10
                                     }
                                 }
                                 Text {
@@ -531,7 +536,7 @@ Window {
                                         return Theme.ink
                                     }
                                     font.family: Theme.monoFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
                                 }
                             }
                         }
@@ -565,7 +570,7 @@ Window {
                 text: host.routeTotal(ctx)
                 color: host.routeDead(ctx) ? Theme.danger : Theme.ink
                 font.family: Theme.monoFont
-                font.pixelSize: 10
+                font.pixelSize: 11
                 font.bold: true
             }
             Text {
@@ -575,7 +580,7 @@ Window {
                 text: host.routeLeft(ctx)
                 color: host.routeDead(ctx) ? Theme.danger : Theme.ink3
                 font.family: Theme.uiFont
-                font.pixelSize: 8
+                font.pixelSize: 10
             }
         }
 
@@ -630,9 +635,16 @@ Window {
         }
     }
 
-    // ---- 点格子填内容的下拉（「换」的时候用，同一扇窗的覆盖层） ----
-    PickMenu { id: routeMenuLayer; host: routeWin.host; ctx: routeWin.ctx }
+    // 两层覆盖层（格子菜单 / 改参数卡片）只盖灰底卡片那一块，不盖外圈的投影边；
+    // 菜单坐标（ctx.menuX/Y）也是按这一块算的
+    Item {
+        anchors.fill: parent
+        anchors.margins: routeWin.inset
 
-    // ---- 点缩略图改参数（和伤害计算同一个卡片） ----
-    EditCard { host: routeWin.host; ctx: routeWin.ctx }
+        // ---- 点格子填内容的下拉（「换」的时候用，同一扇窗的覆盖层） ----
+        PickMenu { id: routeMenuLayer; host: routeWin.host; ctx: routeWin.ctx }
+
+        // ---- 点缩略图改参数（和伤害计算同一个卡片） ----
+        EditCard { host: routeWin.host; ctx: routeWin.ctx }
+    }
 }

@@ -65,8 +65,10 @@ def test_a_floor_can_have_several_stairs_and_each_has_its_own_target():
 def test_new_stair_has_no_position_and_no_target_yet():
     c = make()
     assert c.addStair("0层") == 0
+    # 手动加的楼梯带 manual 标记（AI 刷新时这一行整行留着）
     assert c.stairsOf("0层") == [{"row": -1, "col": -1, "dir": "up",
-                                  "to": "", "toRow": -1, "toCol": -1}]
+                                  "to": "", "toRow": -1, "toCol": -1,
+                                  "manual": True}]
 
 
 def test_save_stair_rejects_bad_input():

@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 import cv2                                                    # noqa: E402
-from PySide6.QtCore import QTimer, QUrl, Qt                    # noqa: E402
+from PySide6.QtCore import Q_ARG, QMetaObject, QTimer, QUrl, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QImage, QPainter     # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine                # noqa: E402
 # 必须 import 一下：PySide 是按"已导入的类"决定实例包成哪个包装类的，
@@ -40,7 +40,8 @@ from chaita.ui import main as ov                            # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "docs", "capture", "h5_miaomiao_212609.png")
 
-SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
+SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinned",
+             "chatfold", "chattyping", "mapfold", "skillintro",
              "collapsed-empty", "session", "floor", "flooritems",
              "floorsmall", "folded", "floorpick",
              "monedit", "monparams", "moncustom", "battle", "battleplan",
@@ -49,7 +50,7 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed",
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
              "iconscroll3", "queue", "chatlong", "compare", "comparehi",
-             "map", "mapedit", "mapstairs", "mapstack", "cellmenu")
+             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -568,6 +569,33 @@ def main() -> int:
             # 地图/怪物两栏都折叠：看空两格标题（用户："地图和怪物怎么不能折叠"）
             window.setProperty("mapCollapsed", True)
             window.setProperty("monCollapsed", True)
+        elif scenario == "mapfold":
+            # 只折叠地图：怪物和技能两张卡摆在眼前，看它们紧不紧凑
+            window.setProperty("mapCollapsed", True)
+        elif scenario == "skillintro":
+            # 点开第一个技能胶囊：弹出它的介绍卡（地图折起来，技能卡才在眼前）
+            window.setProperty("mapCollapsed", True)
+            window.setProperty("monCollapsed", True)
+            card = _find_by_name(window, "skillSectionCard")
+            chip = _find_by_name(window, "skillRow")
+            name = _find_by_name(window, "skillName").property("text")
+            # 等折叠动画和布局排完，胶囊有了真位置再点开（和真人点的时机一样）
+            QTimer.singleShot(
+                400, lambda: QMetaObject.invokeMethod(
+                    card, "openIntro", Qt.DirectConnection,
+                    Q_ARG("QVariant", name), Q_ARG("QVariant", chip)))
+        elif scenario == "chatfold":
+            # 对话区收起，且收起后又来了一条新消息：标题行上有小蓝点
+            window.setProperty("chatCollapsed", True)
+            controller._chat_log = controller._chat_log + [
+                {"who": "AI", "text": "新的一句", "at": "14:40"}]
+            controller.chatLogChanged.emit()
+        elif scenario == "chattyping":
+            # 输入框里有字：发送键变蓝
+            _find_by_name(window, "chatInput").setProperty("text", "红头怪还剩几只")
+        elif scenario == "pinned":
+            # 导航条「置顶」开着：药丸变成淡蓝底 + 蓝色粗体字
+            window.setProperty("pinned", True)
         elif scenario == "reading":
             # 读取中只有"点了读取按钮"才有：地图那栏的按钮显示成「读取中」
             window.setProperty("readingMode", "map")
@@ -685,17 +713,19 @@ def main() -> int:
                 route_win.setX(window.x() + window.width() + 8)
                 route_win.setY(window.y() + 30)
                 route_win.show()
+            # 这三个函数都要先递上这条路线的上下文（路线窗口自己的 ctx）
+            ctx = route_win.property("ctx") if route_win is not None else None
             if scenario == "routechain":
-                window.routeCompute()
+                window.routeCompute(ctx)
             elif scenario == "routepick":
                 # 点开第 2 格的下拉：怪 / 资源两个标签页 + 门 / 清空
-                QTimer.singleShot(250, lambda: window.openRouteMenu(1))
+                QTimer.singleShot(250, lambda: window.openRouteMenu(ctx, 1))
             elif scenario == "routeedit":
                 # 点第 2 格（红头怪）的缩略图 = 改参数卡片（和伤害计算同一个长相）
-                QTimer.singleShot(250, lambda: window.routeEditStep(1))
+                QTimer.singleShot(250, lambda: window.routeEditStep(ctx, 1))
             else:
                 # 点资源那格（红宝石）的缩略图
-                QTimer.singleShot(250, lambda: window.routeEditStep(2))
+                QTimer.singleShot(250, lambda: window.routeEditStep(ctx, 2))
         elif scenario == "gridedit":
             # 格子编辑模式：地图盖 13×13 坐标系，词条下面标"位置 x,y"
             window.gridEditToggle("通天塔1")
@@ -792,6 +822,17 @@ def main() -> int:
                  "at": "14:31"},
             ]
             controller.chatLogChanged.emit()
+        elif scenario == "gain":
+            # 加属性收益：打开窗口，看三档加成 + 结果；摆回主窗口右边（和真实用法一样）
+            def _open_gain():
+                window.openGain()
+                gain = window.property("gainWindow")
+                gain = gain.toQObject() if hasattr(gain, "toQObject") else gain
+                if gain is not None:
+                    gain.setX(window.x() + window.width() + 8)
+                    gain.setY(window.y() + 30)
+                    gain.show()
+            QTimer.singleShot(200, _open_gain)
         elif scenario == "compare":
             # 路线对比：摆三条路线，比同一只怪在不同路线的掉血
             _compare_scenario(window, controller)
@@ -802,7 +843,7 @@ def main() -> int:
             rows = window.compareRows()
             rows = rows.toVariant() if hasattr(rows, "toVariant") else rows
             if rows:
-                window.compareHighlight(rows[0])
+                window.highlightCell(rows[0])
             QGuiApplication.processEvents()
 
         elif scenario == "iconpick":

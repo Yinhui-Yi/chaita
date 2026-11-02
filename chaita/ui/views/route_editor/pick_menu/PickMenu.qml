@@ -64,7 +64,7 @@ Item {
             text: "这一格有什么：" + host.routeLabel(routeMenuLayer.cell())
             color: Theme.ink3
             font.family: Theme.uiFont
-            font.pixelSize: 9
+            font.pixelSize: 11
             elide: Text.ElideRight
         }
 
@@ -87,7 +87,7 @@ Item {
                     color: ctx.pickTab === "monster"
                            ? Theme.ink : Theme.ink3
                     font.family: Theme.uiFont
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -109,7 +109,7 @@ Item {
                     color: ctx.pickTab === "item"
                            ? Theme.ink : Theme.ink3
                     font.family: Theme.uiFont
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -147,7 +147,7 @@ Item {
                           : "手册里还没有怪，先读一次怪物手册"
                     color: Theme.ink3
                     font.family: Theme.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     wrapMode: Text.WordWrap
                 }
 
@@ -196,7 +196,7 @@ Item {
                                       : ""))
                             color: Theme.ink
                             font.family: Theme.uiFont
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                             elide: Text.ElideRight
                         }
                     }

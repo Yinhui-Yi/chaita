@@ -40,15 +40,45 @@ class _Window:
         return _Geo(100, 100, 400, 400)
 
 
-def _handle(x, y, message=0x0084, hwnd=0x1234):
+class _InsetWindow(_Window):
+    """主窗口的样子：最外圈有一圈透明投影边（QML 的 inset 属性）。"""
+
+    def property(self, name):
+        return {"inset": 10}[name]
+
+
+def _handle(x, y, message=0x0084, hwnd=0x1234, window=None):
     hit = desk.NativeHitTest.__new__(desk.NativeHitTest)
-    hit._window = _Window()
+    hit._window = window or _Window()
     hit._hwnd = 0x1234
     msg = wintypes.MSG()
     msg.message = message
     msg.hWnd = hwnd
     msg.lParam = (y << 16) | x
     return hit._handle(ctypes.addressof(msg))
+
+
+def test_有投影边时热区跟着可见卡片的边走():
+    """窗口 100..500，投影边 10 → 可见卡片 110..490。
+    卡片外 4px 到卡片内 6px 都能拉；再往外（透明边里）不接管。"""
+    win = _InsetWindow()
+    assert _handle(112, 300, window=win) == (True, desk._HTLEFT)     # 卡片内 2px
+    assert _handle(107, 300, window=win) == (True, desk._HTLEFT)     # 卡片外 3px
+    assert _handle(488, 300, window=win) == (True, desk._HTRIGHT)
+    assert _handle(300, 112, window=win) == (True, desk._HTTOP)
+    assert _handle(300, 492, window=win) == (True, desk._HTBOTTOM)
+    assert _handle(108, 108, window=win) == (True, desk._HTTOPLEFT)
+    assert _handle(491, 491, window=win) == (True, desk._HTBOTTOMRIGHT)
+
+
+def test_有投影边时透明边外圈和卡片内部都不接管():
+    win = _InsetWindow()
+    assert _handle(103, 300, window=win) == (False, 0)   # 卡片外 7px：透明边深处
+    assert _handle(300, 101, window=win) == (False, 0)
+    assert _handle(300, 300, window=win) == (False, 0)   # 卡片中间
+    assert _handle(118, 300, window=win) == (False, 0)   # 卡片内 8px：已过热区
+    # 卡片上沿的外面、但横向已经在卡片左右之外：不算顶边
+    assert _handle(50, 108, window=win) == (False, 0)
 
 
 def test_hit_corners():
@@ -79,6 +109,36 @@ def test_hit_null_message_not_handled():
     hit._window = _Window()
     hit._hwnd = 0x1234
     assert hit._handle(0) == (False, 0)
+
+
+def test_set_topmost_按指针传HWND参数_不抢焦点(monkeypatch):
+    """HWND 和 HWND_TOPMOST(-1) 必须按指针（c_void_p）传，直接传 Python 整数在 64 位上无效；
+    置顶/取消置顶两个方向、都带上「不动位置大小、不抢焦点」的标志。"""
+    calls = []
+    user32 = type("User32", (), {
+        "SetWindowPos": staticmethod(lambda *args: calls.append(args) or 1)})
+    monkeypatch.setattr(desk.ctypes, "windll",
+                        type("Windll", (), {"user32": user32}), raising=False)
+
+    assert desk.set_topmost(1234, True) is True
+    assert desk.set_topmost(1234, False) is True
+
+    flags = desk._SWP_NOMOVE_NOSIZE | desk._SWP_NOACTIVATE
+    for args, after in zip(calls, (desk._HWND_TOPMOST, desk._HWND_NOTOPMOST)):
+        hwnd, insert_after, *rest = args
+        assert isinstance(hwnd, ctypes.c_void_p) and hwnd.value == 1234
+        assert isinstance(insert_after, ctypes.c_void_p)
+        assert insert_after.value == after & 0xFFFFFFFFFFFFFFFF
+        assert rest == [0, 0, 0, 0, flags]
+
+
+def test_set_topmost_调用失败返回False(monkeypatch):
+    def boom(*args):
+        raise OSError("no window")
+    user32 = type("User32", (), {"SetWindowPos": staticmethod(boom)})
+    monkeypatch.setattr(desk.ctypes, "windll",
+                        type("Windll", (), {"user32": user32}), raising=False)
+    assert desk.set_topmost(1234, True) is False
 
 
 def test_focus_window_of_process_rejects_invalid_pid():
@@ -117,22 +177,25 @@ def test_focus_window_does_the_topmost_dance(monkeypatch):
     """抢前台会被系统拒绝，所以顺序是：还原 → 置顶 → 取消置顶 → 要前台。"""
     calls = []
     user32 = type("User32", (), {
-        "ShowWindow": staticmethod(lambda h, c: calls.append(("ShowWindow", h, c))),
+        "ShowWindow": staticmethod(
+            lambda h, c: calls.append(("ShowWindow", h.value, c))),
         "SetWindowPos": staticmethod(
             lambda h, after, x, y, cx, cy, flags:
-            calls.append(("SetWindowPos", h, after))),
+            calls.append(("SetWindowPos", h.value, after.value)) or 1),
         "SetForegroundWindow": staticmethod(
-            lambda h: calls.append(("SetForegroundWindow", h))),
+            lambda h: calls.append(("SetForegroundWindow", h.value))),
     })
     monkeypatch.setattr(desk.ctypes, "windll",
                         type("Windll", (), {"user32": user32}), raising=False)
     monkeypatch.setattr(desk, "_main_window_of", lambda pid: 9)
 
     assert desk.focus_window_of_process(4242) is True
+    # HWND 参数都是按指针（c_void_p）传的，-1/-2 在 64 位上就是全 1 的那个数
+    mask = 0xFFFFFFFFFFFFFFFF
     assert calls == [
         ("ShowWindow", 9, desk._SW_RESTORE),
-        ("SetWindowPos", 9, desk._HWND_TOPMOST),
-        ("SetWindowPos", 9, desk._HWND_NOTOPMOST),
+        ("SetWindowPos", 9, desk._HWND_TOPMOST & mask),
+        ("SetWindowPos", 9, desk._HWND_NOTOPMOST & mask),
         ("SetForegroundWindow", 9)]
 
 

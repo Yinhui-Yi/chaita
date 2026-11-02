@@ -59,10 +59,60 @@ def _load_session() -> dict:
             if not os.path.exists(path):
                 row["url"] = ""
         cleaned_floors.append(_fix_item_icons(row))
-    data["floors"] = cleaned_floors
+    data["floors"] = _drop_bogus_floors(cleaned_floors)
     data["monsters"] = [_fix_monster_icon(one)
                         for one in monsters[:200] if isinstance(one, dict)]
     return data
+
+
+def _drop_bogus_floors(floors) -> list:
+    """把"不像层名"的假层洗干净：`"→ 3"` 这种以前那个 bug 存下来的垃圾。
+
+    - 层名本身是脏的（削掉头尾箭头/标点后跟原来不一样，或者削完什么都不剩）
+      → 整条丢掉：那种层是 bug 造出来的空壳，留着只会挡路；
+    - 楼梯的 `to` 也洗一遍：`"→ 3"` → `"3"`，能对上某一层（`"3层"` / `"通天塔3"`）
+      就用那一层，对不上就置空让人重新在「通到…」里选。
+    - 干净的层名（"0层" / "通天塔137"）一个字都不动。
+    """
+    from .texts import _clean_floor_name
+    rows = [dict(one) for one in floors or [] if isinstance(one, dict)]
+    names = []
+    cleaned = []
+    for row in rows:
+        raw = str(row.get("floor") or "").strip()
+        name = _clean_floor_name(raw)
+        if name == "" or name != raw:
+            continue                      # 脏名字 = bug 造出来的空壳层
+        names.append(name)
+        cleaned.append(row)
+
+    def _fix_target(value):
+        text = _clean_floor_name(value)
+        if text == "":
+            return ""
+        if text in names:
+            return text
+        # 只写层号（"3"）→ 找末尾是 3 的那一层（"3层" / "通天塔3"）
+        tail = []
+        for name in names:
+            digits = "".join(ch for ch in name if ch.isdigit())
+            if digits and digits.lstrip("0") == text.lstrip("0"):
+                tail.append(name)
+        return tail[0] if len(tail) == 1 else ""
+
+    for row in cleaned:
+        stairs = row.get("stairs")
+        if not isinstance(stairs, list):
+            continue
+        fixed = []
+        for one in stairs:
+            if not isinstance(one, dict):
+                continue
+            stair = dict(one)
+            stair["to"] = _fix_target(stair.get("to"))
+            fixed.append(stair)
+        row["stairs"] = fixed
+    return cleaned
 
 
 def _url_missing(url: str) -> bool:

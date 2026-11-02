@@ -19,8 +19,8 @@ z: 30
 
 Rectangle {
     anchors.fill: parent
-    radius: 8
-    color: Qt.rgba(0.11, 0.10, 0.08, 0.32)
+    radius: 10
+    color: Theme.scrim
     MouseArea {
         anchors.fill: parent
         onClicked: host.battleEditLayer = false
@@ -79,7 +79,7 @@ Rectangle {
                     text: "数量"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                 }
                 Rectangle {
                     // 数量最多三位数：框就按数字的宽度来，不留一大截空白
@@ -90,7 +90,7 @@ Rectangle {
                     color: host.paperLo
                     border.width: 1
                     border.color: countField.activeFocus
-                                  ? host.amber : host.hairline
+                                  ? host.accent : host.hairline
                     TextField {
                         id: countField
                         objectName: "battleEditCount"
@@ -100,7 +100,7 @@ Rectangle {
                         background: null
                         color: host.ink
                         font.family: host.monoFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                         selectByMouse: true
                         text: String(Number((host.battleEditData || {}).count || 1))
                         onTextChanged: {
@@ -122,7 +122,7 @@ Rectangle {
                           ? "个" : "只（同样的一只只算）"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 8
+                    font.pixelSize: 10
                 }
             }
 
@@ -141,7 +141,7 @@ Rectangle {
                             text: modelData[1]
                             color: host.ink3
                             font.family: host.uiFont
-                            font.pixelSize: 8
+                            font.pixelSize: 11
                         }
                         Rectangle {
                             width: 76
@@ -150,7 +150,7 @@ Rectangle {
                             color: host.paperLo
                             border.width: 1
                             border.color: statField.activeFocus
-                                          ? host.amber : host.hairline
+                                          ? host.accent : host.hairline
                             TextField {
                                 id: statField
                                 objectName: "battleEdit" + modelData[0]
@@ -161,7 +161,7 @@ Rectangle {
                                 background: null
                                 color: host.ink
                                 font.family: host.monoFont
-                                font.pixelSize: 9
+                                font.pixelSize: 11
                                 selectByMouse: true
                                 text: String(Number((host.battleEditData || {})[modelData[0]] || 0))
                                 onTextChanged: {
@@ -196,7 +196,7 @@ Rectangle {
                     text: "效果"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                 }
                 EffectEditor {
                     id: battleEffectEditor
@@ -229,7 +229,7 @@ Rectangle {
                               + modelData.label
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                         elide: Text.ElideRight
                     }
                     Rectangle {
@@ -241,7 +241,7 @@ Rectangle {
                         color: host.paperLo
                         border.width: 1
                         border.color: paramField.activeFocus
-                                      ? host.amber : host.hairline
+                                      ? host.accent : host.hairline
                         TextField {
                             id: paramField
                             objectName: "battleEditParam"
@@ -251,7 +251,7 @@ Rectangle {
                             background: null
                             color: host.ink
                             font.family: host.monoFont
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                             selectByMouse: true
                             text: String(modelData.value)
                             onTextChanged: {
@@ -278,15 +278,15 @@ Rectangle {
                         readonly property bool on:
                             String(modelData.value) === "true"
                             || String(modelData.value) === "1"
-                        color: on ? host.amber : host.paperLo
+                        color: on ? host.accent : host.paperLo
                         border.width: 1
-                        border.color: on ? host.amber : host.hairline
+                        border.color: on ? host.accent : host.hairline
                         Text {
                             anchors.centerIn: parent
                             visible: parent.on
                             text: "✓"
                             color: host.paperHi
-                            font.pixelSize: 9
+                            font.pixelSize: 11
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -311,9 +311,9 @@ Rectangle {
                                 radius: 4
                                 readonly property bool on:
                                     String(modelData) === String(choiceRow.param.value)
-                                color: on ? host.amber : host.paperLo
+                                color: on ? host.accent : host.paperLo
                                 border.width: 1
-                                border.color: on ? host.amber
+                                border.color: on ? host.accent
                                                  : host.hairline
                                 Text {
                                     anchors.centerIn: parent
@@ -321,7 +321,7 @@ Rectangle {
                                     color: on ? host.paperHi
                                               : host.ink2
                                     font.family: host.uiFont
-                                    font.pixelSize: 8
+                                    font.pixelSize: 11
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -339,7 +339,7 @@ Rectangle {
                         text: String(modelData.unit || "")
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                     }
                 }
             }
@@ -350,7 +350,7 @@ Rectangle {
                 text: "技能参数就按怪物编辑里填的那份算（改这里只影响这次计算）"
                 color: host.ink3
                 font.family: host.uiFont
-                font.pixelSize: 8
+                font.pixelSize: 10
                 wrapMode: Text.Wrap
             }
         }

@@ -1,4 +1,4 @@
-﻿"""格子编辑的**拖放**集成测试：真的把格子拖到词条行上。
+"""格子编辑的**拖放**集成测试：真的把格子拖到词条行上。
 
 为什么单独一个文件：多选落格那段代码写在 `FloorSheetWindow.qml` 的
 `DropArea.onDropped` 里，直接调 `gridAssignMany` 是绕过它的 —— 以前就是这么漏的
@@ -39,6 +39,15 @@ def _cells(window):
     return value.toVariant() if hasattr(value, "toVariant") else value
 
 
+def _dropped(row, col, kind, name, effect=None):
+    """落进 grid 的格子：用户拖的，带 `manual` 标记（AI 刷新时不许动它）。"""
+    cell = {"row": row, "col": col, "kind": kind, "name": name,
+            "manual": True}
+    if effect is not None:
+        cell["effect"] = effect
+    return cell
+
+
 def test_drop_multi_cells_on_monster_row_lands_every_cell():
     controller, engine, window, sheet = _sheet()
     for cell in ((0, 0), (1, 1), (2, 2)):
@@ -49,9 +58,9 @@ def test_drop_multi_cells_on_monster_row_lands_every_cell():
                                   {"row": 2, "col": 2}]})
 
     assert controller._map_history[0]["grid"]["cells"] == [
-        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
-        {"row": 1, "col": 1, "kind": "monster", "name": "血蚊"},
-        {"row": 2, "col": 2, "kind": "monster", "name": "血蚊"}]
+        _dropped(0, 0, "monster", "血蚊"),
+        _dropped(1, 1, "monster", "血蚊"),
+        _dropped(2, 2, "monster", "血蚊")]
     assert controller._map_history[0]["mons"][0]["count"] == 3
     # 落完就清掉勾选，别留到下一次
     assert _cells(window) == []
@@ -65,7 +74,7 @@ def test_drop_single_cell_payload_still_works():
                        {"row": 9, "col": 9})
 
     assert controller._map_history[0]["grid"]["cells"] == [
-        {"row": 9, "col": 9, "kind": "monster", "name": "绿水母"}]
+        _dropped(9, 9, "monster", "绿水母")]
     mons = {m["name"]: m["count"] for m in controller._map_history[0]["mons"]}
     assert mons == {"血蚊": 0, "绿水母": 1}
 
@@ -81,10 +90,8 @@ def test_drop_multi_cells_on_item_row_keeps_effect():
                                   {"row": 6, "col": 6}]})
 
     assert controller._map_history[0]["grid"]["cells"] == [
-        {"row": 5, "col": 5, "kind": "item", "name": "血瓶",
-         "effect": "体力 +150"},
-        {"row": 6, "col": 6, "kind": "item", "name": "血瓶",
-         "effect": "体力 +150"}]
+        _dropped(5, 5, "item", "血瓶", "体力 +150"),
+        _dropped(6, 6, "item", "血瓶", "体力 +150")]
     assert controller._map_history[0]["items"][0]["count"] == 2
     assert _cells(window) == []
 

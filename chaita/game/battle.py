@@ -600,3 +600,98 @@ def run_plan(hero, steps) -> dict:
     return {"rows": rows, "total_damage": total_damage,
             "hp_after": stats["hp"], "dead_at": dead_at,
             "unhandled": unhandled, "stats": dict(stats)}
+
+
+def _hero_plus(hero, gain) -> dict:
+    """当前属性 + 这一档加成（攻击/防御/魔防各加各的；没填的当 0）。"""
+    out = {}
+    for key in ("hp", "atk", "def", "mdef"):
+        out[key] = max(0, parse_amount((hero or {}).get(key)))
+    for key in ("atk", "def", "mdef"):
+        out[key] = max(0, out[key] + parse_amount((gain or {}).get(key)))
+    return out
+
+
+def apply_cap(total_saved, cap=0) -> dict:
+    """合计封顶（用户："上界封所有"）→ `{cap, capped, capped_saved}`。
+
+    规则只写这一处：上界只封**合计**，单只 / 单种都照实写；上界 0 或空 = 不封顶。
+    所以超过上界时界面还能说出"本来少掉多少"。
+    """
+    bound = parse_amount(cap) if cap not in (None, "") else 0
+    bound = max(0, bound)
+    total = max(0, parse_amount(total_saved))
+    return {"cap": bound,
+            "capped": bound > 0 and total > bound,
+            "capped_saved": min(total, bound) if bound > 0 else total}
+
+
+def damage_gain(hero, monsters, gain=None, cap=0) -> dict:
+    """再加 X 点攻击/防御/魔防，剩下的怪**少掉多少血**。
+
+    用户 2026-11-01："每增加 x 点攻击防御魔防，剩下的怪会减少多少伤害：对于每一只
+    怪 / 对于每一种（一只 × 数量）/ 对于剩下所有怪，需要可以配上界，超过上界的按
+    上界计算。"
+
+    hero     = {"hp", "atk", "def", "mdef"}（当前状态）
+    monsters = [{"name", "hp", "atk", "def", "skills", "count"}]（剩下的怪，逐行）
+    gain     = {"atk": x, "def": x, "mdef": x}（三格各填各的，可以只填一格）
+    cap      = **合计**的上界（0 / 空 = 不封顶）：算出来超过它就按它算
+
+    返回：
+        per_monster  [{name, floor, count, before, after, saved}]
+                     每只怪：原来掉多少 / 加完掉多少 / 少掉多少（`floor` 是它来自哪一层，
+                     界面按层分组就靠这个字段，公式里不用）
+        per_species  [{name, count, saved_one, saved_all}]   每种：一只少掉 × 剩下几只
+        total_before / total_after / total_saved            剩下的怪合计（没封顶的）
+        capped_saved / capped / cap                         封顶之后合计是多少、有没有封到、上界多少
+        uncomputable [{name, reason}]                       算不了的（打不动 / 打不死 / 没数值）
+    """
+    base = _hero_plus(hero, None)
+    after = _hero_plus(hero, gain)
+    per_monster = []
+    per_species = []
+    seen_species = {}
+    uncomputable = []
+    total_before = 0
+    total_after = 0
+    total_saved = 0
+    for one in monsters or []:
+        if not isinstance(one, dict):
+            continue
+        name = str(one.get("name") or "").strip()
+        if not name:
+            continue
+        count = parse_amount(one.get("count")) if one.get("count") not in (
+            None, "") else 1
+        count = max(0, count)
+        skills = one.get("skills")
+        before = fight(base, one, skills)
+        later = fight(after, one, skills)
+        if not before.get("ok") or not later.get("ok"):
+            reason = str(before.get("reason") or later.get("reason") or "算不了")
+            uncomputable.append({"name": name, "reason": reason})
+            continue
+        was = int(before.get("damage") or 0)
+        now = int(later.get("damage") or 0)
+        saved = max(0, was - now)
+        per_monster.append({"name": name,
+                            "floor": str(one.get("floor") or ""),
+                            "count": count, "before": was, "after": now,
+                            "saved": saved})
+        total_before += was * count
+        total_after += now * count
+        total_saved += saved * count
+        species = seen_species.get(name)
+        if species is None:
+            species = {"name": name, "count": 0, "saved_one": saved,
+                       "saved_all": 0}
+            seen_species[name] = species
+            per_species.append(species)
+        species["count"] += count
+        species["saved_all"] += saved * count
+    return {"per_monster": per_monster, "per_species": per_species,
+            "total_before": total_before, "total_after": total_after,
+            "total_saved": total_saved,
+            **apply_cap(total_saved, cap),
+            "uncomputable": uncomputable}

@@ -377,7 +377,7 @@ def main() -> int:
 
         返回恢复函数（跑完要还原，别影响后面的真实点击检查）。
         """
-        from chaita.ui.controller import monsters as monsters_mod
+        from chaita.ui.controller.monsters import drag as monsters_mod
 
         screen = QGuiApplication.primaryScreen()
         dpr = screen.devicePixelRatio() if screen else 1.0
@@ -451,9 +451,10 @@ def main() -> int:
               "labels=%r" % ([x for x in labels if x in ("地图", "怪物", "技能")],))
         check("没有资源分区（用户：不需要资源）", "资源" not in labels)
         check("底下有对话卡", find_object("chatBar") is not None)
-        # 导航条（软件名 + 关闭）和状态行（数值 + 钥匙）分开：用户嫌"血量钥匙"位置不合理
+        # 导航条（工具图标）和状态卡（数值 + 钥匙）分开：用户嫌"血量钥匙"位置不合理
         nav = texts_inside("topBar")
-        check("导航条上有软件名", any("拆塔辅助" in t for t in nav),
+        check("导航条上有五个工具图标和「置顶」",
+              all(x in nav for x in ("↻", "＋", "⚔", "⇄", "✕", "置顶")),
               "topBar=%r" % (nav,))
         check("导航条不再混进钥匙/血量",
               not any(x in " ".join(nav) for x in ("1200", "9800")),
@@ -498,20 +499,28 @@ def main() -> int:
               % (scene_y(find_object("statusRow")),
                  scene_y(find_object("header"))))
 
+        def inside(box, item):
+            """item 是不是 box 的子孙。"""
+            node = item
+            while node is not None:
+                if node is box:
+                    return True
+                node = node.parentItem()
+            return False
+
         map_btn = find_object("readMap")
         mon_btn = find_object("readMon")
         dock = find_object("chatBar")
-        mon_row = find_object("monRow")
         check("地图栏和怪物栏各有一个「读取」",
               map_btn is not None and mon_btn is not None)
-        if map_btn is not None and mon_btn is not None and dock is not None \
-                and mon_row is not None:
-            check("两个「读取」都在对话卡之外，地图那个在怪物行上方",
-                  scene_y(map_btn) < scene_y(mon_row) < scene_y(dock)
+        if map_btn is not None and mon_btn is not None and dock is not None:
+            # 窗口矮、内容在里面滚，按钮的屏幕位置会跑到对话卡下面去，所以不比 y，
+            # 比"是不是在对话卡里面"（用户："不要放在对话框里"）
+            check("两个「读取」都不在对话卡里，地图那个在怪物那个上方",
+                  not inside(dock, map_btn) and not inside(dock, mon_btn)
                   and scene_y(map_btn) < scene_y(mon_btn),
-                  "map=%.0f mon=%.0f row=%.0f dock=%.0f"
-                  % (scene_y(map_btn), scene_y(mon_btn), scene_y(mon_row),
-                     scene_y(dock)))
+                  "map=%.0f mon=%.0f dock=%.0f"
+                  % (scene_y(map_btn), scene_y(mon_btn), scene_y(dock)))
 
         # 对话区不许有"默认提示"（用户："默认提示都删掉，真low"）
         labels_join = " ".join(labels)
@@ -554,6 +563,10 @@ def main() -> int:
 
     # ---------------- 2. 怪物：一行一个、塔级汇总 ----------------
     def step_monsters():
+        # 窗口矮、地图展开时怪物行/读取按钮会被滚到屏幕外（合成点击点不到）：
+        # 先把地图折起来，后面的怪物/技能/读取各步才点得到
+        window.setProperty("mapCollapsed", True)
+        app.processEvents()
         rows = find_all("monRow")
         check("怪物一行一个（手册读到的 + 地图上有的）", len(rows) == 4,
               "rows=%d" % len(rows))
@@ -561,11 +574,11 @@ def main() -> int:
         check("手册里读到、地图上还没记的怪也列出来", "手册怪" in names,
               "texts=%r" % (names,))
         joined = " ".join(" ".join(row_texts(row)) for row in rows)
-        check("怪物行有 ×N（整塔总只数）", "×4" in joined and "×1" in joined,
-              "text=%r" % (joined,))
         check("怪物行有「剩 N」", "剩 4" in joined and "剩 2" in joined,
               "text=%r" % (joined,))
-        check("怪物行有生命/攻/防", "生命 80" in joined and "攻 25" in joined,
+        # 用户："只要显示剩几只，不要别的"：列表里不再有生命/攻防、技能、总数
+        check("怪物行只有名字和「剩 N」（没有生命/攻/防、×N、技能）",
+              not any(x in joined for x in ("生命", "攻 ", "防 ", "×", "/")),
               "text=%r" % (joined,))
         check("怪物行不带层号", "通天塔" not in joined and "层" not in joined,
               "text=%r" % (joined,))
@@ -624,22 +637,22 @@ def main() -> int:
               "names=%r" % ([m["name"] for m in controller._monsters],))
         next_step(150, step_skills)
 
-    # ---------------- 3. 技能：一行一个、不列怪名 ----------------
+    # ---------------- 3. 技能：一排胶囊、不列怪名 ----------------
     def step_skills():
         rows = find_all("skillRow")
-        check("技能一行一个", len(rows) == 2, "rows=%d" % len(rows))
+        check("技能一颗胶囊一个", len(rows) == 2, "rows=%d" % len(rows))
         first = row_texts(rows[0]) if rows else []
-        count_texts = [t for t in first if "只" in t and "剩" in t]
+        count_texts = [t for t in first if "/" in t]
         name_texts = [t for t in first if t and t not in count_texts]
-        check("技能行只有「名字 + N 只 · 剩 M」",
+        check("技能胶囊只有「名字 + 剩余/总数」",
               len(count_texts) == 1 and len(name_texts) == 1,
               "row=%r" % (first,))
-        check("技能行不列带这个技能的怪名",
+        check("技能胶囊不列带这个技能的怪名",
               not any("头怪" in text or "骷髅" in text for text in first),
               "row=%r" % (first,))
         join = " ".join(" ".join(row_texts(row)) for row in rows)
         check("带某技能的怪还剩多少只写得出来",
-              "5 只 · 剩 3" in join and "1 只 · 剩 1" in join,
+              "3/5" in join and "1/1" in join,
               "text=%r" % (join,))
         check("技能汇总常驻可见", find(WANT_SKILL_AGG) != [],
               "want=%r" % (WANT_SKILL_AGG,))
@@ -703,6 +716,11 @@ def main() -> int:
 
     # 取消：点地图那条的「取消」
     def step_cancel():
+        # 记录在内容区最底下：先滚到底，否则窗口矮时那一行在屏幕外，点了个空
+        flick = find_object("contentFlick")
+        flick.setProperty("contentY", max(0.0, float(flick.property("contentHeight"))
+                                          - float(flick.height())))
+        app.processEvents()
         target = None
         for row in find_all("taskRow"):
             if any("地图" in t for t in row_texts(row)):
@@ -801,7 +819,13 @@ def main() -> int:
         rows = find_all("chatRowItem")
         check("对话显示完整历史（fixture 两条都在）", len(rows) == 2,
               "rows=%d" % len(rows))
-        check("对话有「你」和「AI」", find("你") != [] and find("AI") != [])
+        # 对话是气泡：你说的靠右、AI 说的靠左
+        says_now = sorted(find_all("chatText"), key=lambda i: scene_y(i))
+        check("对话是气泡：你靠右、AI 靠左",
+              len(says_now) == 2
+              and says_now[0].mapToScene(QPointF(0, 0)).x()
+              > says_now[1].mapToScene(QPointF(0, 0)).x(),
+              "x=%r" % ([round(i.mapToScene(QPointF(0, 0)).x()) for i in says_now],))
         # 完整历史 + 长回答折行（用户："我需要完整的历史"）
         long_text = ("地下 30 这一层还有血蚊 5 只（其中 2 只已经打过）、铁卫 1 只；"
                      "下去前记得先拿红血瓶，地下 29 已经清空，可以放心走。")
@@ -919,30 +943,33 @@ def main() -> int:
     # ---------------- 6. 折叠 / 展开 ----------------
     def step_collapse():
         bar = find_object("topBar")
-        click(bar, 0.5, 0.5)
-        check("点抬头收起", window.property("collapsed") is True,
+        # 点导航条的空白处（中间现在是「置顶」按钮，点偏左一点才是空白）
+        click(bar, 0.3, 0.5)
+        check("点导航条空白处收起", window.property("collapsed") is True,
               "collapsed=%r" % (window.property("collapsed"),))
         next_step(450, verify_collapsed)
 
     def verify_collapsed():
-        # 收起后留三样：导航条（软件名 + ✕）、塔名、状态行（血量/钥匙）
-        check("收起后窗口高度 = 导航条 + 抬头 + 状态行",
-              abs(window.height() - 102) <= 2, "height=%.0f" % window.height())
+        # 收起后留两样：导航条（工具图标）和状态卡（塔名 + 血量/钥匙）
+        want = float(window.property("collapseChrome"))
+        check("收起后窗口高度 = 导航条 + 状态卡（含上下留白）",
+              abs(window.height() - want) <= 2,
+              "height=%.0f want=%.0f" % (window.height(), want))
         # 平台层也不许再把它顶大：minimumHeight 设大了 Windows 会把它卡成 120，
         # 界面上方一条、下面一片空白（用户："折叠后还是有一大片空白"）
-        check("平台真的按 102 放下去了（没被最小高度卡住）",
-              abs(window.geometry().height() - 102) <= 2,
-              "geometry=%.0f" % window.geometry().height())
+        check("平台真的按这个高度放下去了（没被最小高度卡住）",
+              abs(window.geometry().height() - want) <= 2,
+              "geometry=%.0f want=%.0f" % (window.geometry().height(), want))
         check("收起后列表藏起来", find_object("contentFlick") is None)
         check("收起后对话也藏起来", find_object("chatBar") is None)
-        check("收起后软件名还在（导航条）",
-              any("拆塔辅助" in t for t in texts_inside("topBar")),
+        check("收起后导航条的工具图标还在",
+              all(x in texts_inside("topBar") for x in ("↻", "＋", "⚔", "⇄", "✕")),
               "topBar=%r" % (texts_inside("topBar"),))
         check("收起后塔名还在", any("坐牢成仙" in t
                               for t in texts_inside("header")))
         check("收起后四色钥匙还在",
               find_object("keyChips") is not None)
-        click(find_object("topBar"), 0.5, 0.5)
+        click(find_object("topBar"), 0.3, 0.5)
         next_step(450, verify_expanded)
 
     def verify_expanded():
@@ -950,775 +977,10 @@ def main() -> int:
         check("展开后高度回到内容高度",
               abs(window.height() - content_height()) <= 2,
               "height=%.0f want=%.0f" % (window.height(), content_height()))
-        next_step(150, step_floor_sheet)
+        # 这一层 / 怪物编辑 / 伤害计算三个子窗口由 tests/integration 的真点击测试覆盖
+        next_step(150, step_scroll)
 
-    # ---------------- 7. 地图的子界面：这一层 ----------------
-    def step_floor_sheet():
-        # 地图块一行三个、y 一样，排序分不出先后：按块上的层名挑
-        target = None
-        for tile in find_all("mapTile"):
-            if any("通天塔1" in t for t in row_texts(tile)):
-                target = tile
-                break
-        check("找得到通天塔1 的地图块", target is not None)
-        click(target)
-        check("点地图块打开这一层的子界面",
-              window.property("openFloor") == "通天塔1"
-              and find_object("floorCard") is not None,
-              "openFloor=%r card=%r" % (window.property("openFloor"),
-                                        find_object("floorCard")))
-        check("子界面里有这一层的怪",
-              len(find_all("floorMonRow")) == 2,
-              "rows=%d" % len(find_all("floorMonRow")))
-        check("子界面里有这一层的资源",
-              len(find_all("floorItemRow")) == 1,
-              "rows=%d" % len(find_all("floorItemRow")))
-        shot = find_object("floorShot")
-        check("子界面里的地图截图整张显示",
-              shot is not None and shot.property("source") != "",
-              "source=%r" % (shot.property("source") if shot else None,))
-        box = find_object("floorShotBox")
-        check("截图区按比例撑高（不是中间一小条）",
-              box is not None and box.height() >= 120,
-              "box_h=%.0f" % (box.height() if box else 0))
-        # 行里带缩略图（用户问"怪物的缩略图呢"）
-        thumbs = find_all("floorMonThumb")
-        images = [i for i in inside("floorMonThumb")
-                  if i.metaObject().className().startswith("QQuickImage")
-                  and shown(i)]
-        check("本层的怪行有缩略图",
-              len(thumbs) == 2 and len(images) >= 1,
-              "thumbs=%d images=%d" % (len(thumbs), len(images)))
-        next_step(250, verify_floor_toggle)
-
-    def verify_floor_toggle():
-        row = find_all("floorMonDone")[0]
-        click(row)
-        done_flags = [m.get("done") for m in controller._map_history[0]["mons"]]
-        check("点圆点能把这只怪标成打过了", done_flags[0] is True,
-              "done=%r" % (done_flags,))
-        click(find_all("floorMonDone")[0])
-        next_step(250, verify_floor_pick)
-
-    def verify_floor_pick():
-        click(find_object("floorAddMon"))
-        app.processEvents()
-        QTest.qWait(120)          # 下拉菜单要等排完版才量得到位置/高度
-        app.processEvents()
-        check("点「＋加怪」打开挑选层",
-              window.property("pickMode") == "mon"
-              and find_object("pickLayer") is not None,
-              "pickMode=%r" % (window.property("pickMode"),))
-        rows = find_all("pickRow")
-        check("挑选层里有候选怪", len(rows) >= 2, "rows=%d" % len(rows))
-        # 用户："地图下的加怪和加资源怎么不是下拉菜单"
-        card = find_object("pickCard")
-        button = find_object("floorAddMon")
-        menu_ok = card is not None and button is not None and card.width() < 260
-        if menu_ok:
-            below = abs(scene_y(card) - (scene_y(button) + button.height())) < 40
-            above = abs((scene_y(card) + card.height()) - scene_y(button)) < 40
-            menu_ok = below or above
-        check("加怪是挂在「＋」下面的下拉菜单（不是整页盖住）",
-              menu_ok,
-              "card=%r button=%r"
-              % ((card.width(), card.height(), scene_y(card))
-                 if card else None,
-                 (button.height(), scene_y(button)) if button else None))
-        before = len(controller._map_history[0]["mons"])
-        click(rows[0])
-        check("选一只就加进这一层",
-              len(controller._map_history[0]["mons"]) == before + 1,
-              "mons=%d" % len(controller._map_history[0]["mons"]))
-        # 加资源同样是下拉菜单
-        add_item = find_object("floorAddItem")
-        click(add_item)
-        app.processEvents()
-        QTest.qWait(120)
-        app.processEvents()
-        card = find_object("pickCard")
-        items = find_all("pickRow")
-        near = False
-        if card is not None and add_item is not None:
-            below = abs(scene_y(card) - (scene_y(add_item) + add_item.height())) < 40
-            above = abs((scene_y(card) + card.height()) - scene_y(add_item)) < 40
-            near = below or above
-        check("点「＋加资源」也是下拉菜单",
-              window.property("pickMode") == "item"
-              and card is not None and card.width() < 260
-              and len(items) > 0 and near,
-              "pickMode=%r card=%r rows=%d near=%r"
-              % (window.property("pickMode"),
-                 (card.width(), card.height()) if card else None, len(items),
-                 near))
-        item_before = len(controller._map_history[0]["items"])
-        click(items[0])
-        check("选一个资源就加进这一层",
-              len(controller._map_history[0]["items"]) == item_before + 1,
-              "items=%d" % len(controller._map_history[0]["items"]))
-        next_step(250, verify_floor_preview)
-
-    def verify_floor_preview():
-        click(find_object("floorShot"))
-        check("点子界面的截图能看大图",
-              find_object("previewShot") is not None)
-        press(Qt.Key_Escape)
-        check("Esc 先关大图（不关子界面）",
-              find_object("previewShot") is None
-              and window.property("openFloor") != "",
-              "openFloor=%r" % (window.property("openFloor"),))
-        press(Qt.Key_Escape)
-        check("再按 Esc 关子界面",
-              window.property("openFloor") == ""
-              and find_object("floorSheet") is None,
-              "openFloor=%r" % (window.property("openFloor"),))
-        next_step(200, step_floor_multi)
-
-    # 小窗能多开、能拖、能放大（用户："怎么不能移动 / 怎么不能多开 / 怎么不能放大"）
-    def child_of(root, name):
-        stack = list(root.childItems())
-        while stack:
-            node = stack.pop()
-            if node.objectName() == name:
-                return node
-            stack.extend(node.childItems())
-        return None
-
-    def floor_card(name):
-        """按层名找卡片：拖完以后 y 变了，不能再用"第 0 个"认窗口。"""
-        for card in find_all("floorCard"):
-            title = child_of(card, "floorTitle")
-            if title is not None and plain(title.property("text")) == name:
-                return card
-        return None
-
-    def step_floor_multi():
-        target = None
-        for tile in find_all("mapTile"):
-            if any("通天塔1" in t for t in row_texts(tile)):
-                target = tile
-        click(target)
-        check("先开一扇", len(find_all("floorCard")) == 1,
-              "cards=%d" % len(find_all("floorCard")))
-        click(find_object("floorMore"))
-        check("抬头的 ＋ 能再开一扇", len(find_all("floorCard")) == 2,
-              "cards=%d" % len(find_all("floorCard")))
-        card = floor_card("通天塔2")
-        check("按层名找得到上面那扇", card is not None,
-              "cards=%r" % ([row_texts(c)[:1] for c in find_all("floorCard")],))
-        sheet = window_of(card)
-        before = (sheet.x(), sheet.y())
-        drag(child_of(card, "floorTitle"), 24, 40)
-        sheet = window_of(floor_card("通天塔2"))
-        after = (sheet.x(), sheet.y())
-        check("拖抬头能把小窗挪走（真窗口）", after != before,
-              "before=%r after=%r" % (before, after))
-        # 拖到右边贴住、松手，再往回拖 24px：要立刻跟手（用户："拖动时一直在抖动"）
-        drag(child_of(card, "floorTitle"), 4000, 0)
-        sheet = window_of(floor_card("通天塔2"))
-        screen = app.primaryScreen().geometry()
-        edge = sheet.x()
-        limit = screen.x() + screen.width() - sheet.width() - 2
-        check("拖到屏幕边上会停住（能拖到软件窗口外面，但不会掉出屏幕）",
-              abs(edge - limit) <= 2,
-              "edge=%r limit=%r" % (edge, limit))
-        check("小窗确实跑到了主窗口右边外面",
-              edge + sheet.width() > window.x() + window.width(),
-              "sheet.right=%r main.right=%r"
-              % (edge + sheet.width(), window.x() + window.width()))
-        drag(child_of(card, "floorTitle"), -24, 0)
-        sheet = window_of(floor_card("通天塔2"))
-        back = sheet.x()
-        check("从边上往回拖立刻跟手（不是先还债再跳）",
-              abs(back - (edge - 24)) <= 3,
-              "edge=%r back=%r want=%r" % (edge, back, edge - 24))
-        # 右下角拉大（用户："怎么不能放大"）
-        size0 = (card.property("width"), card.property("height"))
-        list0 = card.property("listMax")
-        shot0 = child_of(card, "floorShot").property("paintedWidth")
-        box0 = child_of(card, "floorShotBox").property("height")
-        grip = child_of(card, "floorGrip")
-        check("小窗右下角有拉大的手柄", grip is not None)
-        # 拉得多一点：截图现在是**真地图裁出来的方图**（比方图前那张矮宽的整窗截图
-        # 高），默认清单区已经顶到 150 的上限，只拉 30px 反而会把它压小。
-        drag(grip, 60, 400)
-        card = floor_card("通天塔2")
-        size1 = (card.property("width"), card.property("height"))
-        check("拖手柄能把小窗放大",
-              size1[0] > size0[0] + 8 and size1[1] > size0[1] + 8,
-              "size=%r -> %r" % (size0, size1))
-        check("放大后清单可以占更高",
-              card.property("listMax") > list0,
-              "listMax=%r -> %r" % (list0, card.property("listMax")))
-        # 用户："放大地图的小窗的时候地图不会一起变大"
-        shot1 = child_of(card, "floorShot").property("paintedWidth")
-        box1 = child_of(card, "floorShotBox").property("height")
-        check("地图跟着小窗一起变大",
-              shot1 > shot0 + 4 and box1 > box0,
-              "地图宽 %r -> %r，截图区高 %r -> %r"
-              % (shot0, shot1, box0, box1))
-        press(Qt.Key_Escape)
-        check("Esc 关最上面那扇（还剩一扇）",
-              len(find_all("floorCard")) == 1,
-              "cards=%d" % len(find_all("floorCard")))
-        press(Qt.Key_Escape)
-        check("再按一次全关掉", len(find_all("floorCard")) == 0,
-              "cards=%d" % len(find_all("floorCard")))
-        next_step(200, step_floor_refresh)
-
-    # 地图块右上角的 ↻：重数这一层的怪和资源
-    def step_floor_refresh():
-        refresh = find_all("mapRefresh")
-        check("每个地图块都有刷新按钮", len(refresh) >= 1,
-              "buttons=%d" % len(refresh))
-        before = len(controller.tasks)
-        click(refresh[0])
-        check("点 ↻ 排了一条\"读这层地图\"的任务",
-              len(controller.tasks) == before + 1
-              and any("的地图" in str(t.get("text") or "")
-                      for t in controller.tasks),
-              "tasks=%r" % ([t.get("text") for t in controller.tasks],))
-        check("正在数的层写在 countingFloor 上",
-              controller.countingFloor != "",
-              "countingFloor=%r" % (controller.countingFloor,))
-        check("点 ↻ 没顺带打开这一层的小窗",
-              window.property("openFloor") == "")
-        # 收工：把"正在数"清掉，不影响后面的检查
-        controller._counting_floor = ""
-        controller.countingChanged.emit()
-        for task in controller._tasks:
-            if task.get("state") == "running":
-                task["state"] = "done"
-        controller.tasksChanged.emit()
-        next_step(200, step_monster_editor)
-
-    # ---------------- 7.5 怪物编辑界面 ----------------
-    def step_monster_editor():
-        target = None
-        for row in find_all("monRow"):
-            if any("红头怪" in t for t in row_texts(row)):
-                target = row
-                break
-        check("找得到带手册记录的那一行（红头怪）", target is not None)
-        click(target)
-        check("点怪物行打开编辑界面",
-              window.property("monEdit") >= 0
-              and find_object("monEditCard") is not None,
-              "monEdit=%r" % (window.property("monEdit"),))
-        check("编辑界面有缩略图",
-              find_object("monEditIcon") is not None)
-        # 名字在抬头里直接改（不再单占一行、也不和标题重复）
-        name_field = find_object("monNameField")
-        check("名字在抬头里就能改",
-              name_field is not None
-              and name_field.property("text") == "红头怪",
-              "name=%r" % (name_field.property("text") if name_field else None,))
-        # 数值：生命/攻击/防御 一行，金币/经验 一行（用户指定的排法）
-        hp_box = find_object("monHpField")
-        atk_box = find_object("monAtkField")
-        def_box = find_object("monDefField")
-        gold_box = find_object("monGoldField")
-        exp_box = find_object("monExpField")
-        first = [b for b in (hp_box, atk_box, def_box) if b is not None]
-        check("生命/攻击/防御 在同一行",
-              len(first) == 3
-              and max(scene_y(b) for b in first)
-              - min(scene_y(b) for b in first) <= 2,
-              "ys=%r" % ([round(scene_y(b)) for b in first],))
-        check("金币/经验 在下一行",
-              gold_box is not None and exp_box is not None
-              and abs(scene_y(gold_box) - scene_y(exp_box)) <= 2
-              and scene_y(gold_box) > scene_y(hp_box) + 10,
-              "gold_y=%.0f exp_y=%.0f hp_y=%.0f"
-              % (scene_y(gold_box), scene_y(exp_box), scene_y(hp_box)))
-        check("三格真的横着排开（x 递增）",
-              hp_box is not None and atk_box is not None and def_box is not None
-              and scene_x(hp_box) < scene_x(atk_box) < scene_x(def_box),
-              "x=%r" % ([round(scene_x(b)) for b in first],))
-        check("编辑界面带出原来的金币",
-              gold_box is not None and gold_box.property("text") == "12",
-              "gold=%r" % (gold_box.property("text") if gold_box else None,))
-        # 技能：名称 + 技能介绍（原来的"数值"删掉了）
-        name_cell = find_object("monSkillName")
-        effect_cell = find_object("monSkillEffect")
-        check("技能行是「名称 + 介绍」两格",
-              name_cell is not None and effect_cell is not None
-              and find_object("monSkillValue") is None)
-        check("手册技能的介绍从手册带出来",
-              effect_cell is not None
-              and "首先攻击" in str(effect_cell.property("text") or ""),
-              "effect=%r" % (effect_cell.property("text") if effect_cell else None,))
-        check("手册技能的名称是只读的",
-              name_cell is not None
-              and bool(name_cell.property("readOnly")),
-              "readOnly=%r" % (name_cell.property("readOnly")
-                               if name_cell else None,))
-        # 用户："图标 点头像换图一行都删掉"
-        labels = [plain(i.property("text")) for i in walk()
-                  if is_text(i) and shown(i)]
-        check("「图标 / 点头像换图 / 清空」那一行删掉了",
-              find_object("monIconClear") is None
-              and "图标" not in labels and "点头像换图" not in labels,
-              "labels=%r" % ([x for x in labels if "图标" in x or "换图" in x],))
-        # 用户："只有一行的和有多行的要有不同的显示方式"
-        row = find_object("monSkillRow")
-        check("单行技能就摆一行（不撑成块）",
-              row is not None and not bool(row.property("multi")),
-              "multi=%r" % (row.property("multi") if row else None,))
-        # ---- 头像就是换图按钮（用户："点击头像修改图标"） ----
-        avatar = find_object("monIconPick")
-        check("头像本身可以点（换图不用另找按钮）",
-              avatar is not None
-              and not any("从素材库选" == t for t in
-                          [plain(i.property("text")) for i in walk()
-                           if is_text(i) and shown(i)]))
-        click(avatar)
-        cells = find_all("iconCell")
-        sources = [item.property("source") for item in find_all("iconCellImage")]
-        check("点头像打开选图界面", find_object("iconCard") is not None,
-              "cells=%d" % len(cells))
-        check("选图界面没有重复的图",
-              len(sources) == len(set(sources)),
-              "cells=%d unique=%d" % (len(sources), len(set(sources))))
-        check("选图张数 = 去重后的素材数",
-              len(cells) == len(controller.monsterIconChoices()),
-              "cells=%d choices=%d"
-              % (len(cells), len(controller.monsterIconChoices())))
-        # ---- 素材库：只摆图 + 种族标题 + 搜索（用户："单个怪不要名字"） ----
-        def matching(word):
-            """素材库的搜索规则：名字 / id / 并掉的别名，含这个词就算命中。"""
-            word = word.strip().lower()
-            return [row for row in controller.monsterIconChoices()
-                    if any(word in str(text).lower() for text in
-                           [row["name"], row["id"]]
-                           + list(row.get("aliases") or []))]
-
-        check("格子上不写名字，只有图", not find_all("iconCellName"),
-              "names=%d" % len(find_all("iconCellName")))
-        headers = [plain(item.property("text"))
-                   for item in find_all("iconGroupName")]
-        check("每个种族都有标题（标题里有名字）",
-              len(headers) == len(controller.monsterIconGroups())
-              and any("史莱姆" in head for head in headers),
-              "headers=%r" % (headers[:8],))
-        # 照 QQ：搜索框挂在"搜索"页签里，点了才出现
-        click(find_object("iconTabSearch"))
-        app.processEvents()
-        query = find_object("iconSearch")
-        check("点「搜索」页签才出现搜索框", query is not None)
-        query.setProperty("text", "史莱姆")
-        app.processEvents()
-        filtered = find_all("iconCell")
-        kept = [row["name"] for row in matching("史莱姆")]
-        check("搜索按名字过滤",
-              0 < len(filtered) < len(cells) and len(filtered) == len(kept)
-              and all("史莱姆" in str(name) for name in kept),
-              "cells=%d filtered=%d kept=%r"
-              % (len(cells), len(filtered), kept[:6]))
-        count_text = plain(find_object("iconCount").property("text"))
-        check("搜索时角标写着命中/总数",
-              "/" in count_text, "count=%r" % (count_text,))
-        # 两座塔各存一份的图并成一张后，改名前/另一座塔的名字也要搜得到
-        # （046 石头怪 = xinxin2_rock 并掉了 xinxin_rock；旧名「石怪」还在 names 里）
-        query.setProperty("text", "石怪")
-        app.processEvents()
-        alias_hits = [row["name"] for row in matching("石怪")]
-        check("并掉/改名的旧名字还能搜到（石怪 → 石头怪）",
-              alias_hits == ["石头怪"],
-              "hits=%r" % (alias_hits,))
-        # 真按键输入（不是只改属性）：编号也能搜
-        query.setProperty("text", "")
-        app.processEvents()
-        click(query)
-        app.processEvents()
-        type_ascii("E33")
-        app.processEvents()
-        check("搜索框能真的打字",
-              plain(window.property("iconQuery")).lower() == "e33",
-              "query=%r" % (window.property("iconQuery"),))
-        typed = find_all("iconCell")
-        check("按编号也能搜到",
-              0 < len(typed) < len(cells), "cells=%d" % (len(typed),))
-        query.setProperty("text", "史莱姆")
-        app.processEvents()
-        filtered = find_all("iconCell")
-        click(filtered[0])
-        app.processEvents()
-        check("点搜索结果就选中这张图",
-              window.property("monIconId") != ""
-              and window.property("iconPicker") is False
-              and find_object("iconPicker") is None,
-              "id=%r" % (window.property("monIconId"),))
-        # 再开一次：搜索框要清空；Esc 关掉选图、编辑框还在
-        click(find_object("monIconPick"))
-        app.processEvents()
-        click(find_object("iconTabSearch"))
-        app.processEvents()
-        check("重开选图时搜索框是空的",
-              plain(find_object("iconSearch").property("text")) == ""
-              and len(find_all("iconCell")) == len(cells),
-              "text=%r cells=%d"
-              % (plain(find_object("iconSearch").property("text")),
-                 len(find_all("iconCell"))))
-        press(Qt.Key_Escape)
-        check("Esc 关掉选图界面（编辑框还在）",
-              find_object("iconPicker") is None
-              and window.property("monEdit") >= 0,
-              "monEdit=%r" % (window.property("monEdit"),))
-        # ---- 加技能只有一个按钮 + 下拉菜单 ----
-        labels = [plain(i.property("text")) for i in walk()
-                  if is_text(i) and shown(i)]
-        check("加技能只剩一个按钮",
-              find_object("monSkillPick") is not None
-              and find_object("monSkillAdd") is None
-              and "从手册选" not in labels,
-              "labels=%r" % ([x for x in labels if "技能" in x or "选" in x],))
-        check("Esc 关掉选图后技能行还在",
-              find_object("monSkillName") is not None)
-        button = find_object("monSkillPick")
-        click(button)
-        app.processEvents()
-        menu = find_object("skillCard")
-        custom = find_object("skillPickCustom")
-        check("点「＋ 加技能」弹出下拉菜单",
-              menu is not None and custom is not None,
-              "rows=%d" % len(find_all("skillPickRow")))
-        check("下拉里第一项是「自定义」",
-              custom is not None
-              and any("自定义" in t for t in row_texts(custom)))
-        check("下拉里列出了手册的技能",
-              len(find_all("skillPickRow")) == len(controller.skillCatalog),
-              "rows=%d catalog=%d" % (len(find_all("skillPickRow")),
-                                      len(controller.skillCatalog)))
-        check("下拉菜单挂在按钮下面（不是居中卡片）",
-              menu is not None and button is not None
-              and menu.mapToScene(QPointF(0, 0)).y()
-              >= button.mapToScene(QPointF(0, 0)).y() - 1,
-              "menu_y=%.0f btn_y=%.0f"
-              % (menu.mapToScene(QPointF(0, 0)).y(),
-                 button.mapToScene(QPointF(0, 0)).y()))
-        # 选「自定义」= 原来那个「＋ 加」空行
-        click(custom)
-        app.processEvents()
-        check("选「自定义」加了一行空技能",
-              len(mon_skills()) == 2
-              and find_object("skillCard") is None,
-              "skills=%r" % (mon_skills(),))
-        names_now = find_all("monSkillName")
-        check("自定义那行的名称可以改（其余不能）",
-              len(names_now) == 2
-              and bool(names_now[0].property("readOnly"))
-              and not bool(names_now[1].property("readOnly")),
-              "readOnly=%r" % ([n.property("readOnly") for n in names_now],))
-        # 用户："自定义怎么只能写技能名称不能写技能介绍"
-        edit = find_object("monSkillEffectEdit")
-        check("自定义技能能写介绍", edit is not None)
-        if edit is not None:
-            edit.setProperty("text", "每两回合召唤一只小怪")
-            app.processEvents()
-            skills_now = mon_skills()
-            check("写的介绍记在技能上",
-                  bool(skills_now)
-                  and str((skills_now[-1] or {}).get("effect") or "")
-                  == "每两回合召唤一只小怪",
-                  "skills=%r" % (skills_now,))
-            check("自定义技能那一行换成多行块",
-                  len(find_all("monSkillRow")) == 2
-                  and bool(find_all("monSkillRow")[-1].property("multi")),
-                  "multi=%r" % ([r.property("multi")
-                                 for r in find_all("monSkillRow")],))
-        # 全删掉：只剩一句提示（列头已经没有这一行了）
-        window.removeSkill(1)
-        window.removeSkill(0)
-        app.processEvents()
-        check("没有技能时只剩一句提示",
-              find_object("monSkillRow") is None
-              and find_object("monSkillName") is None,
-              "rows=%r" % (find_all("monSkillRow"),))
-        check("没有技能时给一句提示",
-              any("＋ 加技能" in t for t in
-                  [plain(i.property("text")) for i in walk()
-                   if is_text(i) and shown(i)]))
-        # 再从下拉里挑一个有数值参数的技能（破甲：防御百分比）
-        click(find_object("monSkillPick"))
-        app.processEvents()
-        rows = find_all("skillPickRow")
-        check("下拉里能选到手册技能", len(rows) > 0, "rows=%d" % len(rows))
-        target = next((row for row in rows
-                       if any("破甲" == t for t in row_texts(row))), None)
-        check("下拉里能找到破甲", target is not None)
-        click(target)
-        app.processEvents()
-        picked = [str((row or {}).get("name") or "")
-                  for row in mon_skills()]
-        check("选中的技能进了技能表",
-              len(picked) == 1 and picked[0] == "破甲",
-              "skills=%r" % (picked,))
-        # 介绍是只读的手册原话；数字单独一格（算伤害用的参数）
-        effect_cell = find_object("monSkillEffect")
-        check("手册技能的介绍显示出来",
-              effect_cell is not None
-              and "防御" in str(effect_cell.property("text") or ""),
-              "effect=%r" % (effect_cell.property("text") if effect_cell else None,))
-        params = find_all("monSkillParam")
-        check("破甲有一个参数格", len(params) == 1, "cells=%d" % len(params))
-        check("有参数的技能换成多行块",
-              any(bool(r.property("multi")) for r in find_all("monSkillRow")),
-              "multi=%r" % ([r.property("multi")
-                             for r in find_all("monSkillRow")],))
-        cell = find_object("monSkillParams")
-        labels = row_texts(cell) if cell is not None else []
-        check("参数格写着「防御百分比」和单位 %",
-              any("防御百分比" in t for t in labels) and "%" in labels,
-              "labels=%r" % (labels,))
-        check("参数一开始是空的",
-              len(params) == 1 and params[0].property("text") == "",
-              "value=%r" % (params[0].property("text") if params else None,))
-        params[0].setProperty("text", "50")
-        app.processEvents()
-        field = find_object("monHpField")
-        check("编辑界面带出原来的生命值",
-              field is not None and field.property("text") == "80",
-              "hp=%r" % (field.property("text") if field else None,))
-        field.setProperty("text", "8888")
-        gold_box.setProperty("text", "34")
-        app.processEvents()
-        click(find_object("monSave"))
-        check("改完点保存真的存进去",
-              controller._monsters[0]["hp"] == "8888",
-              "hp=%r" % (controller._monsters[0].get("hp"),))
-        check("金币也跟着存进去了",
-              controller._monsters[0].get("gold") == "34",
-              "gold=%r" % (controller._monsters[0].get("gold"),))
-        items = controller._monsters[0].get("skill_items") or [{}]
-        first = items[0] or {}
-        check("技能参数按字段存下来了",
-              (first.get("params") or {}) == {"defValue": "50"},
-              "params=%r" % (first.get("params"),))
-        check("技能存了引擎 code（算伤害的键）",
-              str(first.get("code") or "") == "7",
-              "code=%r" % (first.get("code"),))
-        check("保存后编辑界面关掉", window.property("monEdit") == -1)
-        next_step(300, step_battle)
-
-    # ---------------- 7.5 伤害计算（真窗口 + 问号菜单） ----------------
-    def step_battle():
-        entry = find_object("battleOpen")
-        check("导航条上有伤害计算入口 ⚔", entry is not None)
-        if entry is None:
-            next_step(150, step_scroll)
-            return
-        click(entry)
-        app.processEvents()
-        battle = window.property("battleWindow")
-        battle = battle.toQObject() if hasattr(battle, "toQObject") else battle
-        check("⚔ 打开一扇独立窗口", battle is not None and battle is not window,
-              "battle=%r" % (battle,))
-        if battle is None:
-            next_step(150, step_scroll)
-            return
-        check("人物数值从状态行带出来",
-              find_object("battleHero_atkField") is not None
-              and plain(find_object("battleHero_atkField").property("text")) != "",
-              "atk=%r" % (plain(find_object("battleHero_atkField").property("text"))
-                          if find_object("battleHero_atkField") else None,))
-        # 用户："一行！！！" + "开头是一个勇者加箭头指向问号"
-        rows = find_all("battleRow")
-        check("打开就摆一行", len(rows) == 1, "rows=%d" % len(rows))
-        check("行首是勇者", find_object("battleRowHero") is not None)
-        ask = find_object("battleRowAsk")
-        check("链尾有个问号", ask is not None and ask.isVisible(),
-              "ask=%r" % (ask,))
-        # 点问号 → 菜单里怪和资源一个列表（用户："点问号选怪或资源"）
-        if ask is not None:
-            click(ask)
-        app.processEvents()
-        QTest.qWait(120)          # 菜单要排完版才量得到行
-        app.processEvents()
-        picks = find_all("battlePickRow")
-        texts = " ".join(" ".join(row_texts(row)) for row in picks)
-        check("点问号列出手册里的怪和资源", len(picks) > 0, "rows=%d" % len(picks))
-        # 菜单分两个标签页（用户："应该只有两个标签页分别是怪物和资源（包含 4 色宝石）"）
-        tab = find_object("battleTabItem")
-        check("菜单有「资源」标签页", tab is not None)
-        if tab is not None:
-            click(tab)
-            app.processEvents()
-            QTest.qWait(120)
-            texts_item = " ".join(" ".join(row_texts(row))
-                                  for row in find_all("battlePickRow"))
-            check("「资源」页里有 4 色宝石",
-                  all(gem in texts_item
-                      for gem in ("红宝石", "蓝宝石", "绿宝石", "黄宝石")),
-                  "texts=%r" % (texts_item[:80],))
-            back = find_object("battleTabMonster")
-            if back is not None:
-                click(back)
-                app.processEvents()
-                QTest.qWait(120)
-        picks = find_all("battlePickRow")
-        if picks:
-            click(picks[0])
-            app.processEvents()
-        plans = window.property("battlePlans")
-        plans = plans.toVariant() if hasattr(plans, "toVariant") else plans
-        steps = [step for step in (plans or [{}])[0].get("steps") or []]
-        check("选完就接在这一行的链上", len(steps) == 1, "steps=%r" % (steps,))
-        # 用户："计算按钮要在每一条后面"（以前钉在右边那一列）
-        ask = find_object("battleRowAsk")
-        run = find_object("battlePlanRun")
-        check("「计算」跟在这一行链尾（问号后面）",
-              ask is not None and run is not None
-              and run.parentItem() is ask.parentItem(),
-              "ask=%r run=%r" % (ask, run))
-        # 用户："点计算后出结果" —— 选完还没算
-        damage = find_object("battleRowDamage")
-        check("没点计算前是一个破折号", plain(damage.property("text")) in ("", "—")
-              if damage else False,
-              "damage=%r" % (plain(damage.property("text")) if damage else None,))
-        click(find_object("battlePlanRun"))
-        app.processEvents()
-        damage = find_object("battleRowDamage")
-        text = plain(damage.property("text")) if damage else ""
-        check("点「计算」后怪的后面写了掉多少血（带括号）",
-              text.startswith("（−") and text.endswith("）"),
-              "damage=%r" % (text,))
-        total = find_object("battlePlanDamage")
-        check("这一行右边有总掉血",
-              total is not None and "总掉血" in plain(total.property("text")),
-              "total=%r" % (plain(total.property("text")) if total else None,))
-        # 改人物攻击 → 结果作废，再点一次「计算」才更新
-        field = find_object("battleHero_atkField")
-        before = text
-        if field is not None:
-            field.setProperty("text", "9999")
-            app.processEvents()
-            waiting = plain(find_object("battleRowDamage").property("text")) \
-                if find_object("battleRowDamage") else ""
-            check("改了数值结果先作废", waiting == "—", "damage=%r" % (waiting,))
-            click(find_object("battlePlanRun"))
-            app.processEvents()
-            after = plain(find_object("battleRowDamage").property("text")) \
-                if find_object("battleRowDamage") else ""
-            check("再点「计算」掉血跟着变", after != before,
-                  "%r -> %r" % (before, after))
-        # 用户："伤害计算界面怎么不能拉伸窗口，怪物和资源得缩略图太大了，
-        #      箭头太丑了，而且不明显，伤害外面要加括号，血攻防魔防怎么不像
-        #      状态一样显示"
-        grips = ("battleGripTL", "battleGripTR", "battleGripBL", "battleGrip",
-                 "battleGripT", "battleGripB", "battleGripL", "battleGripR")
-        check("四条边 + 四个角都能拉窗口",
-              [name for name in grips if find_object(name) is None] == [],
-              "缺=%r" % [name for name in grips if find_object(name) is None])
-        icon = find_object("battleRowIcon")
-        check("缩略图是 14（以前的 20 太大）",
-              icon is not None and round(icon.width()) == 14,
-              "w=%r" % (icon.width() if icon else None,))
-        check("箭头是画出来的（两条斜线拼的 >）",
-              len(find_all("chainArrowLeg")) >= 2,
-              "legs=%d" % len(find_all("chainArrowLeg")))
-        hp = find_object("battleHero_hpField")
-        check("人物数值挨着图标（和状态行一个写法）",
-              hp is not None and hp.width() <= 60,
-              "w=%r" % (hp.width() if hp else None,))
-        # 用户："点箭头要能插入"
-        arrows = find_all("battleRowArrow")
-        check("链上每一步前面都有个能点的箭头", len(arrows) >= 1,
-              "arrows=%d" % len(arrows))
-        if arrows:
-            click(arrows[0])
-            app.processEvents()
-            QTest.qWait(120)
-            app.processEvents()
-            picks = find_all("battlePickRow")
-            if picks:
-                click(picks[0])
-                app.processEvents()
-            plans = window.property("battlePlans")
-            plans = plans.toVariant() if hasattr(plans, "toVariant") else plans
-            steps = [step for step in (plans or [{}])[0].get("steps") or []]
-            check("点箭头选的东西插在最前面（不是接在最后）",
-                  len(steps) == 2, "steps=%r" % (steps,))
-        # 用户："每一条要能单独计算" —— 换顺序再算一次，底下写差别
-        click(find_object("battleAddRow"))
-        app.processEvents()
-        asks = find_all("battleRowAsk")
-        if len(asks) > 1:
-            click(asks[1])
-            app.processEvents()
-            QTest.qWait(120)
-            app.processEvents()
-            picks = find_all("battlePickRow")
-            if picks:
-                click(picks[0])
-                app.processEvents()
-        runs = find_all("battlePlanRun")
-        check("每行链尾都有自己的「计算」", len(runs) == 2, "runs=%d" % len(runs))
-        if len(runs) > 1:
-            click(runs[1])            # 只算第 2 行
-            app.processEvents()
-            QTest.qWait(80)
-            app.processEvents()
-            left = find_all("battlePlanRun")
-            check("单独算完一行，另一行还是「计算」", len(left) == 1,
-                  "runs=%d" % len(left))
-        plans = window.property("battlePlans")
-        plans = plans.toVariant() if hasattr(plans, "toVariant") else plans
-        for i in range(len(plans or [])):
-            window.battleComputePlan(i)          # 界面上没"全算"按钮了，逐行算
-        app.processEvents()
-        QTest.qWait(80)
-        app.processEvents()
-        totals = [plain(item.property("text"))
-                  for item in find_all("battlePlanDamage")]
-        check("两行各有自己的总掉血", len(totals) >= 2,
-              "totals=%r" % (totals,))
-        # 底栏的大黄块删了：最省的一行靠 ✓ 标记（battlePlanDamage 里带 ✔）
-        best = [t for t in totals if "✔" in t]
-        check("掉血最少的那一行打勾", len(best) == 1, "totals=%r" % (totals,))
-        click(find_object("battleClear"))
-        app.processEvents()
-        check("清空之后一行都不剩", len(find_all("battleRow")) == 0)
-        # 用户："点图标后修改怪物或资源的数值"
-        click(find_object("battleAddRow"))
-        app.processEvents()
-        asks = find_all("battleRowAsk")
-        if asks:
-            click(asks[0])
-            app.processEvents()
-            QTest.qWait(120)
-            app.processEvents()
-            picks = find_all("battlePickRow")
-            if picks:
-                click(picks[0])
-                app.processEvents()
-        icons = find_all("battleRowIcon")
-        check("链上每一步都有缩略图", len(icons) >= 1, "icons=%d" % len(icons))
-        if icons:
-            click(icons[0])
-            app.processEvents()
-            check("点缩略图打开参数编辑",
-                  window.property("battleEditLayer") is True
-                  and find_object("battleEditCard") is not None,
-                  "layer=%r" % (window.property("battleEditLayer"),))
-            check("参数编辑里有数量/血量/攻击",
-                  find_object("battleEditCount") is not None
-                  and find_object("battleEdithp") is not None
-                  and find_object("battleEditatk") is not None,
-                  "count=%r hp=%r" % (find_object("battleEditCount"),
-                                      find_object("battleEdithp")))
-            click(find_object("battleEditDone"))
-            app.processEvents()
-        click(find_object("battleClose"))
-        app.processEvents()
-        check("点 ✕ 关掉计算器（主窗口还在）",
-              window.property("battleWindow") is None
-              or (window.property("battleWindow").toQObject()
-                  if hasattr(window.property("battleWindow"), "toQObject")
-                  else None) is None)
-        next_step(200, step_scroll)
-
-    # ---------------- 8. 内容变多 → 可以滚 ----------------
+    # ---------------- 7. 内容变多 → 可以滚 ----------------
     def step_scroll():
         flick = find_object("contentFlick")
         check("内容区是可滚动的", flick is not None)

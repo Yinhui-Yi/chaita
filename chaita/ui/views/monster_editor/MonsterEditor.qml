@@ -19,17 +19,17 @@ Item {
     // 自己那几个输入框的「灌草稿 / 收草稿」：原来在主窗口里、跨文件抓
     // headerName、fldHp 这些内部 id —— 那就等于没模块化，现在归这扇界面自己管。
 
-    // 头像框在场景里的位置和大小：素材库选图要贴着它摆。
-    // 主窗口问这里要（别跨文件摸 monIconBox 这个内部 id）。
+    // 头像框在卡片里的位置和大小（坐标系 = 弹层所在的卡片，不是窗口：窗口外圈还有投影边）：
+    // 素材库选图要贴着它摆。主窗口问这里要（别跨文件摸 monIconBox 这个内部 id）。
     function iconAnchorBox() {
-        var at = monIconBox.mapToItem(null, 0, 0)
+        var at = monIconBox.mapToItem(monDialog, 0, 0)
         return { "x": at.x, "y": at.y,
                  "width": monIconBox.width, "height": monIconBox.height }
     }
 
-    // 「加技能」按钮在场景里的矩形：技能下拉贴着它摆（同 iconAnchorBox 的规矩）
+    // 「加技能」按钮在卡片里的矩形：技能下拉贴着它摆（同 iconAnchorBox 的规矩）
     function skillAnchorBox() {
-        var at = skillBtn.mapToItem(null, 0, 0)
+        var at = skillBtn.mapToItem(monDialog, 0, 0)
         return { "x": at.x, "y": at.y,
                  "width": skillBtn.width, "height": skillBtn.height }
     }
@@ -168,7 +168,7 @@ Item {
                     text: "换"
                     color: host.ink
                     font.family: host.uiFont
-                    font.pixelSize: 10
+                    font.pixelSize: 11
                 }
                 MouseArea {
                     id: iconPickMouse
@@ -191,7 +191,7 @@ Item {
                 radius: 6
                 color: headerName.activeFocus ? host.paperLo : "transparent"
                 border.width: 1
-                border.color: headerName.activeFocus ? host.amber
+                border.color: headerName.activeFocus ? host.accent
                                                      : host.hairline
                 Behavior on border.color {
                     ColorAnimation { duration: 120 }
@@ -269,7 +269,7 @@ Item {
                         text: fieldRow.label
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                     }
                     Rectangle {
                         anchors.left: parent.left
@@ -280,7 +280,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         color: inner.activeFocus ? host.paperLo : "transparent"
                         border.width: 1
-                        border.color: inner.activeFocus ? host.amber
+                        border.color: inner.activeFocus ? host.accent
                                                         : host.hairline
                         Behavior on border.color {
                             ColorAnimation { duration: 120 }
@@ -360,7 +360,7 @@ Item {
                         text: "技能"
                         color: host.ink3
                         font.family: host.uiFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                         font.letterSpacing: 2
                     }
                     FlatBtn {
@@ -409,7 +409,7 @@ Item {
                         TextMetrics {
                             id: effectMetrics
                             font.family: host.uiFont
-                            font.pixelSize: 9
+                            font.pixelSize: 10
                             text: skillRowItem.effectText
                         }
                         radius: 6
@@ -432,7 +432,7 @@ Item {
                                                        : "transparent"
                             border.width: skillRowItem.custom ? 1 : 0
                             border.color: skillNameField.activeFocus
-                                          ? host.amber : host.hairline
+                                          ? host.accent : host.hairline
                             Behavior on border.color {
                                 ColorAnimation { duration: 120 }
                             }
@@ -452,7 +452,7 @@ Item {
                                 readOnly: !skillRowItem.custom
                                 color: host.ink
                                 font.family: host.uiFont
-                                font.pixelSize: 10
+                                font.pixelSize: 11
                                 selectByMouse: true
                                 text: modelData ? modelData.name : ""
                                 onEditingFinished: host.setSkill(
@@ -492,7 +492,7 @@ Item {
                                 color: skillRowItem.effectText !== ""
                                        ? host.ink2 : host.ink3
                                 font.family: host.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                                 lineHeight: 1.1
                             }
                             // 自定义技能：介绍是自己写的，能改（用户："自定义
@@ -513,13 +513,13 @@ Item {
                                     radius: 4
                                     border.width: 1
                                     border.color: skillEffectField.activeFocus
-                                                  ? host.amber : host.hairline
+                                                  ? host.accent : host.hairline
                                 }
                                 wrapMode: TextArea.Wrap
                                 placeholderText: "写这个技能的介绍（可不填）"
                                 color: host.ink2
                                 font.family: host.uiFont
-                                font.pixelSize: 9
+                                font.pixelSize: 10
                                 selectByMouse: true
                                 text: skillRowItem.effectText
                                 // 边打边记（和参数格一样，不重画，免得丢焦点）
@@ -550,7 +550,7 @@ Item {
                                             text: String(modelData.label || "")
                                             color: host.ink3
                                             font.family: host.uiFont
-                                            font.pixelSize: 8
+                                            font.pixelSize: 10
                                         }
 
                                         // 数字
@@ -563,7 +563,7 @@ Item {
                                             color: host.paperLo
                                             border.width: 1
                                             border.color: paramField.activeFocus
-                                                          ? host.amber : host.hairline
+                                                          ? host.accent : host.hairline
                                             TextField {
                                                 id: paramField
                                                 objectName: "monSkillParam"
@@ -581,7 +581,7 @@ Item {
                                                 selectByMouse: true
                                                 color: host.ink
                                                 font.family: host.monoFont
-                                                font.pixelSize: 9
+                                                font.pixelSize: 11
                                                 text: paramCell.current === undefined
                                                       || paramCell.current === null
                                                       ? ""
@@ -599,7 +599,7 @@ Item {
                                             text: String(modelData.unit || "")
                                             color: host.ink3
                                             font.family: host.uiFont
-                                            font.pixelSize: 8
+                                            font.pixelSize: 10
                                         }
 
                                         // 开关
@@ -609,16 +609,16 @@ Item {
                                             height: 18
                                             radius: 4
                                             color: paramCell.current
-                                                   ? host.amber : host.paperLo
+                                                   ? host.accent : host.paperLo
                                             border.width: 1
                                             border.color: paramCell.current
-                                                          ? host.amber : host.hairline
+                                                          ? host.accent : host.hairline
                                             Text {
                                                 anchors.centerIn: parent
                                                 visible: !!paramCell.current
                                                 text: "✓"
                                                 color: host.paperHi
-                                                font.pixelSize: 9
+                                                font.pixelSize: 11
                                             }
                                             MouseArea {
                                                 anchors.fill: parent
@@ -641,17 +641,17 @@ Item {
                                                     height: 18
                                                     radius: 4
                                                     color: paramCell.current === modelData
-                                                           ? host.amber : host.paperLo
+                                                           ? host.accent : host.paperLo
                                                     border.width: 1
                                                     border.color: paramCell.current === modelData
-                                                                  ? host.amber : host.hairline
+                                                                  ? host.accent : host.hairline
                                                     Text {
                                                         anchors.centerIn: parent
                                                         text: modelData
                                                         color: paramCell.current === modelData
                                                                ? host.paperHi : host.ink3
                                                         font.family: host.uiFont
-                                                        font.pixelSize: 8
+                                                        font.pixelSize: 10
                                                     }
                                                     MouseArea {
                                                         anchors.fill: parent
@@ -680,7 +680,7 @@ Item {
                             text: "✕"
                             color: skillDelMouse.containsMouse
                                    ? host.danger : host.ink3
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                             MouseArea {
                                 id: skillDelMouse
                                 anchors.fill: parent
@@ -700,7 +700,7 @@ Item {
                     text: "还没有技能，点「＋ 加技能」从下拉里选。"
                     color: host.ink3
                     font.family: host.uiFont
-                    font.pixelSize: 9
+                    font.pixelSize: 11
                     verticalAlignment: Text.AlignVCenter
                 }
 

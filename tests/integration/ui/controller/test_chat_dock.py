@@ -58,6 +58,107 @@ def _type_enter(window, text):
     return field
 
 
+def test_你的话靠右_AI的话靠左_每条都带时间():
+    """测什么：对话是气泡——你说的贴右边、AI 说的贴左边，每条下面都有时间（一直显示）；
+    贴右的气泡右沿和对话区右沿对齐（不会跑出去，也不会留一截空）。
+
+    走过的界面：底部对话区（气泡）。
+    """
+    from PySide6.QtCore import QPointF
+
+    controller, engine, window = helpers.make_controller()
+    controller._chat_log = [
+        {"who": "你", "text": "红头怪还剩几只？", "at": "14:32"},
+        {"who": "AI", "text": "通天塔1 还有 4 只。", "at": "14:33"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+
+    def scene(item):
+        return item.mapToScene(QPointF(0, 0))
+
+    texts = sorted(helpers.find_all(window, "chatText"), key=lambda i: scene(i).y())
+    stamps = sorted(helpers.find_all(window, "chatAt"), key=lambda i: scene(i).y())
+    flick = helpers.find_item(window, "chatFlick")
+
+    mine, theirs = texts
+    assert scene(mine).x() > scene(theirs).x()
+    assert [s.property("text") for s in stamps] == ["14:32", "14:33"]
+    assert all(s.isVisible() for s in stamps)
+    flick_right = scene(flick).x() + flick.width()
+    assert round(scene(mine).x() + mine.width() + 12) == round(flick_right)
+    assert round(scene(theirs).x()) == round(scene(flick).x() + 12)
+
+
+def test_点标题行收起和展开对话区_收起后只剩标题行():
+    """测什么：点「对话」标题行 → 气泡区和输入栏都藏起来，整块只剩标题行那么高；再点一下恢复。
+
+    走过的界面：底部对话区标题行。
+    """
+    controller, engine, window = helpers.make_controller()
+    controller._chat_log = [{"who": "你", "text": "红头怪还剩几只？", "at": "14:32"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+    dock = helpers.find_item(window, "chatBar")
+    head_h = window.property("chatHeadH")
+    assert window.property("chatCollapsed") is False
+    assert helpers.find_item(window, "chatInput").isVisible()
+    expanded_h = dock.height()
+    assert expanded_h > head_h
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))
+    assert window.property("chatCollapsed") is True
+    assert not helpers.find_item(window, "chatInput").isVisible()
+    assert not helpers.find_item(window, "chatFlick").isVisible()
+    assert round(dock.height()) == head_h == window.property("dockH")
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))
+    assert window.property("chatCollapsed") is False
+    assert helpers.find_item(window, "chatInput").isVisible()
+    assert round(dock.height()) == round(expanded_h)
+
+
+def test_收起着来了新消息_标题行亮小蓝点_展开后消失():
+    """测什么：对话区收起时 AI 回了一条 → 标题行上出现小蓝点；展开看过就没了。
+
+    走过的界面：底部对话区标题行。
+    """
+    controller, engine, window = helpers.make_controller()
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))     # 收起
+    dot = helpers.find_item(window, "chatUnreadDot")
+    assert not dot.isVisible()
+
+    controller._chat_log = [{"who": "AI", "text": "还剩 4 只", "at": "14:33"}]
+    controller.chatLogChanged.emit()
+    helpers.APP.processEvents()
+    assert dot.isVisible()
+
+    helpers.click_item(window, helpers.find_item(window, "chatHead"))     # 展开
+    assert not dot.isVisible()
+
+
+def test_发送键_没字是灰的点了不发_有字才能发():
+    """测什么：输入框空着时发送键是「不可发」状态，点它什么都不发生；打了字就变「可发」。
+
+    走过的界面：输入栏里的发送键（纸飞机）。
+    """
+    controller, engine, window = helpers.make_controller()
+    send = helpers.find_item(window, "chatSend")
+    field = helpers.find_item(window, "chatInput")
+    assert send.property("ready") is False
+
+    helpers.click_item(window, send)
+    assert controller.chatReply == ""
+    assert controller.chatting is False
+
+    field.setProperty("text", "   ")
+    helpers.APP.processEvents()
+    assert send.property("ready") is False       # 只有空格也不算
+
+    field.setProperty("text", "红头怪还剩几只")
+    helpers.APP.processEvents()
+    assert send.property("ready") is True
+
+
 def test_chat_input_enter_sends_and_clears(monkeypatch):
     """测什么：输入框里打字回车 → 话发出去、模型回的字段写进状态、输入框清空。
 
@@ -91,6 +192,30 @@ def test_chat_send_button_sends(monkeypatch):
     assert controller.chatReply == "收到"
     assert str(controller.statusData["atk"]) == "95"
     assert helpers.find_item(window, "chatInput").property("text") == ""
+
+
+def test_等回复时按发送键_字留在输入框里_不重复发(monkeypatch):
+    """测什么：上一句还没回复（`chatting`）时，打字、点发送 → 不发第二句，字也还在输入框里
+    （发出去前清掉就丢字了）；回复到了再点就能发。
+
+    走过的界面：输入栏里的发送键。
+    """
+    controller, engine, window = _window(monkeypatch, reply="好")
+    controller._chatting = True
+    field = helpers.find_item(window, "chatInput")
+    field.setProperty("text", "再问一句")
+    helpers.APP.processEvents()
+
+    helpers.click_item(window, helpers.find_item(window, "chatSend"))
+
+    assert controller.chatReply == ""
+    assert field.property("text") == "再问一句"
+
+    controller._chatting = False
+    controller.chattingChanged.emit()
+    helpers.click_item(window, helpers.find_item(window, "chatSend"))
+    assert controller.chatReply == "好"
+    assert field.property("text") == ""
 
 
 def test_empty_chat_is_not_sent(monkeypatch):

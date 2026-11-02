@@ -161,7 +161,7 @@
 - 坐标跟着「复制」的 JSON 一起走：`routeStepsFor` 给每一步怪带上
   `floor/row/col`，`routeStepsJson` 再把同层路线缺的 `floor` 补成路线自己的层。
 - **点一行 = 去地图上圈这一格**（用户："最好点击后会在地图内高亮"）：
-  `compareHighlight` 把 `mapHiFloor/mapHiRow/mapHiCol` 写进主窗口并开那一层的小窗
+  `highlightCell` 把 `mapHiFloor/mapHiRow/mapHiCol` 写进主窗口并开那一层的小窗
   （已开着就提到前面）；小窗里 `floorCellHighlight` 在截图对应的格子上画
   淡黄底 + 深琥珀框 + 白边光晕。关对比窗（或「清空」）就把它清掉。
   老路线没有坐标（点之前存下来的 JSON）点了什么都不做。

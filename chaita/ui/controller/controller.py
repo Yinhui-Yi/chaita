@@ -15,6 +15,7 @@ from PySide6.QtGui import QGuiApplication
 
 from ..constants import DRAG_INTERVAL_MS, MON_DRAG_INTERVAL_MS, SESSION_PATH
 from ..toolkit.library import _load_monster_templates, _load_skill_catalog
+from ..toolkit.notes import _load_skill_notes
 from ..toolkit.state import (_load_session, _load_ui_state, _save_session,
                              _save_ui_state, _session_hint)
 from .battle import BattleMixin
@@ -253,6 +254,8 @@ class Controller(JobsMixin, WindowMixin, SessionMixin, ChatMixin,
         self.mapHistoryChanged.connect(self.skillStatsChanged.emit)
         self._monster_templates = _load_monster_templates()
         self._skill_catalog = _load_skill_catalog()
+        # 用户写/改写的技能介绍（优先于内置的手册原话）
+        self._skill_notes = _load_skill_notes()
         self._last_foreground = ""
         self._poll = QTimer(self)
         self._poll.setInterval(120)

@@ -66,10 +66,11 @@ Item {
         return field.prefix + (field.row + 1) + "," + (field.col + 1)
     }
 
-    // 打开输入框：只填坐标本身（层数是显示用的，不用改）
+    // 打开输入框：**填带层数的完整写法**（"2层 3,4" / "→3层 6,7"）。
+    // 只填 "3,4" 的话，改的时候看不出这一格是哪一层的坐标（用户 2026-10-31：
+    // "你粘贴坐标，再去修改，根本没有层数信息"）。`parse()` 会把这截层数再拆出来。
     function open() {
-        editor.text = field.row >= 0 && field.col >= 0
-                ? (field.row + 1) + "," + (field.col + 1) : ""
+        editor.text = field.display()
         editor.visible = true
         editor.forceActiveFocus()
         editor.selectAll()
@@ -120,7 +121,7 @@ Item {
         selectByMouse: true
         verticalAlignment: TextInput.AlignVCenter
         background: Rectangle { color: Theme.paperHi; radius: 4
-                                border.width: 1; border.color: Theme.amber }
+                                border.width: 1; border.color: Theme.accent }
         color: Theme.ink
         font.family: Theme.uiFont
         font.pixelSize: field.labelSize

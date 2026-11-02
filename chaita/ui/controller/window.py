@@ -10,6 +10,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QGuiApplication
 
 from ..constants import DRAG_INTERVAL_MS
+from ..toolkit import desktop
 from ..toolkit.state import (_apply_ui_state, _geometry_from_state,
                              _load_ui_state, _place_right, _save_session,
                              _save_ui_state)
@@ -74,6 +75,47 @@ class WindowMixin:
         self._win = window
 
     # ---- 窗口位置/大小：记下来，下次启动照原样 ----
+    # ---- 窗口上的两个开关：置顶（默认关）、对话区收起（默认展开），都记下来 ----
+    def _remember_toggle(self, key: str, value: bool) -> None:
+        data = _load_ui_state()
+        data[key] = bool(value)
+        _save_ui_state(data)
+
+    @Slot(bool)
+    def setChatCollapsed(self, collapsed: bool) -> None:
+        """对话区收起 / 展开，并记住（下次启动照原样）。"""
+        if self._win is not None:
+            self._win.setProperty("chatCollapsed", bool(collapsed))
+        self._remember_toggle("chatCollapsed", collapsed)
+
+    @Slot()
+    def restoreChatCollapsed(self) -> None:
+        """启动时按上次的选择摆好（没记录 = 展开，什么都不用做）。"""
+        if self._win is not None and bool(_load_ui_state().get("chatCollapsed")):
+            self._win.setProperty("chatCollapsed", True)
+
+    # ---- 置顶开关：默认不置顶，点导航条上的「置顶」才永远在最前面 ----
+    @Slot(bool)
+    def setPinned(self, pinned: bool) -> None:
+        """切换置顶，并记下来（下次启动照原样）。"""
+        self._apply_pinned(bool(pinned))
+        self._remember_toggle("pinned", pinned)
+
+    @Slot()
+    def restorePinned(self) -> None:
+        """启动时按上次的选择摆好置顶状态（没记录 = 不置顶，什么都不用做）。"""
+        if bool(_load_ui_state().get("pinned")):
+            self._apply_pinned(True)
+
+    def _apply_pinned(self, pinned: bool) -> None:
+        if self._win is None:
+            return
+        # 顺序不能反：先改主窗口的置顶，再改 `pinned` 属性（子窗口的置顶标志绑定它，
+        # 一改 Qt 就把子窗口重建成置顶/非置顶）。反过来的话，子窗口已经置顶了，
+        # 再给主窗口设置顶会"返回成功、其实没生效"（实测）。
+        desktop.set_topmost(int(self._win.winId()), pinned)
+        self._win.setProperty("pinned", pinned)
+
     @Slot()
     def markGeometryReady(self) -> None:
         """启动摆位完成后调一次：之前的坐标都是窗口创建时的 0,0，不能记。"""

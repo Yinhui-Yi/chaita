@@ -118,16 +118,16 @@ Item {
 
             // 正在拖的那一格：实框
             if (drag.row !== undefined) {
-                ctx.strokeStyle = Theme.amber
+                ctx.strokeStyle = Theme.accent
                 ctx.lineWidth = 2
                 ctx.strokeRect(Number(drag.col) * size + 1,
                                Number(drag.row) * size + 1,
                                size - 2, size - 2)
             }
 
-            // 多选勾中的格子：琥珀色细框（和"正在拖"的粗框区分开）
+            // 多选勾中的格子：强调色细框（和"正在拖"的粗框区分开）
             var multi = (layer.host && layer.host.gridMulti) || []
-            ctx.strokeStyle = Theme.amber
+            ctx.strokeStyle = Theme.accent
             ctx.lineWidth = 1
             for (var m = 0; m < multi.length; m++) {
                 var mc = multi[m] || ({})

@@ -15,6 +15,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
+import QtQuick.Effects
 // 同目录的其它 QML（多文件加载，见 chaita/ui/loader.py）
 import "."
 // 一层 UI 一个文件夹（见 docs/UI_MAP.md）：
@@ -29,6 +30,7 @@ import "battle_calc"
 import "floor_sheet"
 import "route_editor"
 import "route_compare"
+import "property_gain"
 import "map_view"
 import "preview"
 
@@ -38,12 +40,21 @@ Window {
     x: 0
     visible: true
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 普通顶层窗口（不是 Qt.Tool）：任务栏和 Alt+Tab 里都有它；不再永远置顶，
+    // 要置顶点导航条上的「置顶」（`pinned`，由 controller.setPinned 用 Win32 切，
+    // 窗口句柄不变）。子窗口的置顶标志绑定这个 `pinned`。
+    // 必须带 Qt.Window：只写 FramelessWindowHint 会丢掉窗口类型，Qt 当它是工具窗口，
+    // 又不进任务栏了。
+    flags: Qt.Window | Qt.FramelessWindowHint
+    title: win.appTitle
+    // 置顶开关的当前状态（只读显示；改它走 controller.setPinned）
+    property bool pinned: false
 
     // ---- 设计 tokens：颜色/字号只从这里取 ----
-    // 暖纸底 + 墨字 + 一点琥珀金。三档文字明度拉开层次，不靠边框堆。
+    // 暖纸底 + 墨字 + 一点琥珀金这套已经换了：现在是冷灰白底 + 近黑字 + 一个强调蓝。
+    // 三档文字明度拉开层次，不靠边框堆。
     // 配色和字体只有一处定义（Theme.qml），这里留同名别名：
-    // 这份文件里 5000 行都写 `win.amber`，不为了搬家去改它们；子界面直接用 Theme。
+    // 这份文件里 5000 行都写 `win.ink` 这类，不为了搬家去改它们；子界面直接用 Theme。
     readonly property string uiFont: Theme.uiFont
     readonly property string monoFont: Theme.monoFont
     readonly property color paper: Theme.paper
@@ -54,8 +65,8 @@ Window {
     readonly property color ink: Theme.ink
     readonly property color ink2: Theme.ink2
     readonly property color ink3: Theme.ink3
-    readonly property color amber: Theme.amber
-    readonly property color amberInk: Theme.amberInk
+    readonly property color accent: Theme.accent
+    readonly property color accentInk: Theme.accentInk
     readonly property color danger: Theme.danger
     // 效果标记三色（上/下楼梯也用它俩：↑ 绿、↓ 蓝）
     readonly property color markAtk: Theme.markAtk
@@ -63,21 +74,34 @@ Window {
     readonly property color markMdef: Theme.markMdef
 
     // ---- 尺寸 ----
-    readonly property int padH: 12
-    readonly property int padV: 12
-    readonly property int navH: 22
-    readonly property int navGap: 2
-    readonly property int headerH: 24
-    // 对话卡高度：跟着**实测**的行高走（文字会折行，不能按条数乘固定值）。
-    // 行太多时给个上限（180），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
-    readonly property int chatLogMax: 180
+    // 窗口最外圈留给投影的透明边；卡片（灰底）画在它里面
+    readonly property int inset: Theme.windowInset
+    // 卡片里面、灰底上各块之间的留白
+    readonly property int padH: 10
+    readonly property int padV: 10
+    readonly property int navH: 28
+    readonly property int navGap: 8
+    readonly property int headerH: 26
+    readonly property int statusH: 64
+    readonly property int heroPad: 10
+    // 对话卡高度：跟着**实测**的气泡高度走（文字会折行，不能按条数乘固定值）。
+    // 对话太长时给个上限（220），多出来的在卡里滚 —— 不然一句很长的回答会把窗口顶穿。
+    readonly property int chatLogMax: 220
     readonly property int chatLogH: Math.min(chatLogMax, chatLog.logHeight)
-    // 8（上）+ 行 + 5（行和输入条之间）+ 26（输入条）+ 7（下），最少 46
-    readonly property int dockH: Math.max(46, 8 + win.chatLogH
-                                              + (win.chatLogH > 0 ? 5 : 0) + 33)
+    // 对话区（底部那块）收起时只剩一条标题行；记在 ui_state.json 的 chatCollapsed
+    property bool chatCollapsed: false
+    readonly property int chatHeadH: 28
+    readonly property int chatBarH: 48
+    // 标题行 + （展开时）输入栏；有对话时再加：上边距 8 + 对话 + 下边距 8 + 中间那条分隔线 1
+    readonly property int dockH: win.chatHeadH
+        + (win.chatCollapsed ? 0
+           : win.chatBarH + (win.chatLogH > 0 ? win.chatLogH + 17 : 0))
     readonly property int gapA: 10
-    readonly property int gapB: 12
-    readonly property int bodyW: win.width - win.padH * 2
+    readonly property int gapB: 6
+    // 灰底卡片自己的宽高（窗口扣掉投影边）：弹层摆位、内容宽度都按它算
+    readonly property int cardW: win.width - win.frame
+    readonly property int cardH: win.height - win.frame
+    readonly property int bodyW: win.cardW - win.padH * 2
     readonly property int tileW: Math.floor((win.bodyW - 16) / 3)
 
     // ---- 对外契约（startup / controller 会设这些属性） ----
@@ -176,6 +200,8 @@ Window {
     // 整数倍用邻近取样（像素图清楚），非整数倍才开平滑，免得一边粗一边细
     readonly property bool iconThumbSmooth: iconThumbScale !== Math.floor(iconThumbScale)
     property bool skillPicker: false
+    // 技能介绍卡（点技能胶囊弹出的那张）开着：开着时 Esc 只关它，别让 Esc 把整个软件关了
+    property bool skillIntroOpen: false
     // 正在拖怪物行排序（拖动时列表不跟着滚）
     property bool monDragging: false
     // 技能下拉挂在「＋ 加技能」按钮下面（x/y 在打开时按按钮位置算）
@@ -200,9 +226,7 @@ Window {
     // （用户："还没读到塔这东西删掉"、"折叠模式下的空白删掉"）。
     // 刷新 ↻ 已经挪到导航条上，所以这行不再因为"有数值"而占位。
     readonly property bool headerVisible: win.tower !== ""
-    readonly property int headerBlock: win.headerVisible
-                                       ? win.navGap + win.headerH : 0
-    // 状态区（两行）：第一行 生命/攻击/防御/魔防，第二行 金币 + 四色钥匙
+    // 状态区（两行）：第一行 生命/攻击/防御/魔防四个小块，第二行 金币 + 四色钥匙
     readonly property bool statusVisible: win.statusValue("hp") !== ""
                                          || win.statusValue("atk") !== ""
                                          || win.statusValue("def") !== ""
@@ -212,14 +236,23 @@ Window {
                                          || win.keyValue("blue") !== ""
                                          || win.keyValue("red") !== ""
                                          || win.keyValue("green") !== ""
-    readonly property int statusH: 30
-    readonly property int statusBlock: win.statusVisible ? win.statusH : 0
-    // 抬头 + 状态行 + 导航条 + 上下留白 + 底部对话卡：这些是固定高度，剩下的都归内容区
-    readonly property int chromeH: win.padV * 2 + win.navH + win.headerBlock
-                                   + win.statusBlock + win.gapA * 2 + win.dockH
-    // 折叠态只有导航条 + 抬头 + 状态行（没有内容区、没有对话卡）
-    readonly property int collapseChrome: win.padV * 2 + win.navH + win.headerBlock
-                                          + win.statusBlock
+    // 状态卡（塔名 + 状态）：有塔名或有数值才画，一样都没有就整张不占位
+    readonly property bool heroVisible: win.headerVisible || win.statusVisible
+    // 卡的高度 = 上下内边距 + 塔名行（含下面 6px 间隔）+ 状态区（小块 46 + 8 + 胶囊行 24）
+    readonly property int heroH: win.heroVisible
+        ? win.heroPad * 2 + (win.headerVisible ? win.headerH + 6 : 0)
+          + (win.statusVisible ? win.statusH : 0)
+        : 0
+    // 导航条下面到状态卡之间还有 navGap；没有状态卡就不留
+    readonly property int heroBlock: win.heroVisible ? win.navGap + win.heroH : 0
+    // 窗口最外圈留给投影的透明边，上下左右各 inset
+    readonly property int frame: win.inset * 2
+    // 导航条 + 状态卡 + 上下留白 + 底部对话卡 + 投影边：这些是固定高度，剩下的都归内容区
+    readonly property int chromeH: win.frame + win.padV * 2 + win.navH + win.heroBlock
+                                   + win.gapA * 2 + win.dockH
+    // 折叠态只有导航条 + 状态卡（没有内容区、没有对话卡）
+    readonly property int collapseChrome: win.frame + win.padV * 2 + win.navH
+                                          + win.heroBlock
     // 兼容 startup 的 _apply_ui_state（它会把上次的尺寸写进来）。
     property int savedWidth: expandedWidth
     property int savedHeight: expandedHeight
@@ -323,8 +356,7 @@ Window {
             // 手册里读到的怪**都列出来**（用户："怪物读不进去"——
             // 以前只要地图上还没记，读完手册这一栏是空的）。地图上的才有 ×N/剩 N。
             rows.push({ name: name, icon: m.icon || "", total: t.total,
-                        left: t.left, dbIndex: i, onMap: t.total > 0,
-                        skill: win.skillText(m), stats: win.statLine(m) })
+                        left: t.left, dbIndex: i, onMap: t.total > 0 })
         }
         // 顺序就是"用户自己排的顺序"（_monsters 的顺序）：按住一行能上下拖。
         // 地图上加过、手册里还没读到的怪没有可拖的行，按名字挂在最后。
@@ -333,8 +365,7 @@ Window {
             if (seen[other])
                 continue
             extras.push({ name: other, icon: "", total: totals[other].total,
-                          left: totals[other].left, dbIndex: -1, onMap: true,
-                          skill: "", stats: "" })
+                          left: totals[other].left, dbIndex: -1, onMap: true })
         }
         extras.sort(function (a, b) {
             return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
@@ -371,30 +402,6 @@ Window {
     function endMonDrag() {
         win.monDragging = false
         controller.monDragFinish()
-    }
-
-    function skillText(m) {
-        var items = (m && m.skill_items) || []
-        var names = []
-        for (var i = 0; i < items.length; i++) {
-            var token = String((items[i] || {}).name || "").trim()
-            if (token !== "" && names.indexOf(token) < 0)
-                names.push(token)
-        }
-        if (names.length > 0)
-            return names.join(" · ")
-        var raw = String((m && m.skills) || "").trim()
-        if (raw === "")
-            return ""
-        return raw.split(/[\s,，、\/;；]+/).filter(function (x) { return x !== "" }).join(" · ")
-    }
-
-    function statLine(m) {
-        var parts = []
-        if (m && m.hp) parts.push("生命 " + m.hp)
-        if (m && m.atk) parts.push("攻 " + m.atk)
-        if (m && m.def) parts.push("防 " + m.def)
-        return parts.join(" · ")
     }
 
     // 一行一个技能：多少只带它、还剩几只（都按整座塔算）
@@ -690,6 +697,7 @@ Window {
     property var gridPicked: ({})
 
     // Ctrl+点一格：勾上 / 取消（同一个格子再点一次就取消）
+    // 勾上的格子 = **要一起记的一批**（拖动时和抓着的那一格并肩交给那一行）。
     function gridMultiToggle(row, col) {
         var list = []
         var found = false
@@ -701,8 +709,11 @@ Window {
             }
             list.push({ "row": Number(c.row), "col": Number(c.col) })
         }
-        if (!found)
+        if (!found) {
             list.push({ "row": Number(row), "col": Number(col) })
+            // 刚点的那一格就是"看着它"的那一格（右键菜单/拖动框都认它）
+            win.gridPicked = { "row": Number(row), "col": Number(col) }
+        }
         win.gridMulti = list
     }
 
@@ -720,8 +731,16 @@ Window {
         win.gridMulti = []
     }
 
-    // 左键单击某一格 = 选中它（右键菜单的"复制坐标"用的就是这一格）
+    // 左键单击某一格 = **选中它**：选择集合就剩这一格（再 Ctrl 点别的会加成多选）。
+    // 右键菜单的"复制坐标 / 清掉"也作用在这一格上，所以 `gridPicked` 一起设。
     function gridPickCell(row, col) {
+        win.gridPicked = { "row": Number(row), "col": Number(col) }
+        win.gridMulti = [{ "row": Number(row), "col": Number(col) }]
+    }
+
+    // 右键点一格：只把"菜单作用的那一格"挪过去，**不动选择**
+    // （用户可能正 Ctrl 勾着几格，右键看一眼坐标不该把它们清掉）。
+    function gridPickMenuCell(row, col) {
         win.gridPicked = { "row": Number(row), "col": Number(col) }
     }
 
@@ -765,6 +784,16 @@ Window {
             return false
         win.gridAssign(Number(cell.row), Number(cell.col), "", "")
         win.gridPicked = ({})
+        // 清掉的那一格不该再算在"要一起记的一批"里
+        var list = []
+        for (var i = 0; i < win.gridMulti.length; i++) {
+            var c = win.gridMulti[i] || ({})
+            if (Number(c.row) === Number(cell.row)
+                    && Number(c.col) === Number(cell.col))
+                continue
+            list.push({ "row": Number(c.row), "col": Number(c.col) })
+        }
+        win.gridMulti = list
         return true
     }
 
@@ -1873,6 +1902,16 @@ Window {
             return
         win.mapHint = ""
         win.mapFloor = name
+        // **编辑模式跟着走**：`panel.editing` 要求 `gridEditFloor === mapFloor`，
+        // 切层之后不同步的话它能变假 —— 长按就从"抓格子拖"退回成"画路线"，
+        // 表现就是"拖不动、也没有任何提示"（用户 2026-10-31："还是没法拖动"）。
+        // 旧层上的悬停/选中/多选一律清掉，它们属于上一层。
+        if (win.gridEditOn && win.gridEditFloor !== name) {
+            win.gridEditFloor = name
+            win.gridHover = ({})
+            win.gridPicked = ({})
+            win.gridMulti = []
+        }
         win.followMapSheet(name)
     }
 
@@ -2071,6 +2110,10 @@ Window {
     // 用户 2026-10-31："循环你妈个逼"（点一下换一层点不过来）、"我1000层魔塔怎么办"
     function resolveFloorName(fromFloorText, typed) {
         var text = String(typed || "").trim()
+        // 头尾的箭头/标点削掉：显示那格是 "→ 3"，粘回来也得认（旧数据里也存过这种）
+        text = text.replace(/^[^0-9A-Za-z\u4e00-\u9fa5]+/, "")
+        text = text.replace(/[^0-9A-Za-z\u4e00-\u9fa5]+$/, "")
+        text = text.trim()
         if (text === "")
             return ""
         var floors = win.mapFloors()
@@ -2109,15 +2152,13 @@ Window {
         return win.setStairTarget(floor, index, name)
     }
 
-    // 抓一格的拖动松手落在某一行上：把这一格记给那一行。
+    // 抓着一格（或 Ctrl 勾的一批）拖到某一行上松手：把这几格记给那一行。
     // 和 DropArea 落格走**同一个** `gridAssignMany`（一处规则，别写第二份）。
-    function assignCellToRow(floorText, hit, row, col) {
-        if (!controller || !hit)
+    function assignCellToRow(hit, cells) {
+        if (!controller || !hit || !(cells || []).length)
             return false
-        win.gridAssignMany([{ "row": Number(row), "col": Number(col) }],
-                           String(hit.kind || ""),
-                           String(hit.name || ""),
-                           String(hit.effect || ""))
+        win.gridAssignMany(cells, String(hit.kind || ""),
+                           String(hit.name || ""), String(hit.effect || ""))
         return true
     }
 
@@ -2197,8 +2238,16 @@ Window {
         if (one === null)
             return false
         var target = win.stairTargetFloor(one)
-        if (target === "")
+        if (target === "") {
+            // 踩到楼梯却没换层：**必须说一句**，不然就是"切个屁，根本不动"
+            var dirText = String(one.dir || "up") === "up" ? "上" : "下"
+            win.mapHint = "这格的" + dirText + "楼梯还没选「通到…」"
+            if (controller)
+                controller.uiNote("route.jump_blocked",
+                                  String(win.mapFloor) + " " + Number(cell.row)
+                                  + "," + Number(cell.col) + " 没选目标层")
             return false
+        }
         // 落脚点：这一行自己记的"落点"最准；没记就找目标层里通回本层的那行
         var toRow = Number(one.toRow === undefined ? -1 : one.toRow)
         var toCol = Number(one.toCol === undefined ? -1 : one.toCol)
@@ -2213,8 +2262,31 @@ Window {
                     break
                 }
             }
+            // 那头**没标"通回本层"**也照样能认：从 A 踩上楼到 B，B 上那座楼梯就是
+            // 反方向那一座（楼梯两头是同一个东西）。不这么兜底就只能沿用上一层的
+            // 同一个坐标，落点纯属瞎猜（用户 2026-10-31："切换楼层后的起点不对"、
+            // "画在错的格子上"）。
+            if (landing.row === undefined) {
+                var wantDir = String(one.dir || "up") === "up" ? "down" : "up"
+                for (var k = 0; k < back.length; k++) {
+                    var twin = back[k] || {}
+                    if (String(twin.dir || "") === wantDir
+                            && Number(twin.row) >= 0) {
+                        landing = twin
+                        break
+                    }
+                }
+            }
         }
+        var from = win.mapFloor
         win.selectFloor(target)
+        // 换层这一步留痕：从哪层、哪一格、切到哪层、落在哪一格、依据是什么
+        var why = (toRow >= 0 && toCol >= 0) ? "出口坐标"
+                : (landing.row !== undefined ? "目标层的楼梯" : "同坐标兜底")
+        if (controller)
+            controller.uiNote("route.jump",
+                              String(from) + " " + Number(cell.row) + ","
+                              + Number(cell.col) + " → " + target)
         if (toRow >= 0 && toCol >= 0) {
             layer.jumpTo(target, toRow, toCol)
             win.mapHint = ""
@@ -2226,6 +2298,21 @@ Window {
             win.mapHint = "「" + target + "」还没标那个楼梯，先落在第 "
                     + (Number(cell.row) + 1) + " 行第 "
                     + (Number(cell.col) + 1) + " 列"
+        }
+        if (controller)
+            controller.uiNote("route.land", why + " " + target + " "
+                              + Number(layer.cells[layer.cells.length - 1].row)
+                              + "," + Number(layer.cells[layer.cells.length - 1].col))
+        // 切层之后把**系统鼠标**移到落点那一格的中心：光把数据改对不够，用户的指针
+        // 还停在上一层那个位置，接着拖就接不上（用户 2026-11-01："切层后改鼠标坐标"、
+        // "鼠标就是鼠标"）。
+        var land = layer.cells.length > 0
+                 ? layer.cells[layer.cells.length - 1] : null
+        if (land && controller) {
+            var at = layer.mapToGlobal(Qt.point(
+                (Number(land.col) + 0.5) * layer.cell,
+                (Number(land.row) + 0.5) * layer.cell))
+            controller.moveCursor(Math.round(at.x), Math.round(at.y))
         }
         return true
     }
@@ -2316,6 +2403,63 @@ Window {
         }
     }
 
+    // ---- 加属性收益（用户 2026-11-01）----
+    // "每增加 x 点攻击防御魔防，剩下的怪会减少多少伤害 …需要可以配上界"，
+    // 后来："这是新功能！！！不要和之前的混在一起！！！" —— 所以它是**自己一扇窗**
+    // （导航条 ＋），不挂在伤害计算里：那边是按顺序打一串、看掉血；这边是"多加属性
+    // 少掉多少"。用法接着清单那张怪表：○ 的是还剩的怪，每种后面直接写少掉多少，
+    // 点亮一行就去地图上圈出那一格。
+    property var gainWindow: null
+    property real gainWinW: 0
+    property real gainWinH: 0
+    // 三档加成 + 上界 + 算出来的结果（窗口关掉再开，填过的数还在）
+    property string gainAtk: ""
+    property string gainDef: ""
+    property string gainMdef: ""
+    property string gainCap: ""
+    property var gainResult: ({})
+
+    function openGain() {
+        if (!win.gainWindow) {
+            win.gainWindow = gainWindowComp.createObject(null, {})
+            if (!win.gainWindow)
+                return
+        }
+        // 上界默认就是"我现在有多少血"：省下来的血不可能超过它，
+        // 所以第一次打开就先填上，要用别数再改
+        if (win.gainCap === "" && controller) {
+            var hero = controller.battleHero() || ({})
+            var hp = Number(hero.hp || 0)
+            if (hp > 0)
+                win.gainCap = String(hp)
+        }
+        win.gainWindow.recalc()
+        win.gainWindow.place()
+        win.gainWindow.show()
+        try {
+            win.gainWindow.raise()
+            win.gainWindow.requestActivate()
+        } catch (error) {}
+    }
+
+    function closeGain() {
+        if (win.gainWindow) {
+            var gone = win.gainWindow
+            win.gainWindow = null
+            gone.destroy()
+        }
+    }
+
+    // 点收益表里的一行（这一层这一种怪）→ 地图切到那层、圈出它在的第一格；
+    // 图上没标位置的（还没读格子）就什么都不做，返回 false。
+    function gainHighlight(floorText, name) {
+        var spots = win.gridPositionsFor(floorText, name, "")
+        if (spots.length === 0)
+            return false
+        return win.highlightCell({ "floor": String(floorText || ""),
+                                   "row": spots[0].row, "col": spots[0].col })
+    }
+
     // ---- 路线对比：把几条算好的路线摆一起，比每只怪掉多少血 ----
     property var compareWindow: null
     property real compareWinW: 0
@@ -2353,9 +2497,10 @@ Window {
         }
     }
 
-    // 对比表点一行 = 它的坐标：地图窗口切到那一层、圈出这一格。
+    // 一张表点一行 = 它的坐标：地图切到那一层、圈出这一格。
+    // 路线对比和「加属性收益」都用它（同一个动作，只写这一处）。
     // 坐标不全是空的老路线（手粘的 JSON）就什么都不做，返回 false。
-    function compareHighlight(spot) {
+    function highlightCell(spot) {
         var at = spot || ({})
         var floor = String(at.floor || "")
         var row = Number(at.row)
@@ -3456,10 +3601,10 @@ Window {
     function placeIconPicker() {
         if (!win.iconPicker)
             return
-        var w = Math.min(280, win.width - 16)
-        var height = Math.min(330, win.height - 16)
-        var x = (win.width - w) / 2
-        var y = (win.height - height) / 2
+        var w = Math.min(280, win.cardW - 16)
+        var height = Math.min(330, win.cardH - 16)
+        var x = (win.cardW - w) / 2
+        var y = (win.cardH - height) / 2
         // 头像在修改卡片抬头里；卡片没开（预览/测试直接置位）才摆窗口中间
         if (win.monEdit >= 0) {
             var box = monEditor.iconAnchorBox()
@@ -3467,7 +3612,7 @@ Window {
             var boxH = box.height
             // 面板和窗口边各留 8，所以能用的空间要扣掉两头
             var above = at.y - 16
-            var below = win.height - (at.y + boxH + 16)
+            var below = win.cardH - (at.y + boxH + 16)
             // 上方放得下够用的高度就放上方（用户要的位置），否则翻到下方
             var useAbove = above >= 200 || above >= below
             height = Math.max(120, Math.min(330, useAbove ? above : below))
@@ -3476,8 +3621,8 @@ Window {
         }
         win.iconMenuW = w
         win.iconMenuH = height
-        win.iconMenuX = Math.max(8, Math.min(win.width - 8 - w, x))
-        win.iconMenuY = Math.max(8, Math.min(win.height - 8 - height, y))
+        win.iconMenuX = Math.max(8, Math.min(win.cardW - 8 - w, x))
+        win.iconMenuY = Math.max(8, Math.min(win.cardH - 8 - height, y))
     }
 
     function iconUrlOf(entryId) {
@@ -3563,8 +3708,8 @@ Window {
 
     Shortcut {
         sequence: "Esc"
-        // 正在打字时 Esc 只收键盘（别把人踢出程序）
-        enabled: !chatLog.inputFocused
+        // 正在打字时 Esc 只收键盘（别把人踢出程序）；技能介绍卡开着时 Esc 只关它
+        enabled: !chatLog.inputFocused && !win.skillIntroOpen
         onActivated: {
             // 先关最上面那层子界面（大图 / 怪物编辑 / 挑选层 / 这一层）
             if (win.closeTopLayer())
@@ -3624,13 +3769,34 @@ Window {
     // ---- 子界面里用的小按钮（幽灵 / 实心两档） ----
 
     // ---- 面板 ----
+    // 投影：一块同形状的底垫在卡片后面，自己做一层模糊阴影（卡片本身不进 layer，
+    // 不然里面的地图每次重画都要连带重算阴影）
+    Rectangle {
+        id: cardShadow
+        x: win.inset
+        y: win.inset
+        width: win.cardW
+        height: win.cardH
+        radius: card.radius
+        color: Theme.canvas
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Theme.windowShadow
+            shadowBlur: 1.0
+            shadowVerticalOffset: 3
+            shadowHorizontalOffset: 0
+        }
+    }
+
     Rectangle {
         id: card
         anchors.fill: parent
+        anchors.margins: win.inset
         radius: 10
-        color: win.paper
+        color: Theme.canvas
         border.width: 1
-        border.color: win.edge
+        border.color: Theme.cardEdge
         clip: true
 
         // 入场：淡入 + 从 0.992 放大（属性默认是终态，动画没跑也不会把面板弄没）
@@ -3678,7 +3844,7 @@ Window {
             anchors.rightMargin: 1
             height: 2
             color: win.barFlash === "err" ? win.danger
-                 : (win.barFlash === "ok" ? win.amber : "transparent")
+                 : (win.barFlash === "ok" ? win.accent : "transparent")
             Behavior on color { ColorAnimation { duration: 120 } }
         }
 
@@ -3693,9 +3859,12 @@ Window {
             x: win.padH
             y: panel.chromeBottom + win.gapA
             width: win.bodyW
-            // 内容区高度：内容多少、封顶、以及"窗口被拉矮了"三者取最小 ——
-            // 用户把窗口拉矮时不该把列表裁掉，而是让它在里面滚
-            height: Math.max(60, Math.min(contentHeight, win.middleCap(),
+            // 内容区高度：内容多少 和 窗口给它留了多少（窗口高度 − 固定部分）取小。
+            // 不再单独套 middleCap()：那个上限只管"没人拉过窗口时，窗口自动长多高"
+            // （见 refreshExpanded / contentHeight，窗口高度本身已经被它封顶了）；
+            // 套在这里的话，用户把窗口拉高了内容区也不跟着变大，上面就空出一大块
+            // （屏幕不高、状态卡和对话区又占得多时，它会被压到最小的 180）。
+            height: Math.max(60, Math.min(contentHeight,
                                           win.height - win.chromeH))
             visible: !win.collapsed
             contentWidth: width
@@ -3712,12 +3881,26 @@ Window {
             MainColumns { id: body; host: win }
         }
 
+        // 内容比窗口高、还没滚到底时，底边渐隐进灰底：不然卡片被生硬地切断
+        Rectangle {
+            visible: !win.collapsed
+                     && flick.contentY + flick.height < flick.contentHeight - 1
+            x: flick.x
+            y: flick.y + flick.height - height
+            width: flick.width
+            height: 18
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(Theme.canvas.r, Theme.canvas.g, Theme.canvas.b, 0) }
+                GradientStop { position: 1.0; color: Theme.canvas }
+            }
+        }
+
         // 内容比窗口高时，右边给一条很细的位置提示
         Rectangle {
             visible: !win.collapsed && flick.contentHeight > flick.height + 1
             width: 2
             radius: 1
-            color: win.amber
+            color: win.accent
             opacity: 0.32
             x: card.width - 5
             y: flick.y + flick.visibleArea.yPosition * flick.height
@@ -3748,6 +3931,13 @@ Window {
         Component {
             id: battleWindowComp
             BattleWindow { host: win }
+        }
+
+        // ============ 加属性收益 ============
+        // 再加 X 点攻/防/魔防，剩下的怪少掉多少血。另开的一扇窗口。
+        Component {
+            id: gainWindowComp
+            GainWindow { host: win }
         }
 
         // ============ 路线对比 ============

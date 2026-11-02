@@ -120,7 +120,8 @@ def host_windows(window):
             continue
         if sheet is not None:
             hosts.append(sheet)
-    for prop in ("battleWindow", "routeWindow", "compareWindow", "mapWindow"):
+    for prop in ("battleWindow", "routeWindow", "compareWindow", "gainWindow",
+                 "mapWindow"):
         try:
             value = window.property(prop)
         except (RuntimeError, AttributeError):
@@ -197,11 +198,27 @@ def click_item(window, item):
         raise AssertionError("要点的控件没找到")
     wait_for(lambda: item.width() > 0 and item.height() > 0, timeout=1.0)
     target = window_of(window, item)
+    # 真实点击会激活被点的窗口（小窗是 Qt.Tool，打开时不自动抢前台）；
+    # 合成的鼠标事件不会，所以这里替它激活，之后在里面打字才进得去
+    target.requestActivate()
+    APP.processEvents()
     point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
     for kind in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease):
         APP.sendEvent(target, QMouseEvent(kind, point, point, Qt.LeftButton,
                                           Qt.LeftButton, Qt.NoModifier))
     APP.processEvents()
+
+
+def focus_field(item):
+    """让一个输入框真的拿到键盘焦点（等价于用户点了它一下）。
+
+    小窗是 `Qt.Tool`，打开时不自动抢前台；用户点进去它才被激活。`forceActiveFocus()`
+    只改窗口内部的焦点，窗口本身没被激活的话键盘事件根本送不进去，所以要先激活窗口。
+    """
+    item.window().requestActivate()
+    ensure_app().processEvents()
+    item.forceActiveFocus()
+    ensure_app().processEvents()
 
 
 class _FakeClipboard:

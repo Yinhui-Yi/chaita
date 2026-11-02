@@ -4,13 +4,16 @@ import "../shared"
 
 // 点缩略图看大图（用户 2026-10-31："我现在点队列里的缩略图怎么不放大"）。
 //
-// 无边框 + 置顶 + Qt.Tool，和其它窗口同一个长相；**点一下或按 Esc 就关**。
+// 无边框 + Qt.Tool，置顶跟着主窗口开关，和其它窗口同一个长相；**点一下或按 Esc 就关**。
 // 铁律：**任何显示路径都不许放大** —— 图多大就摆多大，只有比屏幕/上限还大才缩。
 Window {
     id: previewWindow
     objectName: "previewWindow"
 
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+    // 置顶跟着主窗口的「置顶」开关走（切换那一下 Qt 会重建这扇窗的原生窗口）。
+    // 不用 transientParent 挂在主窗口名下：从属窗口拿不到键盘焦点，输入框打不了字。
+    flags: Qt.FramelessWindowHint | Qt.Tool
+           | (host && host.pinned ? Qt.WindowStaysOnTopHint : 0)
     color: "transparent"
     visible: false
     title: "看图"
@@ -28,8 +31,10 @@ Window {
             return
         var scale = Math.min(1, previewWindow.maxSide / realWidth,
                              previewWindow.maxSide / realHeight)
-        previewWindow.width = Math.max(120, Math.round(realWidth * scale)) + 10
-        previewWindow.height = Math.max(90, Math.round(realHeight * scale)) + 10
+        // 图 + 卡片里四边各 6 的留白 + 外圈投影边
+        var frame = 12 + 2 * Theme.windowInset
+        previewWindow.width = Math.max(120, Math.round(realWidth * scale)) + frame
+        previewWindow.height = Math.max(90, Math.round(realHeight * scale)) + frame
         previewWindow.place()
     }
 
@@ -63,19 +68,25 @@ Window {
         return true
     }
 
+    // 窗口投影：和主窗口同一套（灰底卡片 + 软阴影）
+    WindowShadow {
+        anchors.fill: previewCard
+        radius: previewCard.radius
+    }
+
     Rectangle {
+        id: previewCard
         anchors.fill: parent
-        radius: 8
-        color: Theme.paperHi
-        border.width: 1
-        border.color: Theme.edge
+        anchors.margins: Theme.windowInset
+        radius: 10
+        color: Theme.canvas
         clip: true
 
         Image {
             id: shot
             objectName: "previewImage"
             anchors.fill: parent
-            anchors.margins: 5
+            anchors.margins: 6
             source: previewWindow.source
             fillMode: Image.PreserveAspectFit
             // 素材库那套一律不插值放大，看着才是原样

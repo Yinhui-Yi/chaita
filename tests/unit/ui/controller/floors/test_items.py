@@ -67,6 +67,106 @@ def test_remove_item():
     assert c._map_history[0]["items"] == []
 
 
+# ---- 删行 = 连它的坐标一起删 ----
+
+def test_remove_item_drops_its_coords():
+    """删掉一条资源 → 它标过的坐标一起没（用户 2026-10-31：
+    "我删掉一个资源再添加怎么位置不重置"）。"""
+    c = make()
+    c._map_history[0]["grid"] = {"cells": [
+        {"row": 1, "col": 1, "kind": "item", "name": "红血瓶",
+         "effect": "体力 +150"},
+        {"row": 3, "col": 3, "kind": "item", "name": "红宝石",
+         "effect": "攻击力 +1"}]}
+
+    c.removeItem("1层", 0)
+
+    assert c._map_history[0]["grid"]["cells"] == [
+        {"row": 3, "col": 3, "kind": "item", "name": "红宝石",
+         "effect": "攻击力 +1"}]
+
+
+def test_removing_one_of_two_same_name_items_keeps_the_other_coords():
+    """两只同名血瓶（效果不同）：删 +150 那条，+300 的坐标留着。"""
+    c = Fake([{"floor": "1层", "items": [
+        {"name": "血瓶", "effect": "体力 +150", "count": 1},
+        {"name": "血瓶", "effect": "体力 +300", "count": 1,
+         "effect_manual": True}],
+        "grid": {"cells": [
+            {"row": 1, "col": 1, "kind": "item", "name": "血瓶",
+             "effect": "体力 +150"},
+            {"row": 2, "col": 2, "kind": "item", "name": "血瓶",
+             "effect": "体力 +300"}]}}])
+
+    c.removeItem("1层", 0)
+
+    assert c._map_history[0]["grid"]["cells"] == [
+        {"row": 2, "col": 2, "kind": "item", "name": "血瓶",
+         "effect": "体力 +300"}]
+
+
+def test_clearing_an_item_name_drops_its_coords_too():
+    """名字清空也算删这一行（`saveItemField(name="")`），坐标同样跟着走。"""
+    c = make()
+    c._map_history[0]["grid"] = {"cells": [
+        {"row": 0, "col": 0, "kind": "item", "name": "红血瓶",
+         "effect": "体力 +150"}]}
+
+    c.saveItemField("1层", 0, "name", "")
+
+    assert c._map_history[0]["items"] == []
+    assert c._map_history[0]["grid"]["cells"] == []
+
+
+def test_remove_item_without_coords_does_not_create_grid():
+    """没标过坐标的行：删掉之后不该凭空多出一个空的 grid。"""
+    c = make()
+    c.removeItem("1层", 0)
+    assert "grid" not in c._map_history[0]
+
+
+# ---- 换种类 = 改名：坐标跟着改名（不能变孤儿）----
+
+def test_changing_item_kind_renames_its_cells(monkeypatch):
+    """点图标把「红血瓶」换成「黄钥匙」→ 它标过的格子跟着改名。
+
+    不改的话那些格子挂在旧名字上没人认领：清单那一行显示"没标位置"，地图上
+    那几个格子却还占着。
+    """
+    import chaita.game.iteminfo as ii
+    monkeypatch.setattr(ii, "effect_for",
+                        lambda icon, name: "可以打开一扇黄门")
+    monkeypatch.setattr(ii, "icon_for", lambda name: "key_yellow")
+    monkeypatch.setattr(ii, "sort_items", lambda items: items)
+    c = make()
+    c._map_history[0]["grid"] = {"cells": [
+        {"row": 1, "col": 1, "kind": "item", "name": "红血瓶",
+         "effect": "体力 +150", "manual": True}]}
+
+    c.setItemKind("1层", 0, "黄钥匙", "key_yellow", "")
+
+    cells = c._map_history[0]["grid"]["cells"]
+    assert cells == [{"row": 1, "col": 1, "kind": "item", "name": "黄钥匙",
+                      "effect": "可以打开一扇黄门", "manual": True}]
+
+
+def test_renaming_an_item_by_hand_also_renames_its_cells(monkeypatch):
+    """走 `saveItemField(name=...)` 改名也一样（同一条规则的另一条路）。"""
+    import chaita.game.iteminfo as ii
+    monkeypatch.setattr(ii, "icon_for", lambda name: "key_yellow")
+    monkeypatch.setattr(ii, "effect_for", lambda icon, name: "可以打开一扇黄门")
+    monkeypatch.setattr(ii, "sort_items", lambda items: items)
+    c = make()
+    c._map_history[0]["grid"] = {"cells": [
+        {"row": 2, "col": 2, "kind": "item", "name": "红血瓶",
+         "effect": "体力 +150", "manual": True}]}
+
+    c.saveItemField("1层", 0, "name", "黄钥匙")
+
+    cell = c._map_history[0]["grid"]["cells"][0]
+    assert (cell["name"], cell["effect"]) == ("黄钥匙", "可以打开一扇黄门")
+
+
 def test_toggle_item_done():
     c = make()
     c.toggleFloorItemDone("1层", 0)
@@ -92,8 +192,9 @@ def test_add_item_full_saves_icon_and_effect(monkeypatch):
 
     assert index == 0
     row = c._map_history[0]["items"][0]
+    # 用户手动加的行带 manual 标记：AI 刷新时不许动它
     assert row == {"name": "红宝石", "effect": "攻击力 +1", "count": 2,
-                   "icon": "gem_red"}
+                   "icon": "gem_red", "manual": True}
     assert saved == [("红宝石", "gem_red")]      # 顺手记住"这个名字用这张图"
 
 

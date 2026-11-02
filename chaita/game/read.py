@@ -241,7 +241,11 @@ def _parse_item_schema(text: str, kind: str, kind_label: str,
 
 
 def read_items(image: np.ndarray, api_key: str = None) -> list:
-    """并行问"药水瓶"和"宝石"，两类都等到有结果为止。
+    """问"药水瓶"和"宝石"各几个，两类都等到有结果为止。
+
+    **App 里已经不再走这条路**：清单和数量都从「每格有什么」数出来（用户
+    2026-10-31："AI 现在不需要读数量"）。留着是给 `tools/verify_all.py` 量模型
+    这一问的耗时和准确度用（它要的正是"这一问准不准"）。
 
     这里不再设"等多久就放弃"：模型正常作答 15~40 秒，掐断只会白丢结果
     （实测宝石被 20/24 秒掐掉，整类资源消失）。两个线程并行，等它们都结束。
@@ -430,29 +434,29 @@ def read_manual(image: np.ndarray, api_key: str = None) -> list:
 
 def read_floor_map(image: np.ndarray, api_key: str = None,
                    known=None) -> dict:
-    """读这一层的地图：**有哪些怪、各几只 + 有哪些资源**（一次会话读完）。
+    """读这一层的地图：**每个格子里有什么**（清单和数量都从它数出来）。
 
-    界面上的「↻」用它：以前只读怪，资源（血瓶/宝石/钥匙/金币）永远是旧值
-    （用户："刷新地图的时候没有更新资源包括宝石血瓶钥匙等"）。
-    返回 {"mons": [...], "items": [...], "grid": {"cells": [...]}}，两边的数量都在
-    格子角上印的数字里；grid 是"每个格子里有什么"（路线链预填用，读不到就是 {}）。
+    界面上的「↻」用它。以前这里还会额外问"有哪些怪、各几只 / 有哪些资源"，
+    现在不问了（用户 2026-10-31："AI 现在不需要读数量"）—— 一格一样东西，
+    数格子就是数量；模型自己数出来的经常是血量/回血值。
+    返回 {"mons": [...], "items": [...], "grid": {"cells": [...]}}，
+    mons/items 都是按格子数出来的（`tally`）。
     """
     if image is None or getattr(image, "size", 0) == 0:
         return {"mons": [], "items": [], "grid": {}}
-    data = _map.read(image, api_key=api_key, known=known, with_items=True,
-                     with_monsters=True, with_grid=True)
+    data = _map.read(image, api_key=api_key, known=known)
     return {"mons": data.get("mons") or [], "items": data.get("items") or [],
             "grid": data.get("grid") or {}}
 
 
 def read_floor_monsters(image: np.ndarray, api_key: str = None,
                         known=None) -> list:
-    """读这一层的地图：**有哪些怪、各几只**（不要求先给名单）。
+    """读这一层的地图：**有哪些怪、各几只**（数量 = 它占几格）。
 
     和 read_monster_counts 的分工：那个是给定名字填数字（只能数你已经加过的怪）；
-    这个是从图上把出现的怪**列出来**再给数量 —— 界面上「↻」用的就是这个。
+    这个是从图上把出现的怪**列出来**再给数量。
 
-    **走 agent**（`agent_read.scan_floor`）：AI 那部分一律用 agent 框架，
+    **走 agent**（`agent.read.monsters`）：AI 那部分一律用 agent 框架，
     这里只做转发。agent 那边关掉了思考（开着实测 58-130 s），并且允许它用
     look 工具把看不清的地方放大再看。
     """

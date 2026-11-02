@@ -4,6 +4,9 @@ from ... import qt_env  # noqa: F401  （Qt 路径必须先指好）
 
 from PySide6.QtCore import Slot
 
+from .common import mark_manual
+from .grid import drop_cells, rename_cells
+
 
 class ItemsMixin:
     @Slot(str, result="QVariantList")
@@ -60,10 +63,11 @@ class ItemsMixin:
         items = list(updated.get("items") or [])
         # 效果：调用方给了就用给的（手填 / AI 读到的），没给才回落到道具表默认值
         auto_effect = iteminfo.effect_for(picked, clean)
-        items.append({"name": clean,
-                      "effect": (effect or "").strip() or auto_effect,
-                      "count": int(digits) if digits else None,
-                      "icon": picked or iteminfo.icon_for(clean)})
+        items.append(mark_manual({
+            "name": clean,
+            "effect": (effect or "").strip() or auto_effect,
+            "count": int(digits) if digits else None,
+            "icon": picked or iteminfo.icon_for(clean)}))
         # 用户："资源怎么不按习惯排序" —— 钥匙 → 血药 → 宝石 → 武器 → 防具 → 其他
         items = iteminfo.sort_items(items)
         updated["items"] = items
@@ -98,13 +102,20 @@ class ItemsMixin:
         stem = (icon or "").strip() or iteminfo.icon_for(clean)
         auto = iteminfo.effect_for(stem, clean)
         row = dict(items[index])
+        old_name = str(row.get("name") or "")
+        old_effect = str(row.get("effect") or "")
         row["name"] = clean
         row["icon"] = stem
         row["effect"] = auto or (effect or "")
         row.pop("effect_manual", None)
-        items[index] = row
+        items[index] = mark_manual(row)
         items = iteminfo.sort_items(items)
         updated["items"] = items
+        # 换了种类 = 这一条改了名：**它标过的格子跟着改名**，不然那些格子就挂在
+        # 旧名字上没人认领（清单那行显示"没标位置"，地图上却还占着）
+        if old_name != clean or old_effect != row["effect"]:
+            rename_cells(updated, "item", old_name, old_effect, clean,
+                         row["effect"])
         self._map_history[position] = updated
         self.mapHistoryChanged.emit()
         trace.note("manual.item_kind", floor=floor_text, name=clean, icon=stem)
@@ -129,11 +140,16 @@ class ItemsMixin:
         items = [dict(item) for item in (updated.get("items") or [])]
         if not (0 <= index < len(items)):
             return
+        old_name = str(items[index].get("name") or "")
+        old_effect = str(items[index].get("effect") or "")
         value = (text or "").strip()
         if field == "name":
             if value == "":
-                items.pop(index)
+                # 名字清空 = 删这一行：坐标也跟着走（和行尾 ✕ 同一条规则）
+                gone = dict(items.pop(index) or {})
                 updated["items"] = items
+                drop_cells(updated, "item", gone.get("name"),
+                           gone.get("effect"))
                 self._map_history[position] = updated
                 self.mapHistoryChanged.emit()
                 trace.note("manual.remove_item", floor=floor_text, index=index,
@@ -161,10 +177,20 @@ class ItemsMixin:
             items[index]["count"] = int(digits) if digits else None
         else:
             return
+        # 用户亲手改过的行：AI 再读一次不许动它（用户 2026-10-31："手动修改过的
+        # 词条你不要动"）
+        items[index] = mark_manual(items[index])
         # 改名字会换种类，顺序按习惯重排；只改数量/效果时顺序不该跳
         if field == "name":
             items = iteminfo.sort_items(items)
         updated["items"] = items
+        # 名字/效果变了 = 这一条换了身份：它标过的格子跟着改名（不然坐标成孤儿）
+        if field in ("name", "effect"):
+            now = next((row for row in items
+                        if str(row.get("name") or "") ==
+                        str(items[index].get("name") or "")), items[index])
+            rename_cells(updated, "item", old_name, old_effect,
+                         now.get("name"), now.get("effect"))
         self._map_history[position] = updated
         self.mapHistoryChanged.emit()
         self._mark_saved("item", floor_text, index)
@@ -266,18 +292,26 @@ class ItemsMixin:
 
     @Slot(str, int)
     def removeItem(self, floor_text, index) -> None:
+        """删掉一条资源，**连它在这一层标过的坐标一起删**。
+
+        坐标是按"名字 + 效果"记的：不清的话删了再加一条同样的，旧坐标又回来了
+        （用户 2026-10-31："我删掉一个资源再添加怎么位置不重置"）。
+        """
         from .... import trace
         position = self._find_floor(floor_text)
         if position < 0:
             return
         updated = dict(self._map_history[position])
         items = list(updated.get("items") or [])
+        gone = {}
         if 0 <= index < len(items):
-            items.pop(index)
+            gone = dict(items.pop(index) or {})
         updated["items"] = items
+        drop_cells(updated, "item", gone.get("name"), gone.get("effect"))
         self._map_history[position] = updated
         self.mapHistoryChanged.emit()
-        trace.note("manual.remove_item", floor=floor_text, index=index)
+        trace.note("manual.remove_item", floor=floor_text, index=index,
+                   name=str(gone.get("name") or ""))
 
     @Slot(str, int)
     def toggleFloorItemDone(self, floor_text, index) -> None:
@@ -286,6 +320,7 @@ class ItemsMixin:
 
     # ---- 打过了 / 拿过了：一行行勾掉，一眼看这一层还剩什么 ----
     # 只动这一个布尔值：不改名字、不改数量、不重新排序，勾完手指还在原位。
+    # 勾过就算"用户定过的"：AI 刷新不许把这个勾清掉。
 
     def _toggle_done(self, floor_text, index, key):
         from .... import trace
@@ -297,6 +332,7 @@ class ItemsMixin:
         if not (0 <= index < len(rows)):
             return
         rows[index]["done"] = not bool(rows[index].get("done"))
+        rows[index] = mark_manual(rows[index])
         updated[key] = rows
         self._map_history[position] = updated
         self.mapHistoryChanged.emit()

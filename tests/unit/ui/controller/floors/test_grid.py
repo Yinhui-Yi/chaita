@@ -5,7 +5,7 @@
 
 from unittest.mock import Mock
 
-from chaita.ui.controller.floors.grid import GridMixin
+from chaita.ui.controller.floors.grid import GridMixin, drop_cells
 from chaita.ui.controller.floors.routes import _clean_cells, _clean_fill
 
 
@@ -58,11 +58,17 @@ def make(floor="1层", mons=None, grid=None):
                       "grid": grid or {}}])
 
 
+def _dropped(row, col, kind, name):
+    """用户拖进去的格子：带 manual 标记（AI 刷新时不许动它）。"""
+    return {"row": row, "col": col, "kind": kind, "name": name,
+            "manual": True}
+
+
 def test_assign_grid_cell_adds_and_syncs_count():
     c = make(mons=[{"name": "血蚊", "count": 3}])
     assert c.assignGridCell("1层", 2, 3, "monster", "血蚊")
     assert c._map_history[0]["grid"]["cells"] == [
-        {"row": 2, "col": 3, "kind": "monster", "name": "血蚊"}]
+        _dropped(2, 3, "monster", "血蚊")]
     # 数量跟着位置走：3 → 1
     assert c._map_history[0]["mons"][0]["count"] == 1
 
@@ -73,7 +79,7 @@ def test_assign_grid_cell_replaces_and_resyncs_both():
                               "name": "血蚊"}]})
     c.assignGridCell("1层", 0, 0, "monster", "铁卫")
     assert c._map_history[0]["grid"]["cells"] == [
-        {"row": 0, "col": 0, "kind": "monster", "name": "铁卫"}]
+        _dropped(0, 0, "monster", "铁卫")]
     mons = {m["name"]: m["count"] for m in c._map_history[0]["mons"]}
     assert mons == {"血蚊": 0, "铁卫": 1}
 
@@ -142,7 +148,7 @@ def test_assign_grid_cells_ignores_bad_coords_and_duplicates():
                                      {"row": "x", "col": 1},
                                      "不是 dict"], "monster", "血蚊")
     assert c._map_history[0]["grid"]["cells"] == [
-        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"}]
+        _dropped(0, 0, "monster", "血蚊")]
 
 
 def test_assign_grid_cells_with_no_cells_does_nothing():
@@ -156,7 +162,7 @@ def test_assign_grid_cell_is_one_call_of_the_batch():
     c = make(mons=[{"name": "血蚊", "count": 0}])
     c.assignGridCell("1层", 2, 3, "monster", "血蚊")
     assert c._map_history[0]["grid"]["cells"] == [
-        {"row": 2, "col": 3, "kind": "monster", "name": "血蚊"}]
+        _dropped(2, 3, "monster", "血蚊")]
     assert c.mapHistoryChanged.emit.call_count == 1
 
 
@@ -169,7 +175,7 @@ def test_assign_grid_cells_ignores_out_of_range_targets():
                                      {"row": 0, "col": 0}],
                              "monster", "血蚊")
     assert c._map_history[0]["grid"]["cells"] == [
-        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"}]
+        _dropped(0, 0, "monster", "血蚊")]
     assert c._map_history[0]["mons"][0]["count"] == 1
 
 
@@ -190,9 +196,20 @@ def test_assign_grid_cells_drops_stored_out_of_range_cells():
     c.assignGridCells("1层", [{"row": 1, "col": 1}], "monster", "血蚊")
     assert c._map_history[0]["grid"]["cells"] == [
         {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
-        {"row": 1, "col": 1, "kind": "monster", "name": "血蚊"}]
+        _dropped(1, 1, "monster", "血蚊")]
     # 数量按"图上看得到的格"算：2 格
     assert c._map_history[0]["mons"][0]["count"] == 2
+
+
+# ---- 用户拖进来的格子带 manual 标记（AI 刷新时不许动它）----
+
+def test_dragged_cells_are_marked_manual():
+    """拖一格 = 用户定的：存下来的格子带 `manual`，`_merge_read_grid` 才会保住它。"""
+    c = make(mons=[{"name": "血蚊", "count": 0}])
+    c.assignGridCells("1层", [{"row": 1, "col": 2}], "monster", "血蚊")
+
+    cell = c._map_history[0]["grid"]["cells"][0]
+    assert cell["manual"] is True
 
 
 def test_grid_positions_and_cells_skip_out_of_range():
@@ -202,3 +219,31 @@ def test_grid_positions_and_cells_skip_out_of_range():
     assert c.gridPositions("1层", "血蚊") == [{"row": 0, "col": 0}]
     assert c.gridCells("1层") == [
         {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"}]
+
+
+# ---- 词条被删 → 它的坐标一起走（`drop_cells`）----
+
+def test_drop_cells_removes_only_that_entry():
+    """删一个词条只清它自己的格子：怪按名字认，资源按"名字 + 效果"认。"""
+    entry = {"grid": {"cells": [
+        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
+        {"row": 1, "col": 1, "kind": "monster", "name": "铁卫"},
+        {"row": 2, "col": 2, "kind": "item", "name": "血瓶", "effect": "体力 +150"},
+        {"row": 3, "col": 3, "kind": "item", "name": "血瓶", "effect": "体力 +300"}]}}
+
+    assert drop_cells(entry, "item", "血瓶", "体力 +150") == 1
+    assert entry["grid"]["cells"] == [
+        {"row": 0, "col": 0, "kind": "monster", "name": "血蚊"},
+        {"row": 1, "col": 1, "kind": "monster", "name": "铁卫"},
+        {"row": 3, "col": 3, "kind": "item", "name": "血瓶", "effect": "体力 +300"}]
+
+    # 怪没有效果，按名字清（效果那一栏不论）
+    assert drop_cells(entry, "monster", "血蚊") == 1
+    assert [(c["row"], c["col"]) for c in entry["grid"]["cells"]] == [(1, 1), (3, 3)]
+
+
+def test_drop_cells_without_a_match_leaves_grid_alone():
+    """没有这一号格子：一个都不删、也不动 grid（别凭空造一个空 cells）。"""
+    entry = {"mons": []}
+    assert drop_cells(entry, "monster", "没这只") == 0
+    assert "grid" not in entry

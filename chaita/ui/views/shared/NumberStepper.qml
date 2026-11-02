@@ -94,15 +94,15 @@ Item {
         id: hover
     }
 
-    // 底：平时只有一条很淡的线（看得出能改，又不抢眼），悬停加底色，聚焦变琥珀
+    // 底：平时一条细线（看得出能改，又不抢眼），悬停加底色，聚焦变强调蓝
     Rectangle {
         anchors.fill: parent
-        radius: 5
+        radius: Theme.radius
         color: (field.activeFocus || hover.hovered) ? Theme.paperLo : "transparent"
         border.width: 1
-        border.color: field.activeFocus ? Theme.amber : Theme.hairline
-        Behavior on border.color { ColorAnimation { duration: 120 } }
-        Behavior on color { ColorAnimation { duration: 120 } }
+        border.color: field.activeFocus ? Theme.accent : Theme.hairline
+        Behavior on border.color { ColorAnimation { duration: 100 } }
+        Behavior on color { ColorAnimation { duration: 100 } }
     }
 
     TextField {
@@ -167,7 +167,7 @@ Item {
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
-                    ctx.fillStyle = upArea.containsMouse ? Theme.amber : Theme.ink3
+                    ctx.fillStyle = upArea.containsMouse ? Theme.accent : Theme.ink3
                     ctx.beginPath()
                     ctx.moveTo(0, height)
                     ctx.lineTo(width, height)
@@ -203,7 +203,7 @@ Item {
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
-                    ctx.fillStyle = downArea.containsMouse ? Theme.amber : Theme.ink3
+                    ctx.fillStyle = downArea.containsMouse ? Theme.accent : Theme.ink3
                     ctx.beginPath()
                     ctx.moveTo(0, 0)
                     ctx.lineTo(width, 0)
