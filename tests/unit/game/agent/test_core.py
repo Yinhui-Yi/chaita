@@ -149,6 +149,25 @@ def test_session_ask_builds_message_and_extracts_text(monkeypatch):
     assert s._agent.called_options["max_tokens"] == core.MAX_TOKENS
 
 
+def test_session_ask_sends_every_image_in_order_then_the_text(monkeypatch):
+    """一次发好几张图：图按给的顺序，文字永远在最后（两步定位的第二步靠它）。"""
+    import numpy as np
+    import chaita.trace as trace
+    monkeypatch.setattr(trace, "note", lambda *a, **k: None)
+    s = core.Session.__new__(core.Session)
+    s._agent = _FakeAgent()
+    s._session = object()
+    s._quiet = False
+    s._loop = _FakeLoop(_Resp("ok"))
+    small = np.zeros((10, 10, 3), np.uint8)
+    big = np.zeros((20, 30, 3), np.uint8)
+
+    s.ask("问", [small, big], label="x")
+
+    kinds = [c.type for c in s._agent.called_message.contents]
+    assert kinds == ["data", "data", "text"]
+
+
 def test_session_ask_quiet_adds_extra_body(monkeypatch):
     import chaita.trace as trace
     monkeypatch.setattr(trace, "note", lambda *a, **k: None)

@@ -1,9 +1,10 @@
-﻿"""图像工具：给模型看的放大裁剪（look）和抠图（sprite）。不碰模型调用。"""
+"""图像工具：给模型看的放大裁剪（look）和按比例框裁图标（crop_box）。不碰模型调用。
+
+怪物图标**不再抠图**（用户 2026-11-02："不一定要抠图，截图也行"）：框准了，
+直接裁那一整格就是图标，没有模型、没有半透明雾、也不依赖本机装没装 rembg。
+"""
 
 import json
-import os
-import threading
-import time
 
 import cv2
 import numpy as np
@@ -12,45 +13,6 @@ from agent_framework import Content, tool
 
 from ... import trace
 from .core import png
-
-_REMBG_SESSION = None
-_REMBG_LOCK = None
-_REMBG_MODEL = "u2net.onnx"
-
-
-def _rembg_home() -> str:
-    """rembg 的模型缓存目录（rembg 自己认 `U2NET_HOME`，默认 `~/.u2net`）。"""
-    home = os.environ.get("U2NET_HOME") or os.path.join(os.path.expanduser("~"),
-                                                        ".u2net")
-    if os.path.basename(home) != ".u2net":
-        home = os.path.join(home, ".u2net")
-    return home
-
-
-def _model_ready() -> bool:
-    """抠图模型在不在本地。
-
-    **问 rembg 自己它把模型放哪**，别自己猜路径：rembg 2.0.8x 起放在
-    `~/.rembg/models/u2net/`（`REMBG_HOME` / `U2NET_HOME` 也认），旧版放 `~/.u2net/`。
-    以前这里只看 `~/.u2net/`，本机的 u2net.onnx 明明在新位置，却一直判成"没有模型"，
-    于是每只怪都退回带底纹的纯裁剪。`resolve_existing` 两处都找、而且不会下载。
-
-    为什么非要先看这一眼：`new_session("u2net")` 在模型缺失时**会去下载**
-    （约 176 MB）。这台机器上模型不在时实测 sprite 卡了 5 分钟以上
-    一点动静都没有 —— 用户看到的就是「点了读怪物，界面没反应」。
-    按钮不该触发下载，所以模型不在就退回纯裁剪（宁可带一点背景）。
-    想恢复干净抠图：`python -c "from rembg import new_session; new_session('u2net')"`
-    跑一次（把模型缓存下来）。
-    """
-    try:
-        from rembg.sessions.u2net import U2netSession
-    except Exception:
-        return False
-    resolve = getattr(U2netSession, "resolve_existing", None)
-    if resolve is None:
-        # 老版本 rembg 没有这个接口：只能按它当年固定的目录找
-        return os.path.exists(os.path.join(_rembg_home(), _REMBG_MODEL))
-    return resolve(_REMBG_MODEL) is not None
 
 
 def _crop_ratio(image, x, y, w, h):
@@ -72,6 +34,16 @@ def _crop_ratio(image, x, y, w, h):
     if x1 - x0 < 8 or y1 - y0 < 8:
         return None
     return image[y0:y1, x0:x1]
+
+
+def crop_box(image, box):
+    """按 box（0~1 比例，{x,y,w,h}）裁出一份独立的图；box 不合法返回 None。"""
+    if not isinstance(box, dict):
+        return None
+    crop = _crop_ratio(image, box.get("x"), box.get("y"),
+                       box.get("w"), box.get("h"))
+    return None if crop is None else crop.copy()
+
 
 def look_tool(image, limit: int = 6):
     """look 是一个真正的工具：返回那一块的图片内容（官方 @tool + list[Content]）。
@@ -107,162 +79,6 @@ def look_tool(image, limit: int = 6):
 
     return look
 
-def _rembg_session():
-    """懒加载 rembg 会话：u2net 模型（实测能把这小图标单独分出来）。
-
-    为什么用 u2net：
-      · isnet-anime 在手册截图上完全失效（前景像素 0.0%）；
-      · 传统做法（单色 / 调色板 / 纹理周期 / GrabCut）都留背景或把图案挖空；
-      · u2net 五张图标全部干净、无背景、无边框（实测 1.6~1.8 秒/张，CPU）。
-    有 CUDA 就用 CUDA，没有自动退回 CPU。加锁：多只怪同时调 sprite 时
-    不能各自建一个会话（实测重复建了 5 次，白花 25 秒）。
-    """
-    global _REMBG_SESSION, _REMBG_LOCK
-    import threading
-
-    if _REMBG_LOCK is None:
-        _REMBG_LOCK = threading.Lock()
-    with _REMBG_LOCK:
-        if _REMBG_SESSION is not None:
-            return _REMBG_SESSION
-        from rembg import new_session
-
-        providers = None
-        try:
-            import onnxruntime as ort
-            available = ort.get_available_providers()
-            providers = [name for name in ("CUDAExecutionProvider",
-                                           "CPUExecutionProvider")
-                         if name in available] or None
-        except Exception as exc:
-            trace.note("agent.ort_unavailable", error=repr(exc)[:120])
-
-        started = time.time()
-        _REMBG_SESSION = new_session("u2net", providers=providers)
-        trace.note("agent.rembg_ready", providers=providers,
-                   seconds=round(time.time() - started, 1))
-    return _REMBG_SESSION
-
-def _refine_alpha(rgba, crop):
-    """精修 alpha：把"贴着格子边缘、颜色又和格子底色一样"的残留去掉。
-
-    rembg 有时会把一整片背景当成前景（骷髅人身后那一片、大蝙蝠上沿的暗边）。
-    这里的判据很保守：
-      · 底色取自格子外圈几像素（那圈必然是底纹/框线）；
-      · 只有**从格子四边连通**的底色区才算残留；
-      · 图案内部的同色不会被挖掉（不连通到边）。
-    完全不改尺寸，只改 alpha。
-    """
-    alpha = (rgba[:, :, 3] > 40).astype(np.uint8)
-    height, width = alpha.shape
-    if height < 12 or width < 12:
-        return rgba
-
-    ring = max(2, min(4, min(height, width) // 12))
-    border = np.concatenate([
-        crop[:ring].reshape(-1, 3), crop[-ring:].reshape(-1, 3),
-        crop[:, :ring].reshape(-1, 3), crop[:, -ring:].reshape(-1, 3),
-    ]).astype(np.int16)
-    quant = (border // 24)
-    keys = quant[:, 0] * 4096 + quant[:, 1] * 64 + quant[:, 2]
-    values, counts = np.unique(keys, return_counts=True)
-    palette_keys = set(values[np.argsort(counts)[-12:]].tolist())
-
-    colors = crop.reshape(-1, 3).astype(np.int16)
-    q = (colors // 24)
-    pixel_keys = q[:, 0] * 4096 + q[:, 1] * 64 + q[:, 2]
-    near = np.isin(pixel_keys, list(palette_keys)).reshape(height, width)
-
-    count, labels = cv2.connectedComponents(near.astype(np.uint8), connectivity=8)
-    edge = set(labels[0, :].tolist()) | set(labels[-1, :].tolist())
-    edge |= set(labels[:, 0].tolist()) | set(labels[:, -1].tolist())
-    edge.discard(0)
-    residue = np.isin(labels, list(edge)) & near
-
-    cleaned = alpha.copy()
-    cleaned[residue] = 0
-
-    # 去掉零碎小块（单像素噪点之类）
-    count2, marks, stats, _ = cv2.connectedComponentsWithStats(cleaned, connectivity=8)
-    if count2 > 1:
-        areas = stats[1:, cv2.CC_STAT_AREA]
-        biggest = int(areas.max()) if areas.size else 0
-        keep = [index + 1 for index, area in enumerate(areas)
-                if area >= max(12, biggest * 0.02)]
-        rebuilt = np.zeros_like(cleaned)
-        for index in keep:
-            rebuilt[marks == index] = 1
-        if rebuilt.any():
-            cleaned = rebuilt
-
-    removed = int(alpha.sum() - cleaned.sum())
-    total = int(alpha.sum())
-    # 保护：删得太多说明这道精修把图案本身也当背景挖了（浅色图案容易中招），
-    # 这种就整个撤销，保留 rembg 原来的结果。
-    if total and removed > total * 0.25:
-        trace.note("agent.refine_skip", removed=removed, total=total)
-        return rgba
-    trace.note("agent.refine", removed=removed, kept=int(cleaned.sum()))
-    out = rgba.copy()
-    out[:, :, 3] = (cleaned * 255).astype(np.uint8)
-    return out
-
-def _cutout(crop):
-    """用 rembg(u2net) 把图案从花纹背景里抠出来，返回透明底的 RGBA。
-
-    **不裁剪**：保持整块的原始尺寸，图案在格子里占多大就多大 ——
-    这是"怪物图标的大小要和游戏里一致"的关键；裁紧会让每只怪都填满整张图，
-    小怪和大怪看起来就一样大了。
-
-    模型没分出来（前景太少）就原样返回这块图 —— 宁可带一点背景，也不要空白。
-    模型不在本地时**不去下载**（见 `_model_ready`），直接给纯裁剪。
-    """
-    height, width = crop.shape[:2]
-    if height < 8 or width < 8:
-        return cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-    if not _model_ready():
-        trace.note("agent.cutout_no_model", home=_rembg_home())
-        return cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-    try:
-        from rembg import remove
-        rgba = remove(crop, session=_rembg_session())
-    except Exception as exc:
-        trace.note("agent.cutout_failed", error=repr(exc)[:200])
-        return cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-    if rgba is None or getattr(rgba, "size", 0) == 0:
-        return cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-    if rgba.shape[2] == 3:
-        rgba = cv2.cvtColor(rgba, cv2.COLOR_BGR2BGRA)
-
-    foreground = float((rgba[:, :, 3] > 40).mean())
-    if foreground < 0.02:
-        trace.note("agent.cutout_empty", ratio=round(foreground, 3))
-        return cv2.cvtColor(crop, cv2.COLOR_BGR2BGRA)
-
-    rgba = _refine_alpha(rgba, crop)
-
-    rows = np.flatnonzero((rgba[:, :, 3] > 40).any(axis=1))
-    cols = np.flatnonzero((rgba[:, :, 3] > 40).any(axis=0))
-    coverage = ("%.2fx%.2f" % (
-        (cols[-1] - cols[0] + 1) / float(width) if cols.size else 0.0,
-        (rows[-1] - rows[0] + 1) / float(height) if rows.size else 0.0))
-    trace.note("agent.cutout", ratio=round(foreground, 3),
-               size=(width, height), coverage=coverage)
-    return rgba
-
-def crop_cutout(image, box):
-    """按 box（0~1 比例，{x,y,w,h}）裁 + rembg 抠，返回 RGBA；box 不合法返回 None。
-
-    方案 A 用它：模型把每只怪的 icon_box 当 JSON 文本交出来（不再调 sprite 工具），
-    代码在这里一次裁完 —— 和 sprite 工具内部同一套 `_crop_ratio` + `_cutout`。
-    """
-    if not isinstance(box, dict):
-        return None
-    crop = _crop_ratio(image, box.get("x"), box.get("y"),
-                       box.get("w"), box.get("h"))
-    if crop is None:
-        return None
-    return _cutout(crop)
 
 def collect_icons(response) -> dict:
     """从响应的 messages 里取图标：function_call 的 JSON 参数 → function_result 的图片。

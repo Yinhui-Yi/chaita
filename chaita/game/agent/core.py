@@ -75,13 +75,18 @@ class Session:
         self._loop = asyncio.new_event_loop()
 
     def ask(self, text: str, image=None, *, label: str = "ask"):
-        """问一句。返回 (文字, 原始 response)；response 里有工具产物（图标等）。"""
+        """问一句。返回 (文字, 原始 response)；response 里有工具产物（图标等）。
+
+        `image` 可以是一张图，也可以是一串图（按顺序一起发，文字放最后）。
+        """
         if self._agent is None:
             raise RuntimeError("会话已经关闭了，要用就新建一个 Session")
         contents = []
         if image is not None:
-            contents.append(Content.from_data(data=png(image),
-                                              media_type="image/png"))
+            pictures = image if isinstance(image, (list, tuple)) else [image]
+            for picture in pictures:
+                contents.append(Content.from_data(data=png(picture),
+                                                  media_type="image/png"))
         contents.append(Content.from_text(text))
 
         options = {"max_tokens": MAX_TOKENS, "store": False}
