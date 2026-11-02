@@ -111,30 +111,14 @@ def _paste_coord(window, name, text):
     helpers.APP.processEvents()
 
 
-def _type_field(window, field_name, editor_name, text):
-    """点开一格（坐标格/层号格）→ 打字 → 回车。"""
-    field = helpers.find_item(window, field_name)
-    assert field is not None, "没找到 %s" % field_name
-    helpers.click_item(window, field)
+def _open_editor_of(window, name):
+    """点开清单里的某个坐标格（按 objectName），返回它的输入框（不提交）。"""
+    helpers.click_item(window, helpers.find_item(window, name))
     helpers.APP.processEvents()
-    editor = None
-    for item in helpers.find_all(window, editor_name):
-        if item.isVisible():
-            editor = item
-    assert editor is not None, "%s 点开之后没出现输入框" % field_name
-    editor.setProperty("text", str(text))
-    helpers.APP.processEvents()
-    helpers.APP.sendEvent(editor.window(),
-                          QKeyEvent(QEvent.KeyPress, Qt.Key_Return,
-                                    Qt.NoModifier))
-    helpers.APP.processEvents()
-
-
-def _type_target(window, controller, floor, typed):
-    """真点「通到…」那一格，**打字**回车（用户 2026-10-31 骂掉了"点一下换一层"的循环）。"""
-    _type_field(window, "floorStairTarget", "floorEditor", typed)
-    rows = controller.stairsOf(floor)
-    return str(rows[0].get("to") or "") if rows else ""
+    editors = [item for item in helpers.find_all(window, "coordEditor")
+               if item.isVisible()]
+    assert editors, "%s 点开之后没出现输入框" % name
+    return editors[-1]
 
 
 def _floor_names(window):
@@ -144,11 +128,11 @@ def _floor_names(window):
 
 
 def test_marking_a_stair_in_the_sheet_then_walking_on_it_switches_the_floor():
-    """测什么：清单里标完楼梯（加行/粘坐标/打层号）→ 关清单 → 图上长按拖过去 → 换层。
+    """测什么：清单里标完楼梯（加行/粘坐标/粘出口）→ 关清单 → 图上长按拖过去 → 换层。
 
-    交互顺序：① 点「清单 ›」开这一层 ② 点「＋ 上楼梯」 ③ 在「当前」格粘「2,4」
-    ④ 在「通到…」打「3」回车 ⑤ 点 ✕ 关清单 ⑥ 在大图上长按第 1 行第 4 列起笔、
-    往下拖一格（踩到楼梯）松手 → 断言 `mapFloor` 变成 3层。"""
+    交互顺序：① 点「清单 ›」开这一层 ② 点「＋ 上楼」 ③ 在位置格粘「2,4」
+    ④ 在出口格粘「3层 6,7」回车（层数就是去哪层）⑤ 点 ✕ 关清单 ⑥ 在大图上长按第 1 行
+    第 4 列起笔、往下拖一格（踩到楼梯）松手 → 断言 `mapFloor` 变成 3层。"""
     controller, engine, window = _make()
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
@@ -160,9 +144,10 @@ def test_marking_a_stair_in_the_sheet_then_walking_on_it_switches_the_floor():
     _paste_coord(window, "floorStairPos", "2,4")
     assert (controller.stairsOf("2层")[0]["row"],
             controller.stairsOf("2层")[0]["col"]) == (1, 3), "粘的坐标没写进楼梯"
-    # 打层号 "3" → 认成读过的 "3层"
-    assert _type_target(window, controller, "2层", "3") == "3层", \
-        "「通到…」里打 3 没认成 3层"
+    _paste_coord(window, "floorStairArrive", "3层 6,7")
+    stair = controller.stairsOf("2层")[0]
+    assert (stair["to"], stair["toRow"], stair["toCol"]) == ("3层", 5, 6), \
+        "出口格粘的层数没认成去哪层"
 
     helpers.click_item(window, helpers.find_item(window, "floorClose"))
     helpers.APP.processEvents()
@@ -252,9 +237,9 @@ def test_clicking_a_stair_creates_the_next_floor_when_none_is_known():
 
 
 def test_a_stair_can_go_to_a_floor_that_was_never_read():
-    """测什么：0层→2层，目标层没读过也能在「通到…」里打进去，打完点楼梯真的切过去。
+    """测什么：0层→2层，目标层没读过也能在「出口」里粘「2层 3,4」定下来，点楼梯真的切过去。
 
-    交互顺序：① 点「清单 ›」 ② 在「通到…」打「2」回车（那层还没读过）
+    交互顺序：① 点「清单 ›」 ② 在「出口」粘「2层 3,4」回车（那层还没读过）
     ③ 关清单 ④ 点一下楼梯 → 断言切成 2层、层列表里有它。"""
     controller, engine, window = _make(floors=("0层",), floor="0层",
                                        stairs={"0层": [
@@ -263,8 +248,8 @@ def test_a_stair_can_go_to_a_floor_that_was_never_read():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("0层") is not None) is True
-    assert _type_target(window, controller, "0层", "2") == "2层", \
-        "打 2 没拼出 2层"
+    _paste_coord(window, "floorStairArrive", "2层 3,4")
+    assert controller.stairsOf("0层")[0]["to"] == "2层", "粘的「2层」没认成去哪层"
 
     helpers.click_item(window, helpers.find_item(window, "floorClose"))
     helpers.APP.processEvents()
@@ -274,11 +259,11 @@ def test_a_stair_can_go_to_a_floor_that_was_never_read():
     assert "2层" in _floor_names(window), "跳过去的 2层 没进层列表"
 
 
-def test_coordinates_carry_the_floor_number():
-    """测什么：楼梯行两个坐标格分别写着本层和「→目标层」的层数。
+def test_stair_row_shows_only_coordinates_and_the_floor_is_in_the_editor():
+    """测什么：楼梯行平时只写坐标（「2,4」「6,7」），不带层数、不写去哪层；
+    点开输入框才带层数（「2层 2,4」「→3层 6,7」），粘回别处仍认。
 
-    交互顺序：① 点「清单 ›」开这一层 ② 读那一行两个坐标格的文字
-    → 断言左格是「2层 2,4」、右格是「→3层 6,7」。"""
+    交互顺序：① 开这一层（楼梯 2,4 → 3层 6,7）② 读两格平时的字 ③ 各点开看输入框。"""
     controller, engine, window = _make(stairs={
         "2层": [{"row": 1, "col": 3, "dir": "up", "to": "3层",
                  "toRow": 5, "toCol": 6}]})
@@ -287,10 +272,13 @@ def test_coordinates_carry_the_floor_number():
         lambda: window.floorSheetOf("2层") is not None) is True
     helpers.APP.processEvents()
 
-    here =   helpers.texts_of(helpers.find_item(window, "floorStairPos"))
-    there = helpers.texts_of(helpers.find_item(window, "floorStairArrive"))
-    assert "2层 2,4" in here, here
-    assert "→3层 6,7" in there, there
+    here = helpers.find_item(window, "floorStairPos")
+    there = helpers.find_item(window, "floorStairArrive")
+    assert str(here.childItems()[0].property("text")) == "2,4"
+    assert str(there.childItems()[0].property("text")) == "6,7"
+
+    editor = _open_editor_of(window, "floorStairPos")
+    assert str(editor.property("text")) == "2层 2,4"
 
 
 def test_clicking_the_peeking_corner_switches_to_that_floor():

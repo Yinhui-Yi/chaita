@@ -6,7 +6,7 @@
 
 ---
 
-## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 12 个共用件）
+## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 11 个共用件）
 
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
@@ -35,7 +35,7 @@
 （1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那些是共用件，不算界面：
 `Theme` 配色/字体/圆角/控件高度、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`IconBtn` 图标按钮（导航条）、
 `SectionHead` 分区标题条（地图/怪物/技能/读取记录）、`ReadBtn` 分区标题上的「读取」、`Card` 白卡、`Chip` 小胶囊、`NumberStepper` 加减数、
-`EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标、`FloorField` 层号格。）
+`EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
 
 **视觉规矩（2026-11-01 重做，PyCharm 浅色一路 + 分层）**：三层面——灰底窗口（`Theme.canvas`）→
 白色卡片（`shared/Card.qml`：圆角 8 + 细外框 + 底沿一线暗边）→ 卡里凹下去的小块（`Theme.tile`）；
@@ -92,7 +92,7 @@ chaita/ui/
         property_gain/             813   加属性收益（再加 X 点属性，剩下的怪少掉多少）
         preview/                    90   看大图
         shared/                    964   Theme + Card + Chip + SectionHead + ReadBtn + IconBtn + FlatBtn + TextBtn
-                                         + NumberStepper + EffectEditor + ChainArrow + CoordField + FloorField + qmldir
+                                         + NumberStepper + EffectEditor + ChainArrow + CoordField + qmldir
     main.py  startup.py  loader.py  constants.py  qt_env.py
                                       入口 / 启动（任务栏图标、分组 ID）/ 加载(QML_DIR, OVERLAY_QML) / 常量 / Qt 路径
     controller/                  30 个文件 / 3834 行，状态和槽（Python）

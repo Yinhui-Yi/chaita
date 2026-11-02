@@ -351,24 +351,25 @@ def test_resize_grip_grows_the_sheet():
 
 # ---- 楼梯方向开关、拖拽高亮、资源行展开 ----
 
-def test_stair_card_shows_thumbnail_and_one_sentence_and_swaps_direction():
-    """测什么：楼梯词条是一张小卡：左边缩略图（不可点）、主行「上楼 → 2 层」一句话、
-    右边「⇅」才改方向。
+def test_stair_row_has_thumbnail_and_only_coordinates_and_swaps_direction():
+    """测什么：楼梯行 = 缩略图 + 「本层位置 → 出口」，没有别的字（不写上楼/下楼、通到、没标）；
+    缩略图不可点；「⇅」才改方向，缩略图跟着换。
 
-    交互顺序：① 开清单（一条上楼、通 2层）② 看缩略图在、主行写「上楼」、没有「通到」字样
-    ③ 点缩略图 → 方向不变 ④ 点「⇅」→ 变 down、主行写「下楼」⑤ 再点 → 变回 up。
+    交互顺序：① 开清单（一条上楼）② 缩略图在、行里没有「通到」「没标」③ 点缩略图 →
+    方向不变 ④ 点「⇅」→ 变 down、缩略图图片换了 ⑤ 再点 → 变回 up。
     """
     controller, engine, window = _sheet(floors=["长安1", "长安2"])
-    index = controller.addStair("长安1", "up")
-    controller.setStairTarget("长安1", index, "长安2")
+    controller.addStair("长安1", "up")
     controller.mapHistoryChanged.emit()
     helpers.APP.processEvents()
 
     assert helpers.find_item(window, "floorStairThumb") is not None
-    assert helpers.find_item(window, "floorStairThumbImage") is not None
     row = helpers.find_all(window, "floorStairRow")[0]
-    assert helpers.find_item(window, "floorStairDirText").property("text") == "上楼"
-    assert not any("通到" in text for text in helpers.texts_of(row))
+    words = "".join(helpers.texts_of(row))
+    for junk in ("通到", "没标", "上楼", "下楼", "层"):
+        assert junk not in words, "楼梯行里不该有「%s」" % junk
+    up_image = str(helpers.find_item(window, "floorStairThumbImage")
+                   .property("source"))
 
     helpers.click_item(window, helpers.find_item(window, "floorStairThumb"))
     assert controller.stairsOf("长安1")[0]["dir"] == "up", "点缩略图不该改方向"
@@ -376,11 +377,24 @@ def test_stair_card_shows_thumbnail_and_one_sentence_and_swaps_direction():
     helpers.click_item(window, helpers.find_item(window, "floorStairDirSwap"))
     helpers.APP.processEvents()
     assert controller.stairsOf("长安1")[0]["dir"] == "down"
-    assert helpers.find_item(window, "floorStairDirText").property("text") == "下楼"
+    assert str(helpers.find_item(window, "floorStairThumbImage")
+               .property("source")) != up_image, "方向变了，缩略图没换"
 
     helpers.click_item(window, helpers.find_item(window, "floorStairDirSwap"))
     helpers.APP.processEvents()
     assert controller.stairsOf("长安1")[0]["dir"] == "up"
+
+
+def test_stair_section_has_separate_up_and_down_add_buttons():
+    """测什么：楼梯段标题右边有「＋ 上楼」「＋ 下楼」两个按钮，各加一条对应方向的楼梯。"""
+    controller, engine, window = _sheet()
+
+    helpers.click_item(window, helpers.find_item(window, "floorAddStairDown"))
+    helpers.click_item(window, helpers.find_item(window, "floorAddStair"))
+    helpers.APP.processEvents()
+
+    assert [s["dir"] for s in controller.stairsOf("长安1")] == ["down", "up"]
+    assert len(helpers.find_all(window, "floorStairRow")) == 2
 
 
 def test_dragged_cell_over_a_row_lights_it_up_with_drop_here():

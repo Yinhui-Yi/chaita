@@ -1989,13 +1989,6 @@ Window {
                                    String(direction || "up"))
     }
 
-    function setStairTarget(floorText, index, target) {
-        if (!controller)
-            return false
-        return controller.setStairTarget(String(floorText || ""), Number(index),
-                                         String(target || ""))
-    }
-
     function removeStairRow(floorText, index) {
         if (!controller)
             return false
@@ -2056,7 +2049,7 @@ Window {
         return null
     }
 
-    // 打进来的层号/层名 → 完整层名。**"通到…"和"跳到…"共用这一份**：
+    // 打进来的层号/层名 → 完整层名（「跳到…」和楼梯出口里粘的层数共用这一份）：
     //   "2"        → 已知层里层号是 2 的那层（2层 / 通天塔2 都认）；找不到就按本层
     //                的写法把最后一个数字换成 2（通天塔1 → 通天塔2、0层 → 2层）
     //   "通天塔137" → 原样用（没有就建一条空的）
@@ -2089,21 +2082,6 @@ Window {
             return from.substring(0, at.index) + wanted
                     + from.substring(at.index + at[1].length)
         return text
-    }
-
-    // 「通到…」里打完回车：把这一行楼梯的目标层定下来（打自己这层 = 没选）
-    function setStairTargetByName(floorText, index, typed) {
-        if (!controller)
-            return false
-        var floor = String(floorText || "")
-        var name = win.resolveFloorName(floor, typed)
-        if (name === floor)
-            name = ""
-        if (name !== "") {
-            controller.ensureFloor(name)      // 没有这层就建一条空的
-            win.ensureMapFloor()
-        }
-        return win.setStairTarget(floor, index, name)
     }
 
     // 抓着一格（或 Ctrl 勾的一批）拖到某一行上松手：把这几格记给那一行。

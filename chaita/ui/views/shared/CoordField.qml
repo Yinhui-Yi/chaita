@@ -21,6 +21,9 @@ Item {
     property string placeholder: "没标"
     // 标了要不要写成 "2层 3,4"（层号由宿主给）
     property string prefix: ""
+    // 平时只写坐标（"3,4"），点开改的时候才带 prefix（"2层 3,4"）——
+    // 要粘回别的格子时层数还在，但不用一直占着地方
+    property bool compact: false
     property int labelSize: 8
     // 宿主点空白时把它加一：等同于按回车（收起 + 生效）
     property int closeTick: 0
@@ -66,6 +69,13 @@ Item {
         return field.prefix + (field.row + 1) + "," + (field.col + 1)
     }
 
+    // 平时那一格上写的字（compact 时不带层数）
+    function shown() {
+        if (!field.compact || field.row < 0 || field.col < 0)
+            return field.display()
+        return (field.row + 1) + "," + (field.col + 1)
+    }
+
     // 打开输入框：**填带层数的完整写法**（"2层 3,4" / "→3层 6,7"）。
     // 只填 "3,4" 的话，改的时候看不出这一格是哪一层的坐标（用户 2026-10-31：
     // "你粘贴坐标，再去修改，根本没有层数信息"）。`parse()` 会把这截层数再拆出来。
@@ -94,8 +104,8 @@ Item {
         anchors.fill: parent
         visible: !editor.visible
         verticalAlignment: Text.AlignVCenter
-        text: field.display() !== "" ? field.display() : field.placeholder
-        color: field.display() !== "" ? Theme.ink : Theme.ink3
+        text: field.shown() !== "" ? field.shown() : field.placeholder
+        color: field.shown() !== "" ? Theme.ink : Theme.ink3
         font.family: Theme.uiFont
         font.pixelSize: field.labelSize
     }
