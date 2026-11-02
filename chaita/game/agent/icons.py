@@ -30,14 +30,27 @@ def _rembg_home() -> str:
 def _model_ready() -> bool:
     """抠图模型在不在本地。
 
+    **问 rembg 自己它把模型放哪**，别自己猜路径：rembg 2.0.8x 起放在
+    `~/.rembg/models/u2net/`（`REMBG_HOME` / `U2NET_HOME` 也认），旧版放 `~/.u2net/`。
+    以前这里只看 `~/.u2net/`，本机的 u2net.onnx 明明在新位置，却一直判成"没有模型"，
+    于是每只怪都退回带底纹的纯裁剪。`resolve_existing` 两处都找、而且不会下载。
+
     为什么非要先看这一眼：`new_session("u2net")` 在模型缺失时**会去下载**
-    （约 176 MB）。这台机器上 `~/.u2net` 不存在时实测 sprite 卡了 5 分钟以上
+    （约 176 MB）。这台机器上模型不在时实测 sprite 卡了 5 分钟以上
     一点动静都没有 —— 用户看到的就是「点了读怪物，界面没反应」。
     按钮不该触发下载，所以模型不在就退回纯裁剪（宁可带一点背景）。
     想恢复干净抠图：`python -c "from rembg import new_session; new_session('u2net')"`
-    跑一次（把模型缓存下来），或者把模型放到 `%USERPROFILE%\\.u2net\\u2net.onnx`。
+    跑一次（把模型缓存下来）。
     """
-    return os.path.exists(os.path.join(_rembg_home(), _REMBG_MODEL))
+    try:
+        from rembg.sessions.u2net import U2netSession
+    except Exception:
+        return False
+    resolve = getattr(U2netSession, "resolve_existing", None)
+    if resolve is None:
+        # 老版本 rembg 没有这个接口：只能按它当年固定的目录找
+        return os.path.exists(os.path.join(_rembg_home(), _REMBG_MODEL))
+    return resolve(_REMBG_MODEL) is not None
 
 
 def _crop_ratio(image, x, y, w, h):

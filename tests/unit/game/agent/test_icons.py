@@ -19,15 +19,52 @@ def test_rembg_home_appends_dot_u2net(monkeypatch):
     assert ic._rembg_home().endswith(".u2net")
 
 
-def test_model_ready(monkeypatch):
+def _fake_u2net_session(monkeypatch, resolve):
+    """把 `rembg.sessions.u2net.U2netSession` 换成只会回答"模型在哪"的假货。"""
+    import sys
+    import types
+    session = types.SimpleNamespace(
+        U2netSession=types.SimpleNamespace(resolve_existing=resolve))
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net", session)
+
+
+def test_model_ready_问rembg自己模型放在哪_而不是猜路径(monkeypatch):
+    """rembg 2.0.8x 把模型放在 ~/.rembg/models/u2net/，旧版放 ~/.u2net/：
+    本机 u2net.onnx 就在前者，按旧路径找会一直"没有模型"、永远退回带底纹的纯裁剪。"""
+    asked = []
+    _fake_u2net_session(
+        monkeypatch,
+        lambda fname: asked.append(fname) or r"C:\Users\x\.rembg\models\u2net\u2net.onnx")
+    monkeypatch.setattr(ic, "_rembg_home", lambda: "/nowhere/.u2net")
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: False)
+
+    assert ic._model_ready() is True
+    assert asked == ["u2net.onnx"]
+
+
+def test_model_not_ready_rembg说没有就是没有(monkeypatch):
+    _fake_u2net_session(monkeypatch, lambda fname: None)
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: True)   # 旧路径有也不算
+
+    assert ic._model_ready() is False
+
+
+def test_model_ready_老版本rembg没有resolve_existing_退回看旧目录(monkeypatch):
+    import sys
+    import types
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net",
+                        types.SimpleNamespace(U2netSession=types.SimpleNamespace()))
     monkeypatch.setattr(ic, "_rembg_home", lambda: "/home/.u2net")
-    monkeypatch.setattr(ic.os.path, "exists", lambda p: True)
+    monkeypatch.setattr(ic.os.path, "exists", lambda p: p.endswith("u2net.onnx"))
     assert ic._model_ready() is True
 
-
-def test_model_not_ready(monkeypatch):
-    monkeypatch.setattr(ic, "_rembg_home", lambda: "/home/.u2net")
     monkeypatch.setattr(ic.os.path, "exists", lambda p: False)
+    assert ic._model_ready() is False
+
+
+def test_model_ready_rembg导不进来就当没有(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "rembg.sessions.u2net", None)   # import 会抛 ImportError
     assert ic._model_ready() is False
 
 
