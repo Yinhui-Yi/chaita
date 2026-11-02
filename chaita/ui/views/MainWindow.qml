@@ -133,6 +133,8 @@ Window {
     property bool mapCollapsed: false
     property bool monCollapsed: false
     property bool skillCollapsed: false
+    // 「路线」卡收起：和对话一样记在 ui_state.json（controller.setRouteCollapsed）
+    property bool routeCollapsed: false
     function toggleMapSection() {
         win.mapCollapsed = !win.mapCollapsed
     }
@@ -892,20 +894,6 @@ Window {
         var cells = controller.routeCells(String(floorText || ""),
                                           Number(routeIndex))
         return win.routeStatsMemo(cells)
-    }
-
-    // 这一层有几条路线 → `[{index, at, memo, cells}]`（清单里的「路线」行读它）
-    function floorRoutes(floorText) {
-        var entry = win.floorEntry(floorText)
-        var rows = entry ? (entry.routes || []) : []
-        var out = []
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i] || ({})
-            out.push({ "index": i, "at": String(row.at || ""),
-                       "memo": String(row.memo || ""),
-                       "cells": row.cells || [] })
-        }
-        return out
     }
 
     // 打开一层里的某条路线：一条一扇窗；点已开的那条 = 提到最前。

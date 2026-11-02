@@ -1014,103 +1014,13 @@ Window {
 
                 }
 
-                // ---------- 提取出来的路线 + 备忘 ----------
+                // ---------- 备忘 ----------
+                // 路线不在这里了：跨层路线存在起点层名下，单看一层看不全，
+                // 统一放在主界面的「路线」卡里（views/main_columns/RouteSection.qml）。
                 Card {
                     id: noteCard
                     width: sheetBody.width
                     pad: sheetRoot.gap
-                // 长按玩家拖出来的那些（docs/ROUTE.md）：这一层的路线列在这儿。
-                // 点「路线 N」把那条"交互路线"（勇者 → 格1,1 → …）摆出来；
-                // 右边是**备注**（用户："把路线的 xx格 删掉改成备注，备注默认是玩家路线
-                // 最后的血量攻击防御魔防，玩家可以添加其他信息"）。
-                Repeater {
-                    model: host.floorRoutes(sheetRoot.sheetName)
-                    delegate: Row {
-                        objectName: "routeRow"
-                        width: parent.width
-                        height: 22
-                        spacing: 4
-                        Text {
-                            id: routeName
-                            objectName: "routeOpen"
-                            width: 44
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "路线 " + (index + 1)
-                            color: routeMouse.containsMouse ? host.accent : host.ink2
-                            font.family: host.uiFont
-                            font.pixelSize: 9
-                            MouseArea {
-                                id: routeMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: host.openRoute(sheetRoot.sheetName,
-                                                          modelData.index)
-                            }
-                        }
-                        // 计算部分（只读）：走完这条路之后的血/攻/防/魔防，
-                        // 按当前格子实时算（用户："计算部分不再允许修改"）
-                        Text {
-                            objectName: "routeComputed"
-                            width: 150
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: host.routeStatsFor(sheetRoot.sheetName,
-                                                     modelData.index)
-                            color: host.ink3
-                            font.family: host.monoFont
-                            font.pixelSize: 8
-                            elide: Text.ElideRight
-                        }
-                        Rectangle {
-                            width: parent.width - 44 - 150 - 12 - 16
-                            height: 22
-                            radius: 5
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: memoField.activeFocus
-                                   ? host.paperLo : "transparent"
-                            border.width: 1
-                            border.color: memoField.activeFocus
-                                          ? host.accent : host.hairline
-                            TextField {
-                                id: memoField
-                                objectName: "routeMemo"
-                                anchors.fill: parent
-                                anchors.leftMargin: 4
-                                anchors.rightMargin: 4
-                                verticalAlignment: TextInput.AlignVCenter
-                                background: null
-                                color: host.ink
-                                font.family: host.uiFont
-                                font.pixelSize: 9
-                                selectByMouse: true
-                                text: modelData.memo || ""
-                                onEditingFinished: controller.saveRouteMemo(
-                                    sheetRoot.sheetName, modelData.index, text)
-                            }
-                        }
-                        Text {
-                            objectName: "routeRowDelete"
-                            width: 16
-                            anchors.verticalCenter: parent.verticalCenter
-                            horizontalAlignment: Text.AlignHCenter
-                            text: "✕"
-                            color: deleteRouteMouse.containsMouse
-                                    ? host.danger : host.ink3
-                            font.pixelSize: 10
-                            MouseArea {
-                                id: deleteRouteMouse
-                                anchors.fill: parent
-                                anchors.margins: -4
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: controller.removeRoute(
-                                    sheetRoot.sheetName, modelData.index)
-                            }
-                        }
-                    }
-                }
-
-                // ---------- 备忘 ----------
                 Item {
                     width: parent.width
                     height: 28

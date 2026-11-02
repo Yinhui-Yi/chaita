@@ -190,6 +190,28 @@ def test_restore_chat_collapsed_只在上次收起过才收起(monkeypatch):
     assert "chatCollapsed" not in c._win.props
 
 
+def test_set_route_collapsed_更新窗口属性_并记住_不冲掉别的状态(monkeypatch):
+    c, _, saved = _pin_mix(monkeypatch, {"x": 1, "chatCollapsed": True})
+
+    c.setRouteCollapsed(True)
+
+    assert c._win.props["routeCollapsed"] is True
+    assert saved == [{"x": 1, "chatCollapsed": True, "routeCollapsed": True}]
+
+    c.setRouteCollapsed(False)
+    assert saved[-1]["routeCollapsed"] is False
+
+
+def test_restore_route_collapsed_只在上次收起过才收起(monkeypatch):
+    c, _, _ = _pin_mix(monkeypatch, {"routeCollapsed": True})
+    c.restoreRouteCollapsed()
+    assert c._win.props["routeCollapsed"] is True
+
+    c, _, _ = _pin_mix(monkeypatch, {"chatCollapsed": True})   # 别的开关不串
+    c.restoreRouteCollapsed()
+    assert "routeCollapsed" not in c._win.props
+
+
 def test_set_pinned_没有窗口也不报错(monkeypatch):
     c, topmost_calls, _ = _pin_mix(monkeypatch, {})
     c._win = None

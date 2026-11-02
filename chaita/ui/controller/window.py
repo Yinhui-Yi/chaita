@@ -84,15 +84,31 @@ class WindowMixin:
     @Slot(bool)
     def setChatCollapsed(self, collapsed: bool) -> None:
         """对话区收起 / 展开，并记住（下次启动照原样）。"""
-        if self._win is not None:
-            self._win.setProperty("chatCollapsed", bool(collapsed))
-        self._remember_toggle("chatCollapsed", collapsed)
+        self._set_toggle("chatCollapsed", collapsed)
 
     @Slot()
     def restoreChatCollapsed(self) -> None:
         """启动时按上次的选择摆好（没记录 = 展开，什么都不用做）。"""
-        if self._win is not None and bool(_load_ui_state().get("chatCollapsed")):
-            self._win.setProperty("chatCollapsed", True)
+        self._restore_toggle("chatCollapsed")
+
+    @Slot(bool)
+    def setRouteCollapsed(self, collapsed: bool) -> None:
+        """主界面「路线」卡收起 / 展开，并记住。"""
+        self._set_toggle("routeCollapsed", collapsed)
+
+    @Slot()
+    def restoreRouteCollapsed(self) -> None:
+        """启动时按上次的选择摆好（没记录 = 展开）。"""
+        self._restore_toggle("routeCollapsed")
+
+    def _set_toggle(self, key: str, value: bool) -> None:
+        if self._win is not None:
+            self._win.setProperty(key, bool(value))
+        self._remember_toggle(key, value)
+
+    def _restore_toggle(self, key: str) -> None:
+        if self._win is not None and bool(_load_ui_state().get(key)):
+            self._win.setProperty(key, True)
 
     # ---- 置顶开关：默认不置顶，点导航条上的「置顶」才永远在最前面 ----
     @Slot(bool)

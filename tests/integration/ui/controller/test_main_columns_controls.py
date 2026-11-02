@@ -317,8 +317,8 @@ def test_状态卡实际高度等于窗口按公式算的高度():
     assert round(hero.height()) == window.property("heroH")
 
 
-def test_地图_怪物_技能三张卡竖排_不重叠_间距一致():
-    """测什么：主界面的三张卡自上而下排开，相邻两张之间的缝都等于 gapB。
+def test_地图_路线_怪物_技能四张卡竖排_不重叠_间距一致():
+    """测什么：主界面的四张卡自上而下排开（路线卡紧跟在地图下面），相邻两张之间的缝都等于 gapB。
 
     走过的界面：主界面内容区（读取记录没有任务时不占位）。
     """
@@ -328,12 +328,13 @@ def test_地图_怪物_技能三张卡竖排_不重叠_间距一致():
     helpers.APP.processEvents()
 
     cards = [helpers.find_item(window, name) for name in
-             ("mapSectionCard", "monSectionCard", "skillSectionCard")]
+             ("mapSectionCard", "routeSectionCard", "monSectionCard",
+              "skillSectionCard")]
     tops = [c.mapToScene(QPointF(0, 0)).y() for c in cards]
     gaps = [tops[i + 1] - (tops[i] + cards[i].height())
             for i in range(len(cards) - 1)]
     assert tops == sorted(tops)
-    assert [round(g) for g in gaps] == [window.property("gapB")] * 2
+    assert [round(g) for g in gaps] == [window.property("gapB")] * 3
 
 
 def test_窗口拉高后内容区跟着变高_不留空白():

@@ -135,6 +135,58 @@ def test_untouched_cell_still_follows_the_map_record():
 
 # ---- 边角：序号过期/空输入都不许炸 ----
 
+def test_all_routes_同层和跨层的路线统一列出():
+    c = FakeRoutes([
+        {"floor": "1层", "routes": [
+            {"at": "10:00", "memo": "先拿钥匙", "cells": [
+                {"row": 0, "col": 0}, {"row": 0, "col": 1}]},
+            {"at": "10:05", "cells": [
+                {"row": 0, "col": 0, "floor": "1层"},
+                {"row": 3, "col": 3, "floor": "2层"},
+                {"row": 1, "col": 1, "floor": "3层"}]}]},
+        {"floor": "2层", "routes": [
+            {"cells": [{"row": 0, "col": 0, "floor": "2层"}]}]}])
+
+    rows = c.allRoutes()
+
+    assert [(r["floor"], r["index"]) for r in rows] == [
+        ("1层", 0), ("1层", 1), ("2层", 0)]
+    same, cross, other = rows
+    assert (same["start"], same["end"], same["floors"]) == ("1层", "1层", 1)
+    assert same["memo"] == "先拿钥匙" and same["at"] == "10:00"
+    assert (cross["start"], cross["end"], cross["floors"]) == ("1层", "3层", 3)
+    assert cross["memo"] == ""
+    assert (other["start"], other["end"], other["floors"]) == ("2层", "2层", 1)
+
+
+def test_all_routes_走回起点层不算新增一层():
+    c = FakeRoutes([{"floor": "1层", "routes": [{"cells": [
+        {"row": 0, "col": 0}, {"row": 1, "col": 1, "floor": "2层"},
+        {"row": 2, "col": 2, "floor": "1层"}]}]}])
+
+    row = c.allRoutes()[0]
+
+    assert (row["start"], row["end"], row["floors"]) == ("1层", "1层", 2)
+
+
+def test_all_routes_没有路线_和坏数据都是空():
+    assert FakeRoutes([]).allRoutes() == []
+    assert FakeRoutes([{"floor": "1层"}]).allRoutes() == []
+    assert FakeRoutes([{"floor": "1层", "routes": ["坏", None]}]).allRoutes() == []
+
+
+def test_all_routes_序号和_removeRoute_用的是同一套(monkeypatch):
+    """跳过坏数据以后序号要和 `_floor_routes` 一致，不然点 ✕ 会删错一条。"""
+    c = FakeRoutes([{"floor": "1层", "routes": [
+        "坏", {"memo": "甲", "cells": []}, {"memo": "乙", "cells": []}]}])
+
+    rows = c.allRoutes()
+    assert [(r["index"], r["memo"]) for r in rows] == [(0, "甲"), (1, "乙")]
+
+    assert c.removeRoute("1层", rows[0]["index"])
+    assert [r["memo"] for r in c.allRoutes()] == ["乙"]
+
+
 def test_save_route_without_cells_or_floor():
     c = FakeRoutes([{"floor": "1层", "grid": {}}])
     assert c.saveRoute("1层", []) == -1

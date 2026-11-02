@@ -159,21 +159,6 @@ def test_floor_memo_field_saves():
     assert _entry(controller)["memo"] == "记得拿宝石"
 
 
-def test_route_memo_field_saves_manual_text():
-    """测什么：路线那一行的备注写的是手写文本，实时算的数值不受影响。
-
-    交互顺序：① 开「清单 ›」 ② 路线行的备注框打字回车
-    → 断言 `routes[0].memo` 是这段话、`routeStatsFor` 仍是实时算出来的。
-    """
-    controller, engine, window = _sheet(
-        routes=[{"at": "10:00", "cells": [{"row": 0, "col": 0}]}])
-    _type(window, helpers.find_item(window, "routeMemo"), "手写一句")
-
-    assert _entry(controller)["routes"][0]["memo"] == "手写一句"
-    # 计算那半截仍然是实时算出来的（没被写进备注）
-    assert window.routeStatsFor("长安1", 0) == "血 1000 · 攻 90 · 防 30 · 魔防 10"
-
-
 def test_delete_floor_needs_two_clicks():
     """测什么：删这一层要点两下（第一下只上膛，第二下才删）。
 

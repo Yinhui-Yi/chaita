@@ -106,24 +106,6 @@ def test_monster_name_is_read_only():
     assert rows[0]["name"] == "血蚊"
 
 
-def test_route_open_click_opens_that_route():
-    """测什么：点路线那一行 → 打开对应的链窗口，带上层名和序号。
-
-    交互顺序：① 点「清单 ›」开这一层（有一条路线）② 点那一行的「路线 1」
-    → 断言 `routeWindow` 存在、`routeFloor/routeIndex` 对得上。
-    """
-    controller, engine, window = _sheet(
-        routes=[{"at": "10:00", "cells": [{"row": 0, "col": 0}]}])
-    helpers.click_item(window, helpers.find_item(window, "routeOpen"))
-    helpers.APP.processEvents()
-
-    value = window.property("routeWindow")
-    value = value.toQObject() if hasattr(value, "toQObject") else value
-    assert value is not None
-    assert window.property("routeFloor") == "长安1"
-    assert window.property("routeIndex") == 0
-
-
 def test_close_button_closes_the_sheet():
     """测什么：点小窗右上角的 ✕ → 这扇窗关掉。
 
@@ -171,19 +153,6 @@ def test_position_text_follows_grid_cells():
         "text"))
 
 
-def test_route_computed_text_shows_live_stats():
-    """测什么：路线那一行右边写的是**实时算出来的**数值（不是存下来的文字）。
-
-    交互顺序：① 点「清单 ›」开这一层（有一条路线）→ 断言 `routeComputed` 的文字等于
-    `routeStatsFor` 算的、并且以「血 」开头。
-    """
-    controller, engine, window = _sheet(
-        routes=[{"at": "10:00", "cells": [{"row": 0, "col": 0}]}])
-
-    text = helpers.find_item(window, "routeComputed").property("text")
-
-    assert text == window.routeStatsFor("长安1", 0)
-    assert text.startswith("血 ")
 
 
 # ---- 右下角那个拉大小的把手 ----

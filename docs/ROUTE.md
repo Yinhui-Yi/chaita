@@ -173,7 +173,9 @@
 ## 4.6 路线备注（用户："把路线的 xx格 删掉改成备注"）
 
 - 每条路线带一个 **备注**（`entries["routes"][i]["memo"]`，`controller.saveRouteMemo`），
-  「这一层」清单的路线行从"路线 N：几格"改成"路线 N + 一个备注框"，可改可加字。
+  主界面「路线」卡的每条路线下面有一个备注框，可改可加字（路线存在**起点层**名下、
+  跨层的每格带自己的层，所以路线卡把所有层的路线统一列出，读 `controller.allRoutes()`，
+  不再放在「这一层」清单里）。
 - **默认值** = 走完这条路线之后的**血 / 攻 / 防 / 魔防**（`routeStatsMemo`：拿预填好的格子跑
   `battle.run_plan`，再用 `result.stats` 拼成"血 X · 攻 Y · 防 Z · 魔防 W"）。
 - 走过一次就"清空"：怪打死 / 资源捡走，回头再走同一格不再算（`routeStepsFor` 的去重）。
@@ -197,7 +199,7 @@ AI 读的 `grid`（每个格子里有什么）读错大半，所以「这一层�
 | 文件 | 改什么 |
 |---|---|
 | `views/floor_sheet/route_layer/RouteLayer.qml` | 长按/拖动/回头/红底红框/红线 |
-| `views/floor_sheet/FloorSheetWindow.qml` | 截图区按 `paintedWidth/paintedHeight` 摆路线层；路线清单 |
+| `views/floor_sheet/FloorSheetWindow.qml` | 截图区按 `paintedWidth/paintedHeight` 摆路线层（路线清单后来搬到 `views/main_columns/RouteSection.qml`） |
 | `views/route_editor/RouteWindow.qml`（新） | 路线链窗口（链尾「计算」+ 掉血 + 总掉血/剩血在链右 + 复制/删在抬头） |
 | `views/route_editor/pick_menu/PickMenu.qml`（新） | 「换」这一格：怪 / 资源 / 门 / 清空 |
 | `views/route_editor/edit_card/EditCard.qml`（新） | 点缩略图改参数（照伤害计算的改参数卡片抄） |

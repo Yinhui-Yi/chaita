@@ -564,8 +564,9 @@ def main() -> int:
     # ---------------- 2. 怪物：一行一个、塔级汇总 ----------------
     def step_monsters():
         # 窗口矮、地图展开时怪物行/读取按钮会被滚到屏幕外（合成点击点不到）：
-        # 先把地图折起来，后面的怪物/技能/读取各步才点得到
+        # 先把地图和路线卡折起来，后面的怪物/技能/读取各步才点得到
         window.setProperty("mapCollapsed", True)
+        window.setProperty("routeCollapsed", True)
         app.processEvents()
         rows = find_all("monRow")
         check("怪物一行一个（手册读到的 + 地图上有的）", len(rows) == 4,
@@ -625,6 +626,12 @@ def main() -> int:
         check("找得到「手册怪」那一行的 ✕", target is not None)
         before_rows = len(rows)
         before_manual = len(controller._monsters)
+        # 手册怪是最后一行：窗口矮，先把内容区滚到底再点
+        flick = find_object("contentFlick")
+        if flick is not None:
+            flick.setProperty("contentY", max(0.0, float(flick.property("contentHeight"))
+                                              - float(flick.height())))
+            app.processEvents()
         click(target)
         app.processEvents()
         check("点行尾的 ✕ 能删掉这只",

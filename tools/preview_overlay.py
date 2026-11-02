@@ -50,7 +50,8 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinne
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
              "iconscroll3", "queue", "chatlong", "compare", "comparehi",
-             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain")
+             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain",
+             "routes", "routesfold")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -700,6 +701,22 @@ def main() -> int:
                          picture.property("paintedHeight") if picture else 0))
 
             open_sheet(window, "通天塔1", draw_route)
+        elif scenario in ("routes", "routesfold"):
+            # 主界面「路线」卡：一条同层、两条跨层（一条带备注）；routesfold = 收起
+            here = [{"row": 5, "col": 4}, {"row": 5, "col": 5}, {"row": 6, "col": 6}]
+            controller.saveRoute("通天塔1", here)
+            controller.saveRoute("通天塔1", [
+                {"row": 6, "col": 6, "floor": "通天塔1"},
+                {"row": 2, "col": 3, "floor": "通天塔2"},
+                {"row": 4, "col": 4, "floor": "通天塔3"}])
+            index = controller.saveRoute("通天塔1", [
+                {"row": 5, "col": 5, "floor": "通天塔1"},
+                {"row": 1, "col": 1, "floor": "通天塔2"}])
+            controller.saveRouteMemo("通天塔1", index, "先拿红宝石再上楼")
+            if scenario == "routesfold":
+                controller.setRouteCollapsed(True)
+            # 窗口只有那么高：把地图收起来，路线卡才在看得见的地方
+            window.setProperty("mapCollapsed", True)
         elif scenario in ("routechain", "routepick", "routeedit", "routeitemedit"):
             # 路线链：勇者 → 格6,5 → 格6,6 …，格子里的东西来自"刷新地图时记下的
             # 每一格有什么"；点「计算」以后掉血写格后、总掉血在右端。
