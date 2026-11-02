@@ -118,6 +118,7 @@ def test_add_item_from_pick_menu_carries_icon_and_effect(monkeypatch):
     monkeypatch.setattr(iteminfo, "save_icon_map", lambda *a, **k: None)
     controller, engine, window = _sheet()
 
+    helpers.show_tab(window, "item")
     helpers.click_item(window, helpers.find_item(window, "floorAddItem"))
     assert str(window.property("pickMode")) == "item"
     helpers.click_item(window, _pick_row(window, "红宝石"))
@@ -139,6 +140,7 @@ def test_item_icon_pick_changes_kind(monkeypatch):
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1,
          "icon": "gem_red"}])
 
+    helpers.show_tab(window, "item")
     helpers.click_item(window, helpers.find_item(window, "floorItemIconPick"))
     assert int(window.property("pickReplaceIndex")) == 0
     helpers.click_item(window, _pick_row(window, "铁剑"))
@@ -160,18 +162,18 @@ def test_floor_memo_field_saves():
 
 
 def test_delete_floor_needs_two_clicks():
-    """测什么：删这一层要点两下（第一下只上膛，第二下才删）。
+    """测什么：删这一层要点两下（第一下只上膛，第二下才删）；菜单一关就解除上膛。
 
-    交互顺序：① 开「清单 ›」 ② 点「删除本层」（按钮文字变「再点一次删除」）
+    交互顺序：① 开「清单 ›」 ② 点标题行「⋯」→「删除本层」（文字变「再点一次：确认删除」）
     ③ 再点一次 → 断言层没了、小窗关了。
     """
     controller, engine, window = _sheet()
+    helpers.open_sheet_menu(window)
     button = helpers.find_item(window, "floorDelete")
 
     helpers.click_item(window, button)
-    assert button.property("label") == "再点一次删除"
-    rows = controller.mapHistory
-    assert len(rows) == 1, "第一下只是上膛，不能删"
+    assert button.property("label") == "再点一次：确认删除"
+    assert len(controller.mapHistory) == 1, "第一下只是上膛，不能删"
 
     helpers.click_item(window, button)
     helpers.APP.processEvents()
@@ -179,26 +181,43 @@ def test_delete_floor_needs_two_clicks():
     assert window.property("floorWindows").toVariant() == []
 
 
-def test_done_button_replies_saved_and_closes_sheet():
-    """测什么：点「完成」→ 对话里回一句"已保存"，小窗关掉。
+def test_closing_the_menu_disarms_the_delete():
+    """测什么：点了一下「删除本层」又按 Esc 关菜单 → 再打开还是「删除本层」，没删。
 
-    交互顺序：① 开「清单 ›」 ② 点「完成」→ 断言 `chatReply` 和 `floorWindows`。
+    不解除的话，隔一会儿再开菜单一点就删掉整层了。
     """
     controller, engine, window = _sheet()
-    helpers.click_item(window, helpers.find_item(window, "floorDone"))
+    helpers.open_sheet_menu(window)
+    helpers.click_item(window, helpers.find_item(window, "floorDelete"))
+    sheet = window.floorSheetOf("长安1")
+    helpers.APP.sendEvent(sheet, QKeyEvent(QEvent.KeyPress, Qt.Key_Escape,
+                                           Qt.NoModifier))
     helpers.APP.processEvents()
 
-    assert controller.chatReply == "已保存「长安1」"
+    helpers.open_sheet_menu(window)
+
+    assert helpers.find_item(window, "floorDelete").property("label") == "删除本层"
+    assert len(controller.mapHistory) == 1
+
+
+def test_sheet_has_no_done_button():
+    """测什么：不再有「完成」按钮 —— 改动是即时存的，关窗（✕）就是收工。"""
+    controller, engine, window = _sheet()
+
+    assert helpers.find_item(window, "floorDone") is None
+    helpers.click_item(window, helpers.find_item(window, "floorClose"))
+    helpers.APP.processEvents()
     assert window.property("floorWindows").toVariant() == []
 
 
 def test_refresh_without_screenshot_reports_failure():
     """测什么：没有地图截图时点「刷新本层」不能静默 return，要出一条失败任务。
 
-    交互顺序：① 开「清单 ›」（这一层 url 为空）② 点「刷新本层」
+    交互顺序：① 开「清单 ›」（这一层 url 为空）② 点「⋯」→「刷新本层」
     → 断言 `controller.tasks[0]` 是 failed 且文案说明没有截图。
     """
     controller, engine, window = _sheet(url="")
+    helpers.open_sheet_menu(window)
     helpers.click_item(window, helpers.find_item(window, "floorRefresh"))
     helpers.APP.processEvents()
 

@@ -118,29 +118,83 @@ def test_close_button_closes_the_sheet():
     assert _windows(window) == []
 
 
-def test_more_button_opens_the_next_floor():
-    """测什么：点小窗的「＋」→ 接着开下一层的小窗。
+def test_next_button_switches_to_the_next_floor_in_place():
+    """测什么：点标题行的「›」→ 开下一层的清单、关掉这一层，不多开一扇窗。
 
-    交互顺序：① 点「清单 ›」开长安1 ② 点「＋」→ 断言长安2 的窗也开着。
+    交互顺序：① 点「清单 ›」开长安1 ② 点「›」→ 断言只剩长安2 的窗，且落在原来的位置。
     """
     controller, engine, window = _sheet(floors=["长安1", "长安2"])
-    helpers.click_item(window, helpers.find_item(window, "floorMore"))
+    before = window.floorSheetOf("长安1")
+    spot = (before.x(), before.y())
+
+    helpers.click_item(window, helpers.find_item(window, "floorNext"))
+    assert helpers.wait_for(lambda: window.floorSheetOf("长安2") is not None)
     helpers.APP.processEvents()
 
-    assert "长安2" in _windows(window)
+    assert _windows(window) == ["长安2"]
+    after = window.floorSheetOf("长安2")
+    assert (after.x(), after.y()) == spot
 
 
-# ---- 编辑模式的位置文字、路线那半截计算值 ----
+def test_prev_button_goes_back_and_does_nothing_at_the_ends():
+    """测什么：「‹」回上一层；在第一层 / 最后一层点到头的那个键没有反应。"""
+    controller, engine, window = _sheet(floors=["长安1", "长安2"])
 
-def test_position_text_follows_grid_cells():
-    """测什么：编辑模式下把一格拖到怪那一行 → 那一行的位置文字变成"位置 1,1"。
+    helpers.click_item(window, helpers.find_item(window, "floorPrev"))
+    helpers.APP.processEvents()
+    assert _windows(window) == ["长安1"], "第一层没有上一层，不该动"
 
-    交互顺序：① 点「清单 ›」开这一层（**自动进编辑模式**）② 把 (1,1) 这一格拖到
-    怪那一行上松手 → 断言 `floorMonPos` 先写"没标位置"、之后写"位置 1,1"。
+    helpers.click_item(window, helpers.find_item(window, "floorNext"))
+    assert helpers.wait_for(lambda: window.floorSheetOf("长安2") is not None)
+    helpers.click_item(window, helpers.find_item(window, "floorNext"))
+    helpers.APP.processEvents()
+    assert _windows(window) == ["长安2"], "最后一层没有下一层，不该动"
+
+    helpers.click_item(window, helpers.find_item(window, "floorPrev"))
+    assert helpers.wait_for(lambda: window.floorSheetOf("长安1") is not None)
+    assert _windows(window) == ["长安1"]
+
+
+# ---- 页签 ----
+
+def test_tabs_show_counts_and_switch_pages():
+    """测什么：页签上写各自的条数；点哪个页签就只显示那一页的行。
+
+    交互顺序：① 开清单（1 只怪 + 1 个资源）② 默认在「怪物」页：看得到怪行、看不到资源行
+    ③ 点「资源」→ 反过来 ④ 点「楼梯」→ 两样都没有，出现「＋ 加楼梯」。
     """
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
-    assert "没标位置" in str(
-        helpers.find_item(window, "floorMonPos").property("text"))
+    controller._map_history[0]["items"] = [
+        {"name": "红宝石", "effect": "攻击力 +1", "count": 1}]
+    controller.mapHistoryChanged.emit()
+    helpers.APP.processEvents()
+
+    assert "怪物 1" in "".join(helpers.texts_of(
+        helpers.find_item(window, "floorTabMon"))).replace("  ", " ")
+    assert len(helpers.find_all(window, "floorMonRow")) == 1
+    assert helpers.find_all(window, "floorItemRow") == []
+
+    helpers.show_tab(window, "item")
+    assert helpers.find_all(window, "floorMonRow") == []
+    assert len(helpers.find_all(window, "floorItemRow")) == 1
+
+    helpers.show_tab(window, "stair")
+    assert helpers.find_all(window, "floorItemRow") == []
+    assert helpers.find_item(window, "floorAddStair").isVisible()
+    assert not helpers.find_item(window, "floorAddMon").isVisible()
+
+
+# ---- 标位置：行尾胶囊 + 底部「已选」条 ----
+
+def test_position_chip_follows_grid_cells():
+    """测什么：编辑模式下把一格拖到怪那一行 → 行尾胶囊从「未标」变成「1 格」。
+
+    交互顺序：① 点「清单 ›」开这一层（**自动进编辑模式**）② 把 (1,1) 这一格拖到
+    怪那一行上松手 → 断言 `floorMonPos` 先写「未标」、之后写「1 格」。
+    """
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    chip = helpers.find_item(window, "floorMonPos")
+    assert helpers.texts_of(chip) == ["未标"]
 
     assert window.property("gridEditOn") is True, "开清单应该自动进编辑模式"
 
@@ -148,9 +202,71 @@ def test_position_text_follows_grid_cells():
     helpers.drop_cells(window, row, {"row": 0, "col": 0})
     helpers.APP.processEvents()
 
-    # 显示是 1 开始的（内部 0 开始）
-    assert "位置 1,1" in str(helpers.find_item(window, "floorMonPos").property(
-        "text"))
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["1 格"]
+
+
+def test_clicking_the_chip_selects_the_entry_and_shows_its_cells():
+    """测什么：点行尾胶囊 = 选中这个词条；底部「已选」条写出它的名字和每一格（1 开始）。
+
+    交互顺序：① 开清单，把 (1,1) 和 (3,4) 两格拖给血蚊 ② 还没选时底部没有「已选」条
+    ③ 点血蚊的胶囊 → 条出现，写「已选：血蚊   1,1 · 3,4」，胶囊写「2 格」。
+    """
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 2}])
+    row = helpers.find_all(window, "floorMonRow")[0]
+    helpers.drop_cells(window, row, {"cells": [{"row": 0, "col": 0},
+                                               {"row": 2, "col": 3}]})
+    helpers.APP.processEvents()
+    assert not helpers.find_item(window, "floorSelectedStrip").isVisible()
+
+    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+
+    assert helpers.find_item(window, "floorSelectedStrip").isVisible()
+    assert helpers.find_item(window, "floorSelectedText").property("text") \
+        == "已选：血蚊   1,1 · 3,4"
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["2 格"]
+
+
+def test_selected_strip_copy_button_copies_floor_and_cells(monkeypatch):
+    """测什么：「已选」条上的「复制」把「名字 层 坐标」放进剪贴板，格式同旧的位置复制。"""
+    board = helpers.fake_clipboard(monkeypatch)
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    row = helpers.find_all(window, "floorMonRow")[0]
+    helpers.drop_cells(window, row, {"row": 0, "col": 0})
+    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+
+    helpers.click_item(window, helpers.find_item(window, "floorSelectedCopy"))
+
+    assert board.value == "血蚊 1层 1,1"
+
+
+def test_unmarked_entry_strip_says_not_marked_and_has_no_copy_button():
+    """测什么：选了一条还没标过位置的词条 → 条上写「还没标位置」，没有复制键。"""
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+
+    assert helpers.find_item(window, "floorSelectedText").property("text") \
+        == "已选：血蚊   还没标位置"
+    assert not helpers.find_item(window, "floorSelectedCopy").isVisible()
+
+
+def test_menu_toggles_grid_edit_mode():
+    """测什么：标位置开关在「⋯」菜单里；标题的「标位置中」徽标跟着它。
+
+    交互顺序：① 开清单（自动在标位置，徽标亮）② 点「⋯」→「退出标位置」→ 徽标灭、
+    `gridEditOn` 为假 ③ 再点「⋯」→「进入标位置」→ 又亮。
+    """
+    controller, engine, window = _sheet()
+    assert helpers.find_item(window, "floorEditBadge").isVisible()
+
+    helpers.open_sheet_menu(window)
+    helpers.click_item(window, helpers.find_item(window, "floorGridToggle"))
+    assert window.property("gridEditOn") is False
+    assert not helpers.find_item(window, "floorEditBadge").isVisible()
+
+    helpers.open_sheet_menu(window)
+    helpers.click_item(window, helpers.find_item(window, "floorGridToggle"))
+    assert window.property("gridEditOn") is True
+    assert helpers.find_item(window, "floorEditBadge").isVisible()
 
 
 
@@ -194,3 +310,101 @@ def test_resize_grip_grows_the_sheet():
     sizes = window.property("floorSizes")
     sizes = sizes.toVariant() if hasattr(sizes, "toVariant") else sizes
     assert int(sizes["长安1"]["w"]) == after[0]
+
+
+# ---- 楼梯方向开关、拖拽高亮、资源行展开 ----
+
+def test_stair_direction_is_an_explicit_two_way_switch():
+    """测什么：楼梯方向是明写着字的「上楼 | 下楼」二选一；点另一半才改，点已选的那半不动。
+
+    交互顺序：① 开清单，切到「楼梯」页（有一条上楼的）② 点「下楼」→ 断言楼梯变成 down
+    ③ 点「上楼」→ 变回 up。以前点缩略图会悄悄换方向，现在缩略图没有了。
+    """
+    controller, engine, window = _sheet()
+    controller.addStair("长安1", "up")
+    controller.mapHistoryChanged.emit()
+    helpers.show_tab(window, "stair")
+    assert helpers.find_item(window, "floorStairThumb") is None
+
+    helpers.click_item(window, helpers.find_item(window, "floorStairDirUp"))
+    assert controller.stairsOf("长安1")[0]["dir"] == "up", "点已选的那半不该改"
+
+    helpers.click_item(window, helpers.find_item(window, "floorStairDirDown"))
+    helpers.APP.processEvents()
+    assert controller.stairsOf("长安1")[0]["dir"] == "down"
+
+    helpers.click_item(window, helpers.find_item(window, "floorStairDirUp"))
+    helpers.APP.processEvents()
+    assert controller.stairsOf("长安1")[0]["dir"] == "up"
+
+
+def test_dragged_cell_over_a_row_lights_it_up_with_drop_here():
+    """测什么：拖着格子经过的那一行，胶囊写「放到这里」（整行变淡蓝）；移开恢复。
+
+    `dropKey` 是窗口轮询光标得出的"光标底下是哪一行"，这里直接给它赋值模拟。
+    """
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    sheet = window.floorSheetOf("长安1")
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["未标"]
+
+    sheet.setProperty("dropKey", "monster:0")
+    helpers.APP.processEvents()
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["放到这里"]
+
+    sheet.setProperty("dropKey", "")
+    helpers.APP.processEvents()
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["未标"]
+
+
+def test_rows_on_a_hidden_tab_do_not_accept_drops():
+    """测什么：`rowAt`（地图松手时问"光标底下是哪一行"）只认当前页的行。
+
+    交互顺序：① 开清单（怪物页：1 只怪 + 1 个资源）② 问怪那一行的中心点 → 是 monster:0
+    ③ 切到资源页，再问**同一个点**（现在那里是资源行，怪行藏起来了）→ 是 item:0，
+    不能还认成 monster:0。
+    """
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    controller._map_history[0]["items"] = [
+        {"name": "红宝石", "effect": "攻击力 +1", "count": 1}]
+    controller.mapHistoryChanged.emit()
+    helpers.APP.processEvents()
+    sheet = window.floorSheetOf("长安1")
+
+    mon_row = helpers.find_all(window, "floorMonRow")[0]
+    point = mon_row.mapToScene(QPointF(mon_row.width() / 2,
+                                       mon_row.height() / 2))
+    spot = sheet.mapToGlobal(point.toPoint())
+
+    def hit():
+        found = sheet.rowAt(spot.x(), spot.y())
+        found = found.toVariant() if hasattr(found, "toVariant") else found
+        return (found["kind"], found["index"])
+
+    assert hit() == ("monster", 0)
+    helpers.show_tab(window, "item")
+    assert hit() == ("item", 0)
+
+
+def test_item_effect_line_expands_into_number_boxes():
+    """测什么：资源行默认一行写完效果；点这一行才展开数值框，再点收起。"""
+    controller, engine, window = _sheet()
+    controller._map_history[0]["items"] = [
+        {"name": "红宝石", "effect": "攻击力 +1", "count": 1, "icon": "gem_red"}]
+    controller.mapHistoryChanged.emit()
+    helpers.APP.processEvents()
+    helpers.show_tab(window, "item")
+    row = helpers.find_all(window, "floorItemRow")[0]
+    folded = row.height()
+    assert helpers.find_item(window, "floorItemEffectLine").property("text") \
+        == "攻击力 +1"
+    assert row.property("expanded") is False
+
+    helpers.click_item(window, helpers.find_item(window, "floorItemEffectToggle"))
+    row = helpers.find_all(window, "floorItemRow")[0]
+    assert row.property("expanded") is True
+    assert row.height() > folded
+
+    helpers.click_item(window, helpers.find_item(window, "floorItemEffectToggle"))
+    row = helpers.find_all(window, "floorItemRow")[0]
+    assert row.property("expanded") is False
+    assert row.height() == folded

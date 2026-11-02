@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 import cv2                                                    # noqa: E402
-from PySide6.QtCore import Q_ARG, QMetaObject, QTimer, QUrl, Qt  # noqa: E402
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject, QTimer, QUrl, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QImage, QPainter     # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine                # noqa: E402
 # 必须 import 一下：PySide 是按"已导入的类"决定实例包成哪个包装类的，
@@ -51,7 +51,7 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinne
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
              "iconscroll3", "queue", "chatlong", "compare", "comparehi",
              "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain",
-             "routes", "routesfold")
+             "routes", "routesfold", "floorstairs", "floorselected", "floormenu")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -618,15 +618,42 @@ def main() -> int:
 
             open_sheet(window, "通天塔1", scroll_to_routes)
         elif scenario == "flooritems":
-            # 清单滚到资源那一段：看资源行（图标 + 名字 + 效果 + 数量）
-            open_sheet(window, "通天塔1", lambda _sheet: scroll_sheet_to_items(
-                window, "通天塔1"))
+            # 清单切到「资源」页签：看资源行（图标 + 一行效果 + 数量 + 位置）
+            open_sheet(window, "通天塔1",
+                       lambda sheet: sheet.setProperty("tab", "item"))
+        elif scenario == "floorstairs":
+            # 清单切到「楼梯」页签：上楼/下楼开关 + 本层位置 + 去哪层
+            index = controller.addStair("通天塔1", "up")
+            controller.saveStair("通天塔1", index, 1, 11)
+            controller.setStairTarget("通天塔1", index, "通天塔2")
+            index = controller.addStair("通天塔1", "down")
+            controller.setStairTarget("通天塔1", index, "通天塔0")
+            controller.mapHistoryChanged.emit()
+            open_sheet(window, "通天塔1",
+                       lambda sheet: sheet.setProperty("tab", "stair"))
+        elif scenario == "floormenu":
+            # 标题行「⋯」菜单打开：刷新本层 / 退出标位置 / 删除本层
+            def open_menu(sheet):
+                menu = sheet.findChild(QObject, "floorMenu")
+                QMetaObject.invokeMethod(menu, "open")
+
+            open_sheet(window, "通天塔1", open_menu)
+        elif scenario == "floorselected":
+            # 标位置中选了一只怪：底部「已选」条 + 该行高亮
+            window.gridEditToggle("通天塔1")
+            window.gridSelect("红头怪")
+            open_sheet(window, "通天塔1")
         elif scenario == "floorsmall":
             # 小窗拉到很矮时，加资源的下拉菜单要能完整显示（用户反馈）
             window.saveFloorSize("通天塔1", 300, 250)
-            open_sheet(window, "通天塔1", lambda sheet: window.openPickMenu(
-                "item", "通天塔1", _find_by_name(window, "floorAddItem"), -1,
-                sheet))
+
+            def pick_item(sheet):
+                sheet.setProperty("tab", "item")
+                window.openPickMenu(
+                    "item", "通天塔1", _find_by_name(window, "floorAddItem"), -1,
+                    sheet)
+
+            open_sheet(window, "通天塔1", pick_item)
         elif scenario == "floorpick":
             # 加怪的下拉菜单（用户："加怪、加资源怎么不是下拉菜单"）
             open_sheet(window, "通天塔1", lambda sheet: window.openPickMenu(

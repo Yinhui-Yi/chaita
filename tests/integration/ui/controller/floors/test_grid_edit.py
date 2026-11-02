@@ -124,6 +124,7 @@ def test_two_same_name_items_keep_separate_positions():
         # 界面会按道具表把效果统一成 +150 —— 那两只就分不出来了
         {"name": "血瓶", "effect": "体力 +300", "count": 1,
          "icon": "potion_red", "effect_manual": True}])
+    helpers.show_tab(window, "item")
     rows = helpers.find_all(window, "floorItemRow")
     assert len(rows) == 2
 
@@ -258,6 +259,7 @@ def test_dragging_a_cell_onto_an_item_row_records_the_coord(monkeypatch):
         {"name": "红宝石", "effect": "攻击力 +1", "count": 0,
          "icon": "gem_red"}])
     sheet = window.floorSheetOf("长安1")
+    helpers.show_tab(window, "item")
     panel = _press_cell(monkeypatch, window)
 
     row = helpers.find_all(window, "floorItemRow")[0]
@@ -288,9 +290,17 @@ def test_dragging_a_cell_onto_a_monster_row_records_the_coord(monkeypatch):
     panel = _press_cell(monkeypatch, window)
 
     row = helpers.find_all(window, "floorMonRow")[0]
+    _point_at(monkeypatch, window, *_row_center(sheet, row), down=True)
+    # 拖着经过这一行：胶囊写「放到这里」（窗口自己轮询光标认出是哪一行）
+    assert helpers.wait_for(
+        lambda: helpers.texts_of(
+            helpers.find_item(window, "floorMonPos")) == ["放到这里"],
+        timeout=2.0), "拖着格子经过这一行，它没亮起来"
     _point_at(monkeypatch, window, *_row_center(sheet, row), down=False)
     assert helpers.wait_for(lambda: panel.property("dragging") is False,
                             timeout=2.0)
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["1 格"], \
+        "松手之后高亮没收掉"
 
     cells = _cells(controller)
     assert [(c["kind"], c["name"]) for c in cells] == [("monster", "血蚊")]

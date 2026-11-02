@@ -18,7 +18,7 @@
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
 | 7 | 格子编辑层 | 地图上的覆盖层 | `views/map_view/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells`）；单击报 `cellPicked(row,col)`、Ctrl 多选、右键报 `menuRequested(row,col,x,y)` | 地图那栏「编辑」后画 13×13；单击选中、Ctrl 多选、右键出小窗（复制坐标 / 清掉） |
 | 8 | 楼梯层 | 地图上的覆盖层 | `views/map_view/stair_layer/StairLayer.qml` | `stairs` / `cell` / `upSrc` / `downSrc`（**纯显示**，不接管鼠标） | 常驻；要改楼梯去「这一层」清单的楼梯区 |
-| 9 | 「这一层」小窗（清单） | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets` | 点地图那栏的层 / `openFloorSheet()`；**不含地图、不含路线**（路线在主界面「路线」卡） |
+| 9 | 「这一层」小窗（清单） | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets`；窗内 `tab`（mon/item/stair） | 点地图那栏的层 / `openFloorSheet()`；三页签（怪物/资源/楼梯）+ 行尾位置胶囊 + 底部「已选」条 + 「⋯」菜单（刷新/标位置/删除）+ ‹ › 换层；**不含地图、不含路线**（路线在主界面「路线」卡） |
 | 10 | 加怪 / 加资源下拉 | 覆盖层 z=58 | `views/floor_sheet/pick_menu/PickMenu.qml` | 主窗口 `pickMode/pickFloor/pickMenuX/Y`；`sheetName` 由宿主递 | 点「＋ 加怪 / ＋ 加资源」 |
 | 11 | 伤害计算 | 真窗口 | `views/battle_calc/BattleWindow.qml` | 主窗口 `battle*` | 导航条 ⚔ |
 | 12 | 改参数卡片（伤害计算） | 覆盖层 z=30 | `views/battle_calc/edit_card/EditCard.qml` | 主窗口 `battleEdit*` | 点链上缩略图 |

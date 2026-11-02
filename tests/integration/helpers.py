@@ -287,6 +287,22 @@ def drop_cells(window, item, payload):
     APP.processEvents()
 
 
+def show_tab(window, key):
+    """点「这一层」小窗的页签：`mon` 怪物 / `item` 资源 / `stair` 楼梯。"""
+    names = {"mon": "floorTabMon", "item": "floorTabItem",
+             "stair": "floorTabStair"}
+    click_item(window, find_item(window, names[key]))
+    # 切页后要让窗口走完一帧（布局 + 命中测试），紧接着合成的拖放才落得进新页的行
+    wait_for(lambda: False, timeout=0.3)
+
+
+def open_sheet_menu(window):
+    """点小窗标题行的「⋯」，让菜单里的行（刷新 / 标位置 / 删除）长出来。"""
+    click_item(window, find_item(window, "floorMenuBtn"))
+    wait_for(lambda: find_item(window, "floorRefresh") is not None,
+             timeout=2.0)
+
+
 def route_window(window):
     """路线链窗口（`win.routeWindow`）；没开就是 None。"""
     value = window.property("routeWindow")

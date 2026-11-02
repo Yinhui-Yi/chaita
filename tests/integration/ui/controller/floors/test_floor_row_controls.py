@@ -16,8 +16,8 @@ from PySide6.QtGui import QKeyEvent
 from .... import helpers
 
 
-def _open_sheet(mons=None, items=None):
-    """摆好这一层的数据，然后点「清单 ›」把那扇小窗打开。"""
+def _open_sheet(mons=None, items=None, tab="mon"):
+    """摆好这一层的数据，然后点「清单 ›」把那扇小窗打开（再切到要测的页签）。"""
     controller, engine, window = helpers.make_controller()
     controller._last_status = {"hp": "1000", "atk": "90", "def": "30",
                                "mdef": "10"}
@@ -40,6 +40,8 @@ def _open_sheet(mons=None, items=None):
     assert helpers.wait_for(
         lambda: window.floorSheetOf("长安1") is not None), "清单没打开"
     helpers.APP.processEvents()
+    if tab != "mon":
+        helpers.show_tab(window, tab)
     return controller, engine, window
 
 
@@ -105,7 +107,7 @@ def test_item_done_tick_toggles():
 
     走过的界面：「清单 ›」小窗 → 资源行行首的圆圈（点两次）。
     """
-    controller, engine, window = _open_sheet(items=[
+    controller, engine, window = _open_sheet(tab="item", items=[
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1, "icon": "gem_red"}])
     helpers.click_item(window, helpers.find_item(window, "floorItemDone"))
     assert _items(window)[0]["done"] is True
@@ -119,7 +121,7 @@ def test_item_delete_removes_that_row():
 
     走过的界面：「清单 ›」小窗 → 第 2 行（钥匙）行尾的 ✕。
     """
-    controller, engine, window = _open_sheet(items=[
+    controller, engine, window = _open_sheet(tab="item", items=[
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1, "icon": "gem_red"},
         {"name": "红钥匙", "effect": "", "count": 1, "icon": "key_red"}])
     rows = helpers.find_all(window, "floorItemDelete")
@@ -135,7 +137,7 @@ def test_item_count_arrow_increments_and_commits():
 
     走过的界面：「清单 ›」小窗 → 资源行数量旁边的上/下箭头（点三次）。
     """
-    controller, engine, window = _open_sheet(items=[
+    controller, engine, window = _open_sheet(tab="item", items=[
         {"name": "红宝石", "effect": "攻击力 +1", "count": 3, "icon": "gem_red"}])
 
     helpers.click_item(window, helpers.find_item(window, "floorItemCountUp"))

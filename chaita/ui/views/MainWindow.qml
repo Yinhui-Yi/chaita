@@ -162,8 +162,6 @@ Window {
     property real pickMenuY: 0
     // 菜单列表最多多高（按小窗高度算，太矮了就会超出窗口边缘）
     property int pickListMax: 220
-    // 删本层的两步确认
-    property bool floorDeleteArm: false
     // 怪物编辑：monEdit 是 monsters 里的下标（-1 = 没开）
     property int monEdit: -1
     // 编辑卡片的位置（-1 = 还没拖过，按窗口居中）。用户："怎么不能移动" ——
@@ -1626,7 +1624,6 @@ Window {
         var name = String(floorText || "")
         if (name === "")
             return
-        win.floorDeleteArm = false
         win.pickMode = ""
         // 已经开着就把它提到最上面（同一层不重复开）
         var rows = []
@@ -1683,7 +1680,6 @@ Window {
         }
         win.floorWindows = rows
         win.pickMode = ""
-        win.floorDeleteArm = false
         // 关掉正在编辑的那一层：编辑模式一起退出
         //（用户："开启编辑功能再关闭窗口后再次开启窗口依然是编辑功能开启的状态"）
         if (win.gridEditOn && win.gridEditFloor === name) {
@@ -1762,25 +1758,6 @@ Window {
         }
         if (changed)
             win.floorSheets = map
-    }
-
-    // 关最上面那个（Esc / 点遮罩）
-    // 打开"下一层还没开的那扇窗"（循环找，找不到就什么都不做）
-    function openNextFloor(floorText) {
-        var list = win.floorList
-        var current = -1
-        for (var i = 0; i < list.length; i++) {
-            if (String((list[i] || {}).floor || "") === String(floorText || ""))
-                current = i
-        }
-        for (var step = 1; step <= list.length; step++) {
-            var entry = list[(current + step + list.length) % list.length] || {}
-            var next = String(entry.floor || "")
-            if (next !== "" && win.floorWindows.indexOf(next) < 0) {
-                win.openFloorSheet(next)
-                return
-            }
-        }
     }
 
     // 上一层 / 下一层：按楼层号排（+1 = 楼层号更大的那一层），到头返回空串
@@ -2023,17 +2000,6 @@ Window {
         if (!controller)
             return false
         return controller.removeStair(String(floorText || ""), Number(index))
-    }
-
-    // 点楼梯那张图 = 上/下互换（AI 认错方向时自己改过来）
-    function toggleStairDir(floorText, index) {
-        if (!controller)
-            return false
-        var rows = win.stairsOf(floorText)
-        var current = String(((rows[Number(index)] || ({}))).dir || "up")
-        return controller.setStairDirection(
-                    String(floorText || ""), Number(index),
-                    current === "up" ? "down" : "up")
     }
 
     // 按层号推相邻那一层的名字："通天塔1" + 1 → "通天塔2"（没有数字就推不出）
@@ -3301,16 +3267,6 @@ Window {
                                        String(row.effect || ""), "1",
                                        String(row.icon || ""))
         }
-    }
-
-    function deleteFloor(floorText) {
-        var name = String(floorText || win.openFloor || "")
-        if (!win.floorDeleteArm) {
-            win.floorDeleteArm = true
-            return
-        }
-        controller.removeFloor(name)
-        win.closeFloorSheet(name)
     }
 
     // ---- 怪物编辑界面 ----
