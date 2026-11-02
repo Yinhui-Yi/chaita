@@ -351,26 +351,34 @@ def test_resize_grip_grows_the_sheet():
 
 # ---- 楼梯方向开关、拖拽高亮、资源行展开 ----
 
-def test_stair_direction_is_an_explicit_two_way_switch():
-    """测什么：楼梯方向是明写着字的「上楼 | 下楼」二选一；点另一半才改，点已选的那半不动。
+def test_stair_card_shows_thumbnail_and_one_sentence_and_swaps_direction():
+    """测什么：楼梯词条是一张小卡：左边缩略图（不可点）、主行「上楼 → 2 层」一句话、
+    右边「⇅」才改方向。
 
-    交互顺序：① 开清单，楼梯段在最上面（有一条上楼的）② 点「下楼」→ 断言楼梯变成 down
-    ③ 点「上楼」→ 变回 up。以前点缩略图会悄悄换方向，现在缩略图没有了。
+    交互顺序：① 开清单（一条上楼、通 2层）② 看缩略图在、主行写「上楼」、没有「通到」字样
+    ③ 点缩略图 → 方向不变 ④ 点「⇅」→ 变 down、主行写「下楼」⑤ 再点 → 变回 up。
     """
-    controller, engine, window = _sheet()
-    controller.addStair("长安1", "up")
+    controller, engine, window = _sheet(floors=["长安1", "长安2"])
+    index = controller.addStair("长安1", "up")
+    controller.setStairTarget("长安1", index, "长安2")
     controller.mapHistoryChanged.emit()
     helpers.APP.processEvents()
-    assert helpers.find_item(window, "floorStairThumb") is None
 
-    helpers.click_item(window, helpers.find_item(window, "floorStairDirUp"))
-    assert controller.stairsOf("长安1")[0]["dir"] == "up", "点已选的那半不该改"
+    assert helpers.find_item(window, "floorStairThumb") is not None
+    assert helpers.find_item(window, "floorStairThumbImage") is not None
+    row = helpers.find_all(window, "floorStairRow")[0]
+    assert helpers.find_item(window, "floorStairDirText").property("text") == "上楼"
+    assert not any("通到" in text for text in helpers.texts_of(row))
 
-    helpers.click_item(window, helpers.find_item(window, "floorStairDirDown"))
+    helpers.click_item(window, helpers.find_item(window, "floorStairThumb"))
+    assert controller.stairsOf("长安1")[0]["dir"] == "up", "点缩略图不该改方向"
+
+    helpers.click_item(window, helpers.find_item(window, "floorStairDirSwap"))
     helpers.APP.processEvents()
     assert controller.stairsOf("长安1")[0]["dir"] == "down"
+    assert helpers.find_item(window, "floorStairDirText").property("text") == "下楼"
 
-    helpers.click_item(window, helpers.find_item(window, "floorStairDirUp"))
+    helpers.click_item(window, helpers.find_item(window, "floorStairDirSwap"))
     helpers.APP.processEvents()
     assert controller.stairsOf("长安1")[0]["dir"] == "up"
 

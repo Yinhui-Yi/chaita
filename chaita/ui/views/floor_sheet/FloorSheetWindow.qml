@@ -1175,87 +1175,85 @@ Window {
                                 required property var modelData
                                 visible: sheetRoot.stairOpen
                                 width: parent.width
-                                // 两行：第一行「方向 → 目标层 ✕」，第二行「本层坐标 / 出口坐标」
-                                height: 56
+                                // 一张小卡两行：「[缩略图] 上楼 → 2 层  ⇅ ✕」/「本层坐标  出口坐标」
+                                height: 64
+                                readonly property bool isUp:
+                                    String(stairRow.modelData.dir) !== "down"
+                                // 文字区从缩略图右边开始
+                                readonly property int textX: 52
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    anchors.topMargin: 2
-                                    anchors.bottomMargin: 2
+                                    anchors.topMargin: 3
+                                    anchors.bottomMargin: 3
                                     radius: Theme.radius
-                                    color: stairHover.hovered ? Theme.tile : "transparent"
+                                    color: stairHover.hovered ? Theme.hover : Theme.tile
                                 }
                                 HoverHandler { id: stairHover }
 
-                                // 方向：明写着字的二选一（AI 认错方向才点它）。
-                                // 缩略图只是装饰，**不响应点击**（原来点它会悄悄换方向）。
-                                Row {
-                                    x: 6
-                                    y: 6
-                                    height: 24
-                                    spacing: 0
-                                    Repeater {
-                                        model: [["up", "上楼"], ["down", "下楼"]]
-                                        delegate: Rectangle {
-                                            objectName: modelData[0] === "up"
-                                                        ? "floorStairDirUp"
-                                                        : "floorStairDirDown"
-                                            readonly property bool on:
-                                                String(stairRow.modelData.dir) === modelData[0]
-                                            width: 44
-                                            height: 24
-                                            radius: Theme.radius
-                                            color: on ? Theme.accent
-                                                      : (dirMouse.containsMouse
-                                                         ? Theme.hover : Theme.chip)
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: modelData[1]
-                                                color: on ? Theme.accentInk : Theme.ink2
-                                                font.family: Theme.uiFont
-                                                font.pixelSize: 11
-                                                font.bold: on
-                                            }
-                                            MouseArea {
-                                                id: dirMouse
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    if (!parent.on)
-                                                        controller.setStairDirection(
-                                                            sheetRoot.sheetName,
-                                                            Number(stairRow.modelData.index),
-                                                            modelData[0])
-                                                }
-                                            }
-                                        }
+                                // 缩略图：只是告诉你这是上楼还是下楼，**不响应点击**
+                                // （原来点它会悄悄换方向）；要改方向点右边的「⇅」
+                                Rectangle {
+                                    objectName: "floorStairThumb"
+                                    x: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 34
+                                    height: 34
+                                    radius: 6
+                                    color: Theme.paper
+                                    Image {
+                                        id: stairThumb
+                                        objectName: "floorStairThumbImage"
+                                        anchors.fill: parent
+                                        anchors.margins: 3
+                                        source: host.itemIcon(stairRow.isUp ? "stair_up"
+                                                                            : "stair_down")
+                                        visible: status === Image.Ready
+                                        fillMode: Image.PreserveAspectFit
+                                        smooth: false
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: stairThumb.status !== Image.Ready
+                                        text: stairRow.isUp ? "↑" : "↓"
+                                        color: Theme.ink3
+                                        font.pixelSize: 16
                                     }
                                 }
 
-                                Text {
-                                    x: 6 + 88 + 10
-                                    y: 6
+                                // 主行：「上楼 → 2 层」一句话读完
+                                Row {
+                                    x: stairRow.textX
+                                    y: 8
                                     height: 24
-                                    verticalAlignment: Text.AlignVCenter
-                                    text: "通到"
-                                    color: Theme.ink3
-                                    font.family: Theme.uiFont
-                                    font.pixelSize: 11
-                                }
+                                    spacing: 6
+                                    Text {
+                                        objectName: "floorStairDirText"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: stairRow.isUp ? "上楼" : "下楼"
+                                        color: Theme.ink
+                                        font.family: Theme.uiFont
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "→"
+                                        color: Theme.ink3
+                                        font.pixelSize: 13
+                                    }
 
-                                // 通哪一层：**点开直接打层号**（"2" = 2层 / 通天塔2）。
+                                // 去哪一层：**点开直接打层号**（"2" = 2层 / 通天塔2）。
                                 // 用户 2026-10-31 骂掉了"点一下换一层"的循环；一千层的塔
                                 // 只能这么选：打 137 回车就到 137 层（没有就建一条空的）。
                                 FloorField {
                                     objectName: "floorStairTarget"
-                                    x: 6 + 88 + 10 + 34
-                                    y: 6
+                                    anchors.verticalCenter: parent.verticalCenter
                                     height: 24
-                                    width: 90
-                                    labelSize: 12
+                                    width: 80
+                                    labelSize: 13
                                     value: String(stairRow.modelData.to || "")
-                                    placeholder: "点这里打层号"
+                                    placeholder: "打层号"
                                     showText: function (text) {
                                         return String(stairRow.modelData.to || "") === ""
                                                ? "" : (host.floorShort(text) + " 层")
@@ -1279,14 +1277,43 @@ Window {
                                             Number(stairRow.modelData.index), text)
                                     }
                                 }
+                                }
+
+                                // ⇅ 改方向（AI 认错上下楼才用）：明确的按钮，悬停有提示
+                                Text {
+                                    objectName: "floorStairDirSwap"
+                                    width: 22
+                                    height: 22
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 30
+                                    y: 9
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: "⇅"
+                                    color: swapMouse.containsMouse ? Theme.accent : Theme.ink3
+                                    font.pixelSize: 14
+                                    MouseArea {
+                                        id: swapMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: controller.setStairDirection(
+                                            sheetRoot.sheetName,
+                                            Number(stairRow.modelData.index),
+                                            stairRow.isUp ? "down" : "up")
+                                        ToolTip.visible: containsMouse
+                                        ToolTip.delay: 400
+                                        ToolTip.text: stairRow.isUp ? "改成下楼" : "改成上楼"
+                                    }
+                                }
 
                                 // ✕ 删这一行楼梯（标错了 / 不需要）：淡着，鼠标在行上才亮
                                 Text {
                                     objectName: "floorStairClear"
-                                    width: 18
-                                    height: 18
+                                    width: 22
+                                    height: 22
                                     anchors.right: parent.right
-                                    anchors.rightMargin: 4
+                                    anchors.rightMargin: 8
                                     y: 9
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -1306,42 +1333,63 @@ Window {
                                     }
                                 }
 
-                                // 第二行：**本层坐标 / 出口坐标**，两个都能点开粘一个坐标进去
+                                // 第二行：**本层坐标 / 出口坐标**，两个小胶囊，都能点开粘一个坐标进去
                                 // （用户 2026-10-30："楼层位置坐标显示两个当前坐标和出口坐标，
                                 // 可以通过粘贴修改坐标"；2026-10-31："坐标加层数！！！！！！！！"
                                 // —— 左边写本层层号，右边写"→目标层层号"，一眼看出是哪一层的坐标）
-                                CoordField {
-                                    objectName: "floorStairPos"
-                                    x: 6
-                                    y: 34
-                                    height: 18
-                                    width: (parent.width - 12) / 2 - 4
-                                    prefix: host.floorShort(sheetRoot.sheetName) + "层 "
-                                    placeholder: host.floorShort(sheetRoot.sheetName)
-                                                 + "层 没标"
-                                    labelSize: 11
-                                    row: Number(stairRow.modelData.row)
-                                    col: Number(stairRow.modelData.col)
-                                    closeTick: sheetRoot.closeTick
-                                    onOpened: function (who) {
-                                        sheetRoot.openField = who
-                                    }
-                                    onClosed: function (who) {
-                                        if (sheetRoot.openField === who)
-                                            sheetRoot.openField = null
-                                    }
-                                    onCommitted: function (row, col, floorText) {
-                                        controller.saveStair(sheetRoot.sheetName,
-                                                             Number(stairRow.modelData.index),
-                                                             row, col)
+                                // 标过的是白底胶囊，没标的只有一圈细线，一眼看出缺什么
+                                Rectangle {
+                                    id: posChip
+                                    x: stairRow.textX
+                                    y: 36
+                                    height: 22
+                                    width: (parent.width - stairRow.textX - 10 - 6) / 2
+                                    radius: 11
+                                    color: posField.row >= 0 ? Theme.paper : "transparent"
+                                    border.width: posField.row >= 0 ? 0 : 1
+                                    border.color: Theme.hairline
+                                    CoordField {
+                                        id: posField
+                                        objectName: "floorStairPos"
+                                        x: 10
+                                        width: parent.width - 20
+                                        height: parent.height
+                                        prefix: host.floorShort(sheetRoot.sheetName) + "层 "
+                                        placeholder: host.floorShort(sheetRoot.sheetName)
+                                                     + "层 没标"
+                                        labelSize: 11
+                                        row: Number(stairRow.modelData.row)
+                                        col: Number(stairRow.modelData.col)
+                                        closeTick: sheetRoot.closeTick
+                                        onOpened: function (who) {
+                                            sheetRoot.openField = who
+                                        }
+                                        onClosed: function (who) {
+                                            if (sheetRoot.openField === who)
+                                                sheetRoot.openField = null
+                                        }
+                                        onCommitted: function (row, col, floorText) {
+                                            controller.saveStair(sheetRoot.sheetName,
+                                                                 Number(stairRow.modelData.index),
+                                                                 row, col)
+                                        }
                                     }
                                 }
+                                Rectangle {
+                                    x: posChip.x + posChip.width + 6
+                                    y: 36
+                                    height: 22
+                                    width: posChip.width
+                                    radius: 11
+                                    color: arriveField.row >= 0 ? Theme.paper : "transparent"
+                                    border.width: arriveField.row >= 0 ? 0 : 1
+                                    border.color: Theme.hairline
                                 CoordField {
+                                    id: arriveField
                                     objectName: "floorStairArrive"
-                                    x: 6 + (parent.width - 12) / 2 + 4
-                                    y: 34
-                                    height: 18
-                                    width: (parent.width - 12) / 2 - 4
+                                    x: 10
+                                    width: parent.width - 20
+                                    height: parent.height
                                     prefix: String(stairRow.modelData.to || "") === ""
                                             ? "出口 "
                                             : ("→" + host.floorShort(stairRow.modelData.to) + "层 ")
@@ -1370,6 +1418,7 @@ Window {
                                             Number(stairRow.modelData.index), row, col,
                                             String(floorText || ""))
                                     }
+                                }
                                 }
                             }
                         }
