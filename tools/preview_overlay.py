@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 import cv2                                                    # noqa: E402
-from PySide6.QtCore import Q_ARG, QMetaObject, QTimer, QUrl, Qt  # noqa: E402
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject, QTimer, QUrl, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication, QImage, QPainter     # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine                # noqa: E402
 # 必须 import 一下：PySide 是按"已导入的类"决定实例包成哪个包装类的，
@@ -50,7 +50,8 @@ SCENARIOS = ("default", "empty", "long", "reading", "error", "collapsed", "pinne
              "routepick", "gridedit", "routeedit", "routeitemedit", "routememo",
              "iconpick", "iconsearch", "iconscroll1", "iconscroll2",
              "iconscroll3", "queue", "chatlong", "compare", "comparehi",
-             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain")
+             "map", "mapedit", "mapstairs", "mapstack", "cellmenu", "gain",
+             "routes", "routesfold", "floorstairs", "floorselected", "floormenu")
 
 # 造景里的图/数值全部来自 docs/capture 那一局（拆个魔塔 · 通天塔1），
 # 见 `_fake_state()` 的表。别在这里塞素材库的怪物图 —— 那是**另一座塔**的画，
@@ -617,15 +618,43 @@ def main() -> int:
 
             open_sheet(window, "通天塔1", scroll_to_routes)
         elif scenario == "flooritems":
-            # 清单滚到资源那一段：看资源行（图标 + 名字 + 效果 + 数量）
+            # 资源那一段：滚到底看资源行 + 楼梯段（一页排下来）
             open_sheet(window, "通天塔1", lambda _sheet: scroll_sheet_to_items(
                 window, "通天塔1"))
+        elif scenario == "floorstairs":
+            # 楼梯段：上楼/下楼开关 + 本层位置 + 去哪层
+            index = controller.addStair("通天塔1", "up")
+            controller.saveStair("通天塔1", index, 1, 11)
+            controller.setStairTarget("通天塔1", index, "通天塔2")
+            index = controller.addStair("通天塔1", "down")
+            controller.setStairTarget("通天塔1", index, "通天塔0")
+            controller.mapHistoryChanged.emit()
+            open_sheet(window, "通天塔1")
+        elif scenario == "floormenu":
+            # 标题行「⋯」菜单打开：刷新本层 / 退出标位置 / 删除本层
+            def open_menu(sheet):
+                menu = sheet.findChild(QObject, "floorMenu")
+                QMetaObject.invokeMethod(menu, "open")
+
+            open_sheet(window, "通天塔1", open_menu)
+        elif scenario == "floorselected":
+            # 标位置中选了一只怪：底部「已选」条 + 该行高亮
+            window.gridEditToggle("通天塔1")
+            window.gridSelect("红头怪")
+            open_sheet(window, "通天塔1")
         elif scenario == "floorsmall":
             # 小窗拉到很矮时，加资源的下拉菜单要能完整显示（用户反馈）
             window.saveFloorSize("通天塔1", 300, 250)
-            open_sheet(window, "通天塔1", lambda sheet: window.openPickMenu(
-                "item", "通天塔1", _find_by_name(window, "floorAddItem"), -1,
-                sheet))
+
+            def pick_item(sheet):
+                # 真用户点得到的按钮一定在可见区里：先把清单滚到底，再开下拉
+                scroll_sheet_to_items(window, "通天塔1")
+                QGuiApplication.processEvents()
+                window.openPickMenu(
+                    "item", "通天塔1", _find_by_name(window, "floorAddItem"), -1,
+                    sheet)
+
+            open_sheet(window, "通天塔1", pick_item)
         elif scenario == "floorpick":
             # 加怪的下拉菜单（用户："加怪、加资源怎么不是下拉菜单"）
             open_sheet(window, "通天塔1", lambda sheet: window.openPickMenu(
@@ -700,6 +729,22 @@ def main() -> int:
                          picture.property("paintedHeight") if picture else 0))
 
             open_sheet(window, "通天塔1", draw_route)
+        elif scenario in ("routes", "routesfold"):
+            # 主界面「路线」卡：一条同层、两条跨层（一条带备注）；routesfold = 收起
+            here = [{"row": 5, "col": 4}, {"row": 5, "col": 5}, {"row": 6, "col": 6}]
+            controller.saveRoute("通天塔1", here)
+            controller.saveRoute("通天塔1", [
+                {"row": 6, "col": 6, "floor": "通天塔1"},
+                {"row": 2, "col": 3, "floor": "通天塔2"},
+                {"row": 4, "col": 4, "floor": "通天塔3"}])
+            index = controller.saveRoute("通天塔1", [
+                {"row": 5, "col": 5, "floor": "通天塔1"},
+                {"row": 1, "col": 1, "floor": "通天塔2"}])
+            controller.saveRouteMemo("通天塔1", index, "先拿红宝石再上楼")
+            if scenario == "routesfold":
+                controller.setRouteCollapsed(True)
+            # 窗口只有那么高：把地图收起来，路线卡才在看得见的地方
+            window.setProperty("mapCollapsed", True)
         elif scenario in ("routechain", "routepick", "routeedit", "routeitemedit"):
             # 路线链：勇者 → 格6,5 → 格6,6 …，格子里的东西来自"刷新地图时记下的
             # 每一格有什么"；点「计算」以后掉血写格后、总掉血在右端。

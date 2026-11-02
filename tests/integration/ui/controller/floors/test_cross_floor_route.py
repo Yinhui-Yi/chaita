@@ -94,6 +94,11 @@ def _inside(item, name):
     return None
 
 
+def _field_text(field):
+    """坐标格平时那一行字（不含点开后的输入框）。"""
+    return str(field.childItems()[0].property("text"))
+
+
 def _paste(window, field, text):
     """真操作：点开那一格 → 粘文本 → 回车（`window` = 那一格所在的那扇窗）。"""
     assert field is not None, "要粘的那一格没找到"
@@ -129,22 +134,6 @@ def _commit(window, editor, text):
     """把输入框改成 `text` 再回车。"""
     editor.setProperty("text", str(text))
     helpers.APP.processEvents()
-    helpers.APP.sendEvent(editor.window(),
-                          QKeyEvent(QEvent.KeyPress, Qt.Key_Return,
-                                    Qt.NoModifier))
-    helpers.APP.processEvents()
-
-
-def _open_and_enter(window, field):
-    """点开那一格，**一个字都不改**直接回车（"点开看一眼再确认" 就是这一步）。"""
-    assert field is not None, "要点开的那一格没找到"
-    helpers.click_item(window, field)
-    helpers.APP.processEvents()
-    editor = None
-    for item in helpers.find_all(window, "floorEditor"):
-        if item.isVisible():
-            editor = item
-    assert editor is not None, "点开之后没出现输入框"
     helpers.APP.sendEvent(editor.window(),
                           QKeyEvent(QEvent.KeyPress, Qt.Key_Return,
                                     Qt.NoModifier))
@@ -190,10 +179,10 @@ def test_long_press_drag_onto_a_stair_switches_and_lands_on_the_back_stair():
 
 
 def test_pasting_a_coordinate_into_the_row_sets_the_position():
-    """测什么：「当前」坐标格点开粘 "2,4" → 楼梯位置定成第 2 行第 4 列，格子上带着层数。
+    """测什么：「位置」格点开粘 "2,4" → 楼梯位置定成第 2 行第 4 列，格子上只写「2,4」。
 
-    交互顺序：① 点「清单 ›」开这一层 ② 点「＋ 上楼梯」 ③ 点那一行的「当前」格
-    ④ 粘「2,4」回车 → 断言楼梯位置是 (1,3)、格子上写着「2层 2,4」。
+    交互顺序：① 点「清单 ›」开这一层 ② 点「＋ 上楼」 ③ 点那一行的位置格
+    ④ 粘「2,4」回车 → 断言楼梯位置是 (1,3)、格子上写着「2,4」（不带层数、不带别的字）。
     """
     controller, engine, window = _make()
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
@@ -203,12 +192,13 @@ def test_pasting_a_coordinate_into_the_row_sets_the_position():
     helpers.APP.processEvents()
 
     row = helpers.find_all(window, "floorStairRow")[0]
+    assert helpers.find_item(window, "floorStairPos").property("compact") is True
+    assert _field_text(helpers.find_item(window, "floorStairPos")) == "—"
     _paste(window, _inside(row, "floorStairPos"), "2,4")
 
     stairs = controller.stairsOf("2层")
     assert (stairs[0]["row"], stairs[0]["col"]) == (1, 3)
-    labels = helpers.texts_of(helpers.find_item(window, "floorStairPos"))
-    assert "2层 2,4" in labels
+    assert _field_text(helpers.find_item(window, "floorStairPos")) == "2,4"
 
 
 def test_pasting_a_coordinate_into_the_exit_field_sets_the_arrival():
@@ -230,26 +220,31 @@ def test_pasting_a_coordinate_into_the_exit_field_sets_the_arrival():
     assert (stairs[0]["toRow"], stairs[0]["toCol"]) == (5, 6)
 
 
-def test_confirming_the_target_field_keeps_the_floor():
-    """测什么：楼梯已经有目标层，点开「通到…」**不改字直接回车** → 还是那一层。
+def test_confirming_the_exit_field_keeps_the_target_floor():
+    """测什么：楼梯已经有目标层和落点，点开「出口」**不改字直接回车** → 目标层、落点都不变。
 
-    用户 2026-10-31："楼梯坐标我粘贴后再选中楼层信息就没了" —— 那一格点开时
-    被填进了**显示文字**（"→ 3"），回车后目标层就变成 "→ 3" 这个不存在的层，
-    原层名没了、楼层列表还多一条假层。
+    用户 2026-10-31："楼梯坐标我粘贴后再选中楼层信息就没了" —— 以前点开时被填进了
+    **显示文字**，回车后目标层变成一个不存在的层、楼层列表里多一条假层。现在清单上
+    不再显示目标层，但点开输入框里仍带着「→3层 6,7」，原样回车必须原样存回去。
 
-    交互顺序：① 开这一层（楼梯通到 3层）② 点开「通到…」直接回车
-    → 断言 `to` 还是 "3层"、楼层列表里没有多出来的层。
+    交互顺序：① 开这一层（楼梯通到 3层、落点 6,7）② 点开「出口」直接回车
+    → 断言 `to` 还是 "3层"、落点没变、楼层列表里没有多出来的层。
     """
     controller, engine, window = _make(stairs={
-        "2层": [{"row": 1, "col": 11, "dir": "up", "to": "3层"}]})
+        "2层": [{"row": 1, "col": 11, "dir": "up", "to": "3层",
+                 "toRow": 5, "toCol": 6}]})
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
 
     row = helpers.find_all(window, "floorStairRow")[0]
-    _open_and_enter(window, _inside(row, "floorStairTarget"))
+    editor = _open_editor(window, _inside(row, "floorStairArrive"))
+    assert str(editor.property("text")) == "→3层 6,7"
+    _commit(window, editor, str(editor.property("text")))
 
-    assert controller.stairsOf("2层")[0]["to"] == "3层"
+    stairs = controller.stairsOf("2层")[0]
+    assert stairs["to"] == "3层"
+    assert (stairs["toRow"], stairs["toCol"]) == (5, 6)
     floors = window.mapFloors()
     floors = floors.toVariant() if hasattr(floors, "toVariant") else floors
     assert sorted(str(f["floor"]) for f in floors) == ["1层", "2层", "3层"]

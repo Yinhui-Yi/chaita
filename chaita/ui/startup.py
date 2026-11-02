@@ -192,6 +192,7 @@ def _run() -> int:
     controller.restorePinned()
     # 对话区上次收起了就还收着；默认展开
     controller.restoreChatCollapsed()
+    controller.restoreRouteCollapsed()
 
     code = app.exec()
     _teardown(app, engine, window, controller)

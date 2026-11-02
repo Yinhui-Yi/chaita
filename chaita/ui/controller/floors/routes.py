@@ -112,6 +112,33 @@ class RoutesMixin:
                 out.append(row)
         return out
 
+    @Slot(result="QVariantList")
+    def allRoutes(self) -> list:
+        """所有层的路线，一条一行（主界面的「路线」卡读它）。
+
+        路线存在**起点层**名下（每格各带自己的层），所以单看一层的清单看不到跨层的
+        后半段。这里按层的顺序、层内按序号把它们全部列出来：`floor` / `index` 是
+        打开、改备注、删除要用的那一对；`start` / `end` 是起点层和终点层，
+        `floors` 是途经了几个不同的层（>1 就是跨层）。只读，不改存储。
+        """
+        out = []
+        for entry in self._map_history:
+            floor = str((entry or {}).get("floor") or "")
+            rows = [row for row in ((entry or {}).get("routes") or [])
+                    if isinstance(row, dict)]
+            for index, route in enumerate(rows):
+                visited = [floor]
+                for cell in route.get("cells") or []:
+                    where = str((cell or {}).get("floor") or floor)
+                    if where != visited[-1]:
+                        visited.append(where)
+                out.append({"floor": floor, "index": index,
+                            "at": str(route.get("at") or ""),
+                            "memo": str(route.get("memo") or ""),
+                            "start": visited[0], "end": visited[-1],
+                            "floors": len(set(visited))})
+        return out
+
     @Slot(str, "QVariantList", result=int)
     def saveRoute(self, floor_text, cells) -> int:
         """松手存一条路线，返回它在那一层里的序号（-1 = 这层不在了/没格子）。

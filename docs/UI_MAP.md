@@ -6,19 +6,19 @@
 
 ---
 
-## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 12 个共用件）
+## 1. 界面清单（主窗口 1 + 主窗口四块 4 + 子界面 14 = 19 个界面，另有 11 个共用件）
 
 | # | 子界面 | 类型 | 文件 | 状态在谁身上 | 怎么打开 |
 |---|---|---|---|---|---|
 | 1 | 主窗口 | 真窗口 | `views/MainWindow.qml` | 它自己（`win.*`） | 程序启动 |
 | 2 | 导航条 / 抬头 / 状态行 | 主窗口的一块 | `views/main_panel/MainPanel.qml` | 主窗口；对外只给 `chromeBottom` | 常驻 |
-| 3 | 四张卡（地图 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `MonSection`（一行 36px：只有头像、名字、「剩 N」、✕）/ `SkillSection`（一排胶囊，放不下换行；点一颗弹技能介绍卡：手册原话可改写、没有的自己写，存在 `logs/skill_notes.json`）/ `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed/skillIntroOpen`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
+| 3 | 五张卡（地图 / 路线 / 怪物 / 技能 / 读取记录）+ 上次记录横幅 | 主窗口的一块 | `views/main_columns/MainColumns.qml`（摞卡）+ `MapSection` / `RouteSection`（**所有层**的路线统一列在这：一条两行——「路线 N · 起点层 → 终点层 · 跨 N 层」+ ✕，下面是现算的血攻防魔防 + 备注框；点第一行开链窗口；最多露 4 条，多的卡内滚动；数据读 `controller.allRoutes()`）/ `MonSection`（一行 36px：只有头像、名字、「剩 N」、✕）/ `SkillSection`（一排胶囊，放不下换行；点一颗弹技能介绍卡：手册原话可改写、没有的自己写，存在 `logs/skill_notes.json`）/ `TaskSection` | 主窗口（`floorList/monRows/skills/…Collapsed/skillIntroOpen`；`routeCollapsed` 记在 `ui_state.json`）；外层用 id `body` 量高度 | 常驻（在 `flick` 里滚） |
 | 4 | 地图（主界面那一栏） | 主窗口的一块 | `views/map_view/MapPanel.qml` | 主窗口 `mapFloor/mapHint/gridEditOn/gridEditFloor/mapHi*`；侧栏报 `selectFloor`/`stepFloor` | 常驻（折叠/展开在那栏的标题上） |
 | 5 | 底部对话（标题行可收起 + 气泡 + 圆角输入栏，纸飞机发送键，你靠右 / AI 靠左，时间常显） | 主窗口的一块 | `views/chat/ChatDock.qml` | 主窗口 `chatCollapsed`（记在 `ui_state.json`）；对外给 `logHeight` / `inputFocused`；高度 `dockH` = 标题行 `chatHeadH` +（展开时）输入栏 `chatBarH` + 有对话时的气泡区 | 常驻 |
 | 6 | 路线层 | 地图上的覆盖层 | `views/map_view/route_layer/RouteLayer.qml` | 它自己（`cells/editing`）；每走一格报 `stepped(cell)`，短按报 `tapped(cell)`，松手交给主窗口 `storeRouteCells()` | 在地图上长按玩家（画路线）/ 点一下楼梯（换层） |
 | 7 | 格子编辑层 | 地图上的覆盖层 | `views/map_view/grid_layer/GridLayer.qml` | 它自己（`editing` / `gridCells`）；单击报 `cellPicked(row,col)`、Ctrl 多选、右键报 `menuRequested(row,col,x,y)` | 地图那栏「编辑」后画 13×13；单击选中、Ctrl 多选、右键出小窗（复制坐标 / 清掉） |
 | 8 | 楼梯层 | 地图上的覆盖层 | `views/map_view/stair_layer/StairLayer.qml` | `stairs` / `cell` / `upSrc` / `downSrc`（**纯显示**，不接管鼠标） | 常驻；要改楼梯去「这一层」清单的楼梯区 |
-| 9 | 「这一层」小窗（清单） | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets` | 点路线行 / `openFloorSheet()`；**不含地图** |
+| 9 | 「这一层」小窗（清单） | 真窗口（每层一个） | `views/floor_sheet/FloorSheetWindow.qml` | 主窗口 `floorWindows/floorPositions/floorSizes/floorSheets`；窗内 `monOpen/itemOpen/stairOpen`（三段是否展开） | 点地图那栏的层 / `openFloorSheet()`；一页三段（楼梯 → 怪物 → 资源，段标题可折起）+ 行尾位置胶囊（写坐标）+ 点行选中并在地图上圈出 + 底部「已选」条 + 「⋯」菜单（刷新/标位置/删除）+ ‹ › 换层；**不含地图、不含路线**（路线在主界面「路线」卡） |
 | 10 | 加怪 / 加资源下拉 | 覆盖层 z=58 | `views/floor_sheet/pick_menu/PickMenu.qml` | 主窗口 `pickMode/pickFloor/pickMenuX/Y`；`sheetName` 由宿主递 | 点「＋ 加怪 / ＋ 加资源」 |
 | 11 | 伤害计算 | 真窗口 | `views/battle_calc/BattleWindow.qml` | 主窗口 `battle*` | 导航条 ⚔ |
 | 12 | 改参数卡片（伤害计算） | 覆盖层 z=30 | `views/battle_calc/edit_card/EditCard.qml` | 主窗口 `battleEdit*` | 点链上缩略图 |
@@ -26,7 +26,7 @@
 | 14 | 怪物编辑 | 覆盖层 z=60 | `views/monster_editor/MonsterEditor.qml` | 主窗口 `monEdit/monDraft/monSkills`；自带 `fill()/commit()/iconAnchorBox()/skillAnchorBox()` | 点怪物那一行 |
 | 15 | 素材库选图 | 覆盖层 z=70 | `views/icon_picker/IconPicker.qml` | 主窗口 `iconPicker/iconQuery/iconMenuX/Y`；搜索框自己清 | 点怪物头像 |
 | 16 | 技能挑选 | 覆盖层 z=72 | `views/skill_picker/SkillPicker.qml` | 主窗口 `skillPicker/skillMenuX/Y`；选中走 `pick()`，摆位走 `placeUnder(box)` | 点「加技能」 |
-| 17 | 路线链 | 真窗口 | `views/route_editor/RouteWindow.qml` | 主窗口 `route*`（哪一层、第几条、格子副本、结果） | 地图上松手 / 点「这一层」清单里的路线 |
+| 17 | 路线链 | 真窗口 | `views/route_editor/RouteWindow.qml` | 主窗口 `route*`（哪一层、第几条、格子副本、结果） | 地图上松手 / 点主界面「路线」卡里的一条路线 |
 | 18 | 改参数卡片（路线链） | 覆盖层 z=30 | `views/route_editor/edit_card/EditCard.qml` | 主窗口 `routeEdit*` | 点链上缩略图 |
 | 19 | 一格填什么 | 覆盖层 z=20 | `views/route_editor/pick_menu/PickMenu.qml` | 主窗口 `routeMenu/routeMenuCell/routePick*` | 点链上的格子 |
 | 20 | 路线对比 | 真窗口 | `views/route_compare/CompareWindow.qml` | 主窗口 `compare*`（几条路线 + 各自算好的结果） | 导航条 ⇄（伤害计算右边） |
@@ -35,7 +35,7 @@
 （1 是主窗口本体，2–5 是它的块，6 以后是它的子界面。`views/shared/` 那些是共用件，不算界面：
 `Theme` 配色/字体/圆角/控件高度、`FlatBtn` 方按钮、`TextBtn` 小文字按钮、`IconBtn` 图标按钮（导航条）、
 `SectionHead` 分区标题条（地图/怪物/技能/读取记录）、`ReadBtn` 分区标题上的「读取」、`Card` 白卡、`Chip` 小胶囊、`NumberStepper` 加减数、
-`EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标、`FloorField` 层号格。）
+`EffectEditor` 效果编辑、`ChainArrow` 链箭头、`CoordField` 一格坐标。）
 
 **视觉规矩（2026-11-01 重做，PyCharm 浅色一路 + 分层）**：三层面——灰底窗口（`Theme.canvas`）→
 白色卡片（`shared/Card.qml`：圆角 8 + 细外框 + 底沿一线暗边）→ 卡里凹下去的小块（`Theme.tile`）；
@@ -70,7 +70,7 @@ chaita/ui/
     views/                        39 个 QML / 14036 行（+ shared/qmldir），只有界面
         MainWindow.qml            3688   灰底窗口 + 外阴影 + 滚动容器 + win.* 状态和函数
         main_panel/                349   导航条（工具图标 + 置顶）+ 状态卡（塔名/四个数值块/钥匙胶囊）
-        main_columns/              913   摞卡：MainColumns + MapSection / MonSection / SkillSection / TaskSection
+        main_columns/              913   摞卡：MainColumns + MapSection / RouteSection / MonSection / SkillSection / TaskSection
         chat/                      301   底部对话（标题行可收起 + 气泡 + 输入栏）
         map_view/                 1198   地图（主界面那一栏 + 三个图层）
             MapPanel.qml           675   侧栏切层 + 单层大图 + 叠在后面的一角 + 编辑/清单
@@ -92,7 +92,7 @@ chaita/ui/
         property_gain/             813   加属性收益（再加 X 点属性，剩下的怪少掉多少）
         preview/                    90   看大图
         shared/                    964   Theme + Card + Chip + SectionHead + ReadBtn + IconBtn + FlatBtn + TextBtn
-                                         + NumberStepper + EffectEditor + ChainArrow + CoordField + FloorField + qmldir
+                                         + NumberStepper + EffectEditor + ChainArrow + CoordField + qmldir
     main.py  startup.py  loader.py  constants.py  qt_env.py
                                       入口 / 启动（任务栏图标、分组 ID）/ 加载(QML_DIR, OVERLAY_QML) / 常量 / Qt 路径
     controller/                  30 个文件 / 3834 行，状态和槽（Python）

@@ -98,6 +98,7 @@ Column {
     }
 
     MapSection { id: mapSection; width: body.width; host: body.host }
+    RouteSection { width: body.width; host: body.host }
     MonSection { id: monSection; width: body.width; host: body.host }
     SkillSection { width: body.width; host: body.host }
     TaskSection { width: body.width; host: body.host }

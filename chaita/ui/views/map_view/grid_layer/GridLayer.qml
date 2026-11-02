@@ -96,15 +96,25 @@ Item {
                 ctx.stroke()
             }
 
-            // 有内容的格子：选中的是黄底，别的词条淡灰底
+            // 有内容的格子：选中的（点了清单里那一行）用强调色实心 + 粗框，一眼找得到；
+            // 别的词条淡灰底
             for (var j = 0; j < layer.gridCells.length; j++) {
                 var g = layer.gridCells[j] || ({})
                 var isSelected = selected !== ""
                               && String(g.name || "") === selected
-                ctx.fillStyle = isSelected ? "rgba(214, 158, 46, 0.24)"
-                                           : "rgba(0, 0, 0, 0.10)"
-                ctx.fillRect(Number(g.col) * size, Number(g.row) * size,
-                             size, size)
+                var gx = Number(g.col) * size
+                var gy = Number(g.row) * size
+                if (isSelected) {
+                    ctx.fillStyle = Qt.rgba(Theme.accent.r, Theme.accent.g,
+                                            Theme.accent.b, 0.32)
+                    ctx.fillRect(gx, gy, size, size)
+                    ctx.strokeStyle = Theme.accent
+                    ctx.lineWidth = 2
+                    ctx.strokeRect(gx + 1, gy + 1, size - 2, size - 2)
+                } else {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.10)"
+                    ctx.fillRect(gx, gy, size, size)
+                }
             }
 
             // 悬停的那一格：描边（正在拖就不画悬停，别两个框叠一起）

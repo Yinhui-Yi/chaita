@@ -287,6 +287,32 @@ def drop_cells(window, item, payload):
     APP.processEvents()
 
 
+def show_section(window, key):
+    """把「这一层」清单的一段滚到最上面（并展开）：`stair` 楼梯 / `mon` 怪物 / `item` 资源。
+
+    三段一页排下来，下面的段不滚就在可见区外，点不到。
+    """
+    names = {"mon": "floorSecMon", "item": "floorSecItem",
+             "stair": "floorSecStair"}
+    head = find_item(window, names[key])
+    sheet_flick = find_item(window, "floorFlick")
+    if head.property("open") is False:
+        click_item(window, find_item(window, names[key] + "Toggle"))
+    top = head.mapToItem(sheet_flick.property("contentItem"), QPointF(0, 0)).y()
+    limit = max(0.0, float(sheet_flick.property("contentHeight"))
+                - float(sheet_flick.height()))
+    sheet_flick.setProperty("contentY", max(0.0, min(top, limit)))
+    # 滚完要让窗口走完一帧（布局 + 命中测试），紧接着合成的点击/拖放才落得进这一段的行
+    wait_for(lambda: False, timeout=0.3)
+
+
+def open_sheet_menu(window):
+    """点小窗标题行的「⋯」，让菜单里的行（刷新 / 标位置 / 删除）长出来。"""
+    click_item(window, find_item(window, "floorMenuBtn"))
+    wait_for(lambda: find_item(window, "floorRefresh") is not None,
+             timeout=2.0)
+
+
 def route_window(window):
     """路线链窗口（`win.routeWindow`）；没开就是 None。"""
     value = window.property("routeWindow")

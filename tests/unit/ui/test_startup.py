@@ -290,6 +290,7 @@ class _Controller:
         self.shutdown = False
         self.pin_restored = False
         self.chat_restored = False
+        self.route_restored = False
 
     def attach(self, window):
         self.window = window
@@ -305,6 +306,9 @@ class _Controller:
 
     def restoreChatCollapsed(self):
         self.chat_restored = True
+
+    def restoreRouteCollapsed(self):
+        self.route_restored = True
 
     def deleteLater(self):
         pass
@@ -395,6 +399,7 @@ def test_run_wires_the_window_in_order(monkeypatch):
     assert controller.ready is True
     assert controller.pin_restored is True   # 上次点过「置顶」启动就照原样
     assert controller.chat_restored is True  # 对话区上次收起了就还收着
+    assert controller.route_restored is True  # 「路线」卡上次收起了也还收着
     assert calls["placed"] is window       # 没有存档才贴右边
     assert app.filters == [("hit", window)]
     assert calls["torn"] == (app, engine, window, controller)

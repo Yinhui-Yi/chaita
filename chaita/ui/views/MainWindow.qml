@@ -133,6 +133,8 @@ Window {
     property bool mapCollapsed: false
     property bool monCollapsed: false
     property bool skillCollapsed: false
+    // 「路线」卡收起：和对话一样记在 ui_state.json（controller.setRouteCollapsed）
+    property bool routeCollapsed: false
     function toggleMapSection() {
         win.mapCollapsed = !win.mapCollapsed
     }
@@ -160,8 +162,6 @@ Window {
     property real pickMenuY: 0
     // 菜单列表最多多高（按小窗高度算，太矮了就会超出窗口边缘）
     property int pickListMax: 220
-    // 删本层的两步确认
-    property bool floorDeleteArm: false
     // 怪物编辑：monEdit 是 monsters 里的下标（-1 = 没开）
     property int monEdit: -1
     // 编辑卡片的位置（-1 = 还没拖过，按窗口居中）。用户："怎么不能移动" ——
@@ -894,20 +894,6 @@ Window {
         return win.routeStatsMemo(cells)
     }
 
-    // 这一层有几条路线 → `[{index, at, memo, cells}]`（清单里的「路线」行读它）
-    function floorRoutes(floorText) {
-        var entry = win.floorEntry(floorText)
-        var rows = entry ? (entry.routes || []) : []
-        var out = []
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i] || ({})
-            out.push({ "index": i, "at": String(row.at || ""),
-                       "memo": String(row.memo || ""),
-                       "cells": row.cells || [] })
-        }
-        return out
-    }
-
     // 打开一层里的某条路线：一条一扇窗；点已开的那条 = 提到最前。
     function openRoute(floorText, routeIndex) {
         if (!controller)
@@ -1638,7 +1624,6 @@ Window {
         var name = String(floorText || "")
         if (name === "")
             return
-        win.floorDeleteArm = false
         win.pickMode = ""
         // 已经开着就把它提到最上面（同一层不重复开）
         var rows = []
@@ -1695,7 +1680,6 @@ Window {
         }
         win.floorWindows = rows
         win.pickMode = ""
-        win.floorDeleteArm = false
         // 关掉正在编辑的那一层：编辑模式一起退出
         //（用户："开启编辑功能再关闭窗口后再次开启窗口依然是编辑功能开启的状态"）
         if (win.gridEditOn && win.gridEditFloor === name) {
@@ -1774,25 +1758,6 @@ Window {
         }
         if (changed)
             win.floorSheets = map
-    }
-
-    // 关最上面那个（Esc / 点遮罩）
-    // 打开"下一层还没开的那扇窗"（循环找，找不到就什么都不做）
-    function openNextFloor(floorText) {
-        var list = win.floorList
-        var current = -1
-        for (var i = 0; i < list.length; i++) {
-            if (String((list[i] || {}).floor || "") === String(floorText || ""))
-                current = i
-        }
-        for (var step = 1; step <= list.length; step++) {
-            var entry = list[(current + step + list.length) % list.length] || {}
-            var next = String(entry.floor || "")
-            if (next !== "" && win.floorWindows.indexOf(next) < 0) {
-                win.openFloorSheet(next)
-                return
-            }
-        }
     }
 
     // 上一层 / 下一层：按楼层号排（+1 = 楼层号更大的那一层），到头返回空串
@@ -2024,28 +1989,10 @@ Window {
                                    String(direction || "up"))
     }
 
-    function setStairTarget(floorText, index, target) {
-        if (!controller)
-            return false
-        return controller.setStairTarget(String(floorText || ""), Number(index),
-                                         String(target || ""))
-    }
-
     function removeStairRow(floorText, index) {
         if (!controller)
             return false
         return controller.removeStair(String(floorText || ""), Number(index))
-    }
-
-    // 点楼梯那张图 = 上/下互换（AI 认错方向时自己改过来）
-    function toggleStairDir(floorText, index) {
-        if (!controller)
-            return false
-        var rows = win.stairsOf(floorText)
-        var current = String(((rows[Number(index)] || ({}))).dir || "up")
-        return controller.setStairDirection(
-                    String(floorText || ""), Number(index),
-                    current === "up" ? "down" : "up")
     }
 
     // 按层号推相邻那一层的名字："通天塔1" + 1 → "通天塔2"（没有数字就推不出）
@@ -2102,7 +2049,7 @@ Window {
         return null
     }
 
-    // 打进来的层号/层名 → 完整层名。**"通到…"和"跳到…"共用这一份**：
+    // 打进来的层号/层名 → 完整层名（「跳到…」和楼梯出口里粘的层数共用这一份）：
     //   "2"        → 已知层里层号是 2 的那层（2层 / 通天塔2 都认）；找不到就按本层
     //                的写法把最后一个数字换成 2（通天塔1 → 通天塔2、0层 → 2层）
     //   "通天塔137" → 原样用（没有就建一条空的）
@@ -2135,21 +2082,6 @@ Window {
             return from.substring(0, at.index) + wanted
                     + from.substring(at.index + at[1].length)
         return text
-    }
-
-    // 「通到…」里打完回车：把这一行楼梯的目标层定下来（打自己这层 = 没选）
-    function setStairTargetByName(floorText, index, typed) {
-        if (!controller)
-            return false
-        var floor = String(floorText || "")
-        var name = win.resolveFloorName(floor, typed)
-        if (name === floor)
-            name = ""
-        if (name !== "") {
-            controller.ensureFloor(name)      // 没有这层就建一条空的
-            win.ensureMapFloor()
-        }
-        return win.setStairTarget(floor, index, name)
     }
 
     // 抓着一格（或 Ctrl 勾的一批）拖到某一行上松手：把这几格记给那一行。
@@ -3313,16 +3245,6 @@ Window {
                                        String(row.effect || ""), "1",
                                        String(row.icon || ""))
         }
-    }
-
-    function deleteFloor(floorText) {
-        var name = String(floorText || win.openFloor || "")
-        if (!win.floorDeleteArm) {
-            win.floorDeleteArm = true
-            return
-        }
-        controller.removeFloor(name)
-        win.closeFloorSheet(name)
     }
 
     // ---- 怪物编辑界面 ----

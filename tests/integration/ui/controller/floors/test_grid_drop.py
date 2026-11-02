@@ -85,6 +85,7 @@ def test_drop_multi_cells_on_item_row_keeps_effect():
          "icon": "potion_red"}])
     for cell in ((5, 5), (6, 6)):
         window.gridMultiToggle(*cell)
+    helpers.show_section(window, "item")
     helpers.drop_cells(window, _row(window, "floorItemRow"),
                        {"cells": [{"row": 5, "col": 5},
                                   {"row": 6, "col": 6}]})
