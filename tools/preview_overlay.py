@@ -618,19 +618,18 @@ def main() -> int:
 
             open_sheet(window, "通天塔1", scroll_to_routes)
         elif scenario == "flooritems":
-            # 清单切到「资源」页签：看资源行（图标 + 一行效果 + 数量 + 位置）
-            open_sheet(window, "通天塔1",
-                       lambda sheet: sheet.setProperty("tab", "item"))
+            # 资源那一段：滚到底看资源行 + 楼梯段（一页排下来）
+            open_sheet(window, "通天塔1", lambda _sheet: scroll_sheet_to_items(
+                window, "通天塔1"))
         elif scenario == "floorstairs":
-            # 清单切到「楼梯」页签：上楼/下楼开关 + 本层位置 + 去哪层
+            # 楼梯段：上楼/下楼开关 + 本层位置 + 去哪层
             index = controller.addStair("通天塔1", "up")
             controller.saveStair("通天塔1", index, 1, 11)
             controller.setStairTarget("通天塔1", index, "通天塔2")
             index = controller.addStair("通天塔1", "down")
             controller.setStairTarget("通天塔1", index, "通天塔0")
             controller.mapHistoryChanged.emit()
-            open_sheet(window, "通天塔1",
-                       lambda sheet: sheet.setProperty("tab", "stair"))
+            open_sheet(window, "通天塔1")
         elif scenario == "floormenu":
             # 标题行「⋯」菜单打开：刷新本层 / 退出标位置 / 删除本层
             def open_menu(sheet):
@@ -648,7 +647,9 @@ def main() -> int:
             window.saveFloorSize("通天塔1", 300, 250)
 
             def pick_item(sheet):
-                sheet.setProperty("tab", "item")
+                # 真用户点得到的按钮一定在可见区里：先把清单滚到底，再开下拉
+                scroll_sheet_to_items(window, "通天塔1")
+                QGuiApplication.processEvents()
                 window.openPickMenu(
                     "item", "通天塔1", _find_by_name(window, "floorAddItem"), -1,
                     sheet)

@@ -287,12 +287,22 @@ def drop_cells(window, item, payload):
     APP.processEvents()
 
 
-def show_tab(window, key):
-    """点「这一层」小窗的页签：`mon` 怪物 / `item` 资源 / `stair` 楼梯。"""
-    names = {"mon": "floorTabMon", "item": "floorTabItem",
-             "stair": "floorTabStair"}
-    click_item(window, find_item(window, names[key]))
-    # 切页后要让窗口走完一帧（布局 + 命中测试），紧接着合成的拖放才落得进新页的行
+def show_section(window, key):
+    """把「这一层」清单的一段滚到最上面（并展开）：`stair` 楼梯 / `mon` 怪物 / `item` 资源。
+
+    三段一页排下来，下面的段不滚就在可见区外，点不到。
+    """
+    names = {"mon": "floorSecMon", "item": "floorSecItem",
+             "stair": "floorSecStair"}
+    head = find_item(window, names[key])
+    sheet_flick = find_item(window, "floorFlick")
+    if head.property("open") is False:
+        click_item(window, find_item(window, names[key] + "Toggle"))
+    top = head.mapToItem(sheet_flick.property("contentItem"), QPointF(0, 0)).y()
+    limit = max(0.0, float(sheet_flick.property("contentHeight"))
+                - float(sheet_flick.height()))
+    sheet_flick.setProperty("contentY", max(0.0, min(top, limit)))
+    # 滚完要让窗口走完一帧（布局 + 命中测试），紧接着合成的点击/拖放才落得进这一段的行
     wait_for(lambda: False, timeout=0.3)
 
 

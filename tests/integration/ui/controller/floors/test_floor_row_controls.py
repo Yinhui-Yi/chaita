@@ -41,7 +41,7 @@ def _open_sheet(mons=None, items=None, tab="mon"):
         lambda: window.floorSheetOf("长安1") is not None), "清单没打开"
     helpers.APP.processEvents()
     if tab != "mon":
-        helpers.show_tab(window, tab)
+        helpers.show_section(window, tab)
     return controller, engine, window
 
 

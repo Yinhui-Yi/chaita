@@ -155,42 +155,54 @@ def test_prev_button_goes_back_and_does_nothing_at_the_ends():
     assert _windows(window) == ["长安1"]
 
 
-# ---- 页签 ----
+# ---- 三段（楼梯 / 怪物 / 资源）一页排下来 ----
 
-def test_tabs_show_counts_and_switch_pages():
-    """测什么：页签上写各自的条数；点哪个页签就只显示那一页的行。
+def test_sections_are_on_one_page_in_order_with_counts():
+    """测什么：楼梯、怪物、资源三段一页排下来（楼梯最上），标题上写各自的条数，不用切页。
 
-    交互顺序：① 开清单（1 只怪 + 1 个资源）② 默认在「怪物」页：看得到怪行、看不到资源行
-    ③ 点「资源」→ 反过来 ④ 点「楼梯」→ 两样都没有，出现「＋ 加楼梯」。
+    交互顺序：① 开清单（1 只怪 + 1 个资源 + 1 个楼梯）② 三个段标题都看得见、从上到下是
+    楼梯 → 怪物 → 资源 ③ 怪行、楼梯行同时在可见区里，每段都有自己的「＋ 加…」。
     """
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
     controller._map_history[0]["items"] = [
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1}]
+    controller.addStair("长安1", "up")
     controller.mapHistoryChanged.emit()
     helpers.APP.processEvents()
 
-    assert "怪物 1" in "".join(helpers.texts_of(
-        helpers.find_item(window, "floorTabMon"))).replace("  ", " ")
+    heads = [helpers.find_item(window, name)
+             for name in ("floorSecStair", "floorSecMon", "floorSecItem")]
+    ys = [head.mapToScene(QPointF(0, 0)).y() for head in heads]
+    assert ys == sorted(ys), "段的顺序应是 楼梯 → 怪物 → 资源"
+    for head, text in zip(heads, ("楼梯", "怪物", "资源")):
+        assert text in helpers.texts_of(head)
+        assert "1" in helpers.texts_of(head)
+    assert len(helpers.find_all(window, "floorStairRow")) == 1
     assert len(helpers.find_all(window, "floorMonRow")) == 1
-    assert helpers.find_all(window, "floorItemRow") == []
+    for name in ("floorAddStair", "floorAddMon", "floorAddItem"):
+        assert helpers.find_item(window, name).isVisible()
 
-    helpers.show_tab(window, "item")
+
+def test_section_head_folds_and_unfolds_its_rows():
+    """测什么：点段标题 = 折起 / 展开这一段的行；折起的行不接拖放（`rowAt` 不认）。"""
+    controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
+    assert len(helpers.find_all(window, "floorMonRow")) == 1
+
+    helpers.click_item(window, helpers.find_item(window, "floorSecMonToggle"))
     assert helpers.find_all(window, "floorMonRow") == []
-    assert len(helpers.find_all(window, "floorItemRow")) == 1
+    assert helpers.find_item(window, "floorSecMon").property("open") is False
 
-    helpers.show_tab(window, "stair")
-    assert helpers.find_all(window, "floorItemRow") == []
-    assert helpers.find_item(window, "floorAddStair").isVisible()
-    assert not helpers.find_item(window, "floorAddMon").isVisible()
+    helpers.click_item(window, helpers.find_item(window, "floorSecMonToggle"))
+    assert len(helpers.find_all(window, "floorMonRow")) == 1
 
 
 # ---- 标位置：行尾胶囊 + 底部「已选」条 ----
 
-def test_position_chip_follows_grid_cells():
-    """测什么：编辑模式下把一格拖到怪那一行 → 行尾胶囊从「未标」变成「1 格」。
+def test_position_chip_shows_the_coordinate_of_the_marked_cell():
+    """测什么：编辑模式下把一格拖到怪那一行 → 行尾胶囊从「未标」变成这一格的坐标「1,1」。
 
     交互顺序：① 点「清单 ›」开这一层（**自动进编辑模式**）② 把 (1,1) 这一格拖到
-    怪那一行上松手 → 断言 `floorMonPos` 先写「未标」、之后写「1 格」。
+    怪那一行上松手 → 断言 `floorMonPos` 先写「未标」、之后写「1,1」（1 开始）。
     """
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
     chip = helpers.find_item(window, "floorMonPos")
@@ -202,14 +214,16 @@ def test_position_chip_follows_grid_cells():
     helpers.drop_cells(window, row, {"row": 0, "col": 0})
     helpers.APP.processEvents()
 
-    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["1 格"]
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["1,1"]
 
 
-def test_clicking_the_chip_selects_the_entry_and_shows_its_cells():
-    """测什么：点行尾胶囊 = 选中这个词条；底部「已选」条写出它的名字和每一格（1 开始）。
+def test_clicking_the_row_selects_the_entry_and_shows_its_cells():
+    """测什么：点**整行** = 选中这个词条（地图上圈出它的格子）；底部「已选」条写出
+    名字和每一格（1 开始），行尾胶囊写第一格加「+N」。再点一次取消。
 
     交互顺序：① 开清单，把 (1,1) 和 (3,4) 两格拖给血蚊 ② 还没选时底部没有「已选」条
-    ③ 点血蚊的胶囊 → 条出现，写「已选：血蚊   1,1 · 3,4」，胶囊写「2 格」。
+    ③ 点血蚊那一行的空白处 → 条出现，写「已选：血蚊   1,1 · 3,4」，胶囊写「1,1 +1」，
+    `gridSelected` 是血蚊 ④ 再点 → 取消选中。
     """
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 2}])
     row = helpers.find_all(window, "floorMonRow")[0]
@@ -218,12 +232,35 @@ def test_clicking_the_chip_selects_the_entry_and_shows_its_cells():
     helpers.APP.processEvents()
     assert not helpers.find_item(window, "floorSelectedStrip").isVisible()
 
-    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+    helpers.click_item(window, helpers.find_item(window, "floorMonSelect"))
 
+    assert window.property("gridSelected") == "血蚊"
     assert helpers.find_item(window, "floorSelectedStrip").isVisible()
     assert helpers.find_item(window, "floorSelectedText").property("text") \
         == "已选：血蚊   1,1 · 3,4"
-    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["2 格"]
+    assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["1,1 +1"]
+
+    helpers.click_item(window, helpers.find_item(window, "floorMonSelect"))
+    assert window.property("gridSelected") == ""
+
+
+def test_clicking_an_item_row_selects_it_too():
+    """测什么：资源行也是点行选中（和怪物行一个规矩）；点效果那句话 = 选中 + 展开，
+    再点只是收起，不会把选中点掉。"""
+    controller, engine, window = _sheet()
+    controller._map_history[0]["items"] = [
+        {"name": "红宝石", "effect": "攻击力 +1", "count": 1}]
+    controller.mapHistoryChanged.emit()
+    helpers.APP.processEvents()
+    helpers.show_section(window, "item")
+
+    helpers.click_item(window, helpers.find_item(window, "floorItemEffectToggle"))
+    assert window.property("gridSelected") == "红宝石"
+    assert helpers.find_all(window, "floorItemRow")[0].property("expanded") is True
+
+    helpers.click_item(window, helpers.find_item(window, "floorItemEffectToggle"))
+    assert window.property("gridSelected") == "红宝石"
+    assert helpers.find_all(window, "floorItemRow")[0].property("expanded") is False
 
 
 def test_selected_strip_copy_button_copies_floor_and_cells(monkeypatch):
@@ -232,7 +269,7 @@ def test_selected_strip_copy_button_copies_floor_and_cells(monkeypatch):
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
     row = helpers.find_all(window, "floorMonRow")[0]
     helpers.drop_cells(window, row, {"row": 0, "col": 0})
-    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+    helpers.click_item(window, helpers.find_item(window, "floorMonSelect"))
 
     helpers.click_item(window, helpers.find_item(window, "floorSelectedCopy"))
 
@@ -242,7 +279,7 @@ def test_selected_strip_copy_button_copies_floor_and_cells(monkeypatch):
 def test_unmarked_entry_strip_says_not_marked_and_has_no_copy_button():
     """测什么：选了一条还没标过位置的词条 → 条上写「还没标位置」，没有复制键。"""
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
-    helpers.click_item(window, helpers.find_item(window, "floorMonPos"))
+    helpers.click_item(window, helpers.find_item(window, "floorMonSelect"))
 
     assert helpers.find_item(window, "floorSelectedText").property("text") \
         == "已选：血蚊   还没标位置"
@@ -317,13 +354,13 @@ def test_resize_grip_grows_the_sheet():
 def test_stair_direction_is_an_explicit_two_way_switch():
     """测什么：楼梯方向是明写着字的「上楼 | 下楼」二选一；点另一半才改，点已选的那半不动。
 
-    交互顺序：① 开清单，切到「楼梯」页（有一条上楼的）② 点「下楼」→ 断言楼梯变成 down
+    交互顺序：① 开清单，楼梯段在最上面（有一条上楼的）② 点「下楼」→ 断言楼梯变成 down
     ③ 点「上楼」→ 变回 up。以前点缩略图会悄悄换方向，现在缩略图没有了。
     """
     controller, engine, window = _sheet()
     controller.addStair("长安1", "up")
     controller.mapHistoryChanged.emit()
-    helpers.show_tab(window, "stair")
+    helpers.APP.processEvents()
     assert helpers.find_item(window, "floorStairThumb") is None
 
     helpers.click_item(window, helpers.find_item(window, "floorStairDirUp"))
@@ -356,12 +393,11 @@ def test_dragged_cell_over_a_row_lights_it_up_with_drop_here():
     assert helpers.texts_of(helpers.find_item(window, "floorMonPos")) == ["未标"]
 
 
-def test_rows_on_a_hidden_tab_do_not_accept_drops():
-    """测什么：`rowAt`（地图松手时问"光标底下是哪一行"）只认当前页的行。
+def test_rows_in_a_folded_section_do_not_accept_drops():
+    """测什么：`rowAt`（地图松手时问"光标底下是哪一行"）不认折起来的段里的行。
 
-    交互顺序：① 开清单（怪物页：1 只怪 + 1 个资源）② 问怪那一行的中心点 → 是 monster:0
-    ③ 切到资源页，再问**同一个点**（现在那里是资源行，怪行藏起来了）→ 是 item:0，
-    不能还认成 monster:0。
+    交互顺序：① 开清单（1 只怪 + 1 个资源）② 问怪那一行的中心点 → 是 monster:0
+    ③ 折起「怪物」段，再问**同一个点** → 不能还认成 monster:0。
     """
     controller, engine, window = _sheet(mons=[{"name": "血蚊", "count": 1}])
     controller._map_history[0]["items"] = [
@@ -378,11 +414,11 @@ def test_rows_on_a_hidden_tab_do_not_accept_drops():
     def hit():
         found = sheet.rowAt(spot.x(), spot.y())
         found = found.toVariant() if hasattr(found, "toVariant") else found
-        return (found["kind"], found["index"])
+        return (found["kind"], found["index"]) if found else None
 
     assert hit() == ("monster", 0)
-    helpers.show_tab(window, "item")
-    assert hit() == ("item", 0)
+    helpers.click_item(window, helpers.find_item(window, "floorSecMonToggle"))
+    assert hit() != ("monster", 0)
 
 
 def test_item_effect_line_expands_into_number_boxes():
@@ -392,7 +428,7 @@ def test_item_effect_line_expands_into_number_boxes():
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1, "icon": "gem_red"}]
     controller.mapHistoryChanged.emit()
     helpers.APP.processEvents()
-    helpers.show_tab(window, "item")
+    helpers.show_section(window, "item")
     row = helpers.find_all(window, "floorItemRow")[0]
     folded = row.height()
     assert helpers.find_item(window, "floorItemEffectLine").property("text") \

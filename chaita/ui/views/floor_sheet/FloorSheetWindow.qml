@@ -41,7 +41,10 @@ Window {
     property bool deleteArm: false
     property string sheetName: ""
     // 现在看的是哪一页："mon" / "item" / "stair"
-    property string tab: "mon"
+    // 三段（怪物 / 资源 / 楼梯）一页排下来，每段可以折起来
+    property bool monOpen: true
+    property bool itemOpen: true
+    property bool stairOpen: true
 
     // ---- 拖动"抓一格"时：光标落在哪一行上？----
 
@@ -166,10 +169,14 @@ Window {
                                      String(effect || ""))
     }
 
-    // 行尾胶囊上写的字：标过几格（1 开始的行列都在底部「已选」那条里）
+    // 行尾胶囊上写的字：没标 = 「未标」；标过 = 第一格的坐标（1 开始），多格再加「+N」
+    // （位置是这页最关键的信息，不用点开就能看到；每一格在底部「已选」条里）
     function posChipText(name, effect) {
-        var count = sheetRoot.posList(name, effect).length
-        return count > 0 ? (count + " 格") : "未标"
+        var cells = sheetRoot.posList(name, effect)
+        if (cells.length === 0)
+            return "未标"
+        var first = (Number(cells[0].row) + 1) + "," + (Number(cells[0].col) + 1)
+        return cells.length > 1 ? (first + " +" + (cells.length - 1)) : first
     }
 
     // 底部「已选」那条：选中的词条 + 它的每一格（"6,6 · 3,4"，1 开始）
@@ -203,9 +210,9 @@ Window {
     }
     // 窗口最外圈留给投影的透明边；灰底卡片（cardBox）画在它里面，和主窗口同一套
     readonly property int inset: Theme.windowInset
-    // 灰底卡片里自上而下：标题行 / 页签行 / 白卡（清单）/ 已选条（有才占）/ 备忘行
+    // 灰底卡片里自上而下：标题行 / 白卡（清单：怪物、资源、楼梯三段）/ 已选条（有才占）/ 备忘行
     readonly property int headH: 34
-    readonly property int tabsH: 34
+    readonly property int sectionH: 30
     readonly property int stripH: 28
     readonly property int memoH: 32
     readonly property int gap: 8
@@ -214,15 +221,15 @@ Window {
     readonly property int thumbSide: 22
     // 数量框的宽（含右边那两个箭头）：一个数字 + 两个箭头，别留一大截空白
     readonly property int countBoxW: 34
-    // 行尾位置胶囊的宽
-    readonly property int chipW: 54
+    // 行尾位置胶囊的宽（写坐标「12,12 +3」要放得下）
+    readonly property int chipW: 66
     readonly property int minW: 280
     readonly property int minH: 280
     readonly property int maxW: Math.max(minW, screenRect.width - 16)
     readonly property int maxH: Math.max(minH, screenRect.height - 56)
-    // 没拉过大小时的默认大小：一页清单放得下，不用先滚
-    readonly property int autoW: 330
-    readonly property int autoH: 2 * inset + 380
+    // 没拉过大小时的默认大小：三段都能看到大半，不用先滚
+    readonly property int autoW: 340
+    readonly property int autoH: 2 * inset + 460
 
     // 窗口大小跟着卡片走：拉过大就按拉的，没拉过按默认
     width: Math.round(cardBox.sized
@@ -301,33 +308,63 @@ Window {
         clip: true
         MouseArea { anchors.fill: parent }
 
-        // 一页页签的小药丸：选中的那页蓝底蓝字，字后面跟着有几条
-        component TabPill: Rectangle {
-            id: pill
-            property string key: ""
+        // 一段的标题：「▾ 怪物  5」+ 右边这一段自己的「＋ 加…」；点左边折起 / 展开
+        component SectionHead: Item {
+            id: head
             property string label: ""
             property int count: 0
-            readonly property bool current: sheetRoot.tab === pill.key
-            height: 26
-            radius: 13
-            width: pillText.implicitWidth + 24
-            color: pill.current ? Theme.accentSoft
-                 : (pillMouse.containsMouse ? Theme.hover : "transparent")
-            Text {
-                id: pillText
-                anchors.centerIn: parent
-                text: pill.label + (pill.count > 0 ? "  " + pill.count : "")
-                color: pill.current ? Theme.accent : Theme.ink2
-                font.family: Theme.uiFont
-                font.pixelSize: 12
-                font.bold: pill.current
-            }
+            property bool open: true
+            // 第一段顶上不用留缝
+            property bool first: false
+            property alias toggleName: toggleArea.objectName
+            default property alias action: slot.data
+            signal toggled()
+            width: parent ? parent.width : 0
+            height: sheetRoot.sectionH + (head.first ? 0 : 6)
+
             MouseArea {
-                id: pillMouse
-                anchors.fill: parent
-                hoverEnabled: true
+                id: toggleArea
+                anchors.left: parent.left
+                anchors.right: slot.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
                 cursorShape: Qt.PointingHandCursor
-                onClicked: sheetRoot.tab = pill.key
+                onClicked: head.toggled()
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 4
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 6
+                    spacing: 6
+                    Text {
+                        text: head.open ? "▾" : "▸"
+                        color: Theme.ink3
+                        font.pixelSize: 11
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: head.label
+                        color: Theme.ink
+                        font.family: Theme.uiFont
+                        font.pixelSize: 13
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: head.count > 0 ? String(head.count) : ""
+                        color: Theme.ink3
+                        font.family: Theme.uiFont
+                        font.pixelSize: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+            }
+            Row {
+                id: slot
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 2
+                spacing: 6
             }
         }
 
@@ -493,68 +530,6 @@ Window {
             }
         }
 
-        // ---- 页签行：怪物 5｜资源 7｜楼梯 2          ＋ 加…（跟着页签变）----
-        Item {
-            id: tabsRow
-            x: sheetRoot.gap
-            y: sheetRoot.headH
-            width: cardBox.width - 2 * sheetRoot.gap
-            height: sheetRoot.tabsH
-
-            Row {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
-                TabPill {
-                    objectName: "floorTabMon"
-                    key: "mon"
-                    label: "怪物"
-                    count: sheetRoot.monList.length
-                }
-                TabPill {
-                    objectName: "floorTabItem"
-                    key: "item"
-                    label: "资源"
-                    count: sheetRoot.itemList.length
-                }
-                TabPill {
-                    objectName: "floorTabStair"
-                    key: "stair"
-                    label: "楼梯"
-                    count: sheetRoot.stairList.length
-                }
-            }
-
-            FlatBtn {
-                id: addMonBtn
-                objectName: "floorAddMon"
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: sheetRoot.tab === "mon"
-                label: "＋ 加怪"
-                onClicked: host.openPickMenu("mon", sheetRoot.sheetName,
-                                             addMonBtn, -1, sheetRoot)
-            }
-            FlatBtn {
-                id: addItemBtn
-                objectName: "floorAddItem"
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: sheetRoot.tab === "item"
-                label: "＋ 加资源"
-                onClicked: host.openPickMenu("item", sheetRoot.sheetName,
-                                             addItemBtn, -1, sheetRoot)
-            }
-            // 楼梯：方向在行里切、位置拖上去（或粘坐标）、目标层打层号；这里只加一行
-            FlatBtn {
-                objectName: "floorAddStair"
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: sheetRoot.tab === "stair"
-                label: "＋ 加楼梯"
-                onClicked: host.addStairRow(sheetRoot.sheetName, "up")
-            }
-        }
-
         // ---- 窗口底部：已选条（选中词条时才有）+ 备忘（一直在）----
         Item {
             id: bottomBlock
@@ -661,11 +636,11 @@ Window {
             }
         }
 
-        // ---- 清单：一页一类，放在一张白卡里 ----
+        // ---- 清单：怪物 / 资源 / 楼梯三段，一页排下来，放在一张白卡里 ----
         Card {
             id: listCard
             x: sheetRoot.gap
-            y: sheetRoot.headH + sheetRoot.tabsH
+            y: sheetRoot.headH
             width: cardBox.width - 2 * sheetRoot.gap
             height: Math.max(60, cardBox.height - y - bottomBlock.height
                                  - 2 * sheetRoot.gap)
@@ -681,24 +656,42 @@ Window {
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
 
-                Column {
+                // 三段在页面上的顺序是 楼梯 → 怪物 → 资源（楼梯只有一两行，最要紧，放最上面）；
+                // 代码里的先后不用管，位置由下面的 y 说了算
+                Item {
                     id: sheetBody
                     width: sheetFlick.width
-                    spacing: 0
+                    implicitHeight: stairPage.height + monPage.height + itemPage.height
 
                     // ============ 怪物 ============
                     Column {
                         id: monPage
+                        y: stairPage.height
                         width: parent.width
-                        visible: sheetRoot.tab === "mon"
+
+                        SectionHead {
+                            objectName: "floorSecMon"
+                            toggleName: "floorSecMonToggle"
+                            label: "怪物"
+                            count: sheetRoot.monList.length
+                            open: sheetRoot.monOpen
+                            onToggled: sheetRoot.monOpen = !sheetRoot.monOpen
+                            FlatBtn {
+                                id: addMonBtn
+                                objectName: "floorAddMon"
+                                label: "＋ 加怪"
+                                onClicked: host.openPickMenu("mon", sheetRoot.sheetName,
+                                                             addMonBtn, -1, sheetRoot)
+                            }
+                        }
 
                         Text {
                             objectName: "floorMonEmpty"
                             width: parent.width
                             height: visible ? 40 : 0
-                            visible: sheetRoot.monList.length === 0
+                            visible: sheetRoot.monOpen && sheetRoot.monList.length === 0
                             verticalAlignment: Text.AlignVCenter
-                            text: "这一层还没有怪。点右上「＋ 加怪」从手册里挑。"
+                            text: "这一层还没有怪。点「＋ 加怪」从手册里挑。"
                             color: Theme.ink3
                             font.family: Theme.uiFont
                             font.pixelSize: 11
@@ -712,10 +705,15 @@ Window {
                                 objectName: "floorMonRow"
                                 width: parent.width
                                 height: sheetRoot.rowH
+                                visible: sheetRoot.monOpen
 
                                 readonly property var mon: modelData || ({})
                                 // 委托里的 `index` 只是上下文属性，别的代码（rowAt）读不到，要单独露一份
                                 readonly property int rowIndex: index
+                                // 点这一行 = 选中这只怪，地图上圈出它的格子
+                                readonly property bool picked:
+                                    sheetRoot.selectedName !== ""
+                                    && sheetRoot.selectedName === String(mon.name || "")
                                 readonly property string monIcon: host.hasUrl(mon.icon)
                                     ? String(mon.icon)
                                     : host.monsterIconNamed(mon.name)
@@ -729,11 +727,18 @@ Window {
                                     anchors.topMargin: 1
                                     anchors.bottomMargin: 1
                                     radius: Theme.radius
-                                    color: monRow.dropping ? Theme.accentSoft
+                                    color: monRow.dropping || monRow.picked
+                                           ? Theme.accentSoft
                                          : (monHover.hovered ? Theme.tile
                                                              : "transparent")
                                 }
                                 HoverHandler { id: monHover }
+                                MouseArea {
+                                    objectName: "floorMonSelect"
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: host.gridSelect(String(monRow.mon.name || ""))
+                                }
 
                                 Row {
                                     anchors.fill: parent
@@ -860,16 +865,32 @@ Window {
                     // ============ 资源 ============
                     Column {
                         id: itemPage
+                        y: stairPage.height + monPage.height
                         width: parent.width
-                        visible: sheetRoot.tab === "item"
+
+                        SectionHead {
+                            objectName: "floorSecItem"
+                            toggleName: "floorSecItemToggle"
+                            label: "资源"
+                            count: sheetRoot.itemList.length
+                            open: sheetRoot.itemOpen
+                            onToggled: sheetRoot.itemOpen = !sheetRoot.itemOpen
+                            FlatBtn {
+                                id: addItemBtn
+                                objectName: "floorAddItem"
+                                label: "＋ 加资源"
+                                onClicked: host.openPickMenu("item", sheetRoot.sheetName,
+                                                             addItemBtn, -1, sheetRoot)
+                            }
+                        }
 
                         Text {
                             objectName: "floorItemEmpty"
                             width: parent.width
                             height: visible ? 40 : 0
-                            visible: sheetRoot.itemList.length === 0
+                            visible: sheetRoot.itemOpen && sheetRoot.itemList.length === 0
                             verticalAlignment: Text.AlignVCenter
-                            text: "这一层还没有资源。点右上「＋ 加资源」。"
+                            text: "这一层还没有资源。点「＋ 加资源」。"
                             color: Theme.ink3
                             font.family: Theme.uiFont
                             font.pixelSize: 11
@@ -882,6 +903,7 @@ Window {
                                 id: itemRow
                                 objectName: "floorItemRow"
                                 width: parent.width
+                                visible: sheetRoot.itemOpen
                                 // 一行 32；点开效果就多一块数字框（黄宝石三段，会长高）
                                 height: sheetRoot.rowH
                                         + (itemRow.expanded ? effectEditor.implicitHeight + 8 : 0)
@@ -889,6 +911,10 @@ Window {
                                 readonly property var item: modelData || ({})
                                 readonly property int rowIndex: index
                                 readonly property string itemName: String(item.name || "")
+                                // 点这一行 = 选中这个资源，地图上圈出它的格子
+                                readonly property bool picked:
+                                    sheetRoot.selectedName !== ""
+                                    && sheetRoot.selectedName === itemName
                                 property bool expanded: false
                                 readonly property var partList: controller
                                     ? controller.itemEffectPartList(item.effect || "") : []
@@ -913,11 +939,19 @@ Window {
                                     anchors.topMargin: 1
                                     anchors.bottomMargin: 1
                                     radius: Theme.radius
-                                    color: itemRow.dropping ? Theme.accentSoft
+                                    color: itemRow.dropping || itemRow.picked
+                                           ? Theme.accentSoft
                                          : (itemHover.hovered ? Theme.tile
                                                               : "transparent")
                                 }
                                 HoverHandler { id: itemHover }
+                                MouseArea {
+                                    objectName: "floorItemSelect"
+                                    width: parent.width
+                                    height: sheetRoot.rowH
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: host.gridSelect(itemRow.itemName)
+                                }
 
                                 Row {
                                     id: itemTop
@@ -1005,7 +1039,12 @@ Window {
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: itemRow.expanded = !itemRow.expanded
+                                            onClicked: {
+                                                // 点这一行任何地方都是选中；已选着就别再点掉
+                                                if (sheetRoot.selectedName !== itemRow.itemName)
+                                                    host.gridSelect(itemRow.itemName)
+                                                itemRow.expanded = !itemRow.expanded
+                                            }
                                         }
                                     }
 
@@ -1098,15 +1137,30 @@ Window {
                     Column {
                         id: stairPage
                         width: parent.width
-                        visible: sheetRoot.tab === "stair"
+
+                        SectionHead {
+                            objectName: "floorSecStair"
+                            toggleName: "floorSecStairToggle"
+                            first: true
+                            label: "楼梯"
+                            count: sheetRoot.stairList.length
+                            open: sheetRoot.stairOpen
+                            onToggled: sheetRoot.stairOpen = !sheetRoot.stairOpen
+                            // 方向在行里切、位置拖上去（或粘坐标）、目标层打层号；这里只加一行
+                            FlatBtn {
+                                objectName: "floorAddStair"
+                                label: "＋ 加楼梯"
+                                onClicked: host.addStairRow(sheetRoot.sheetName, "up")
+                            }
+                        }
 
                         Text {
                             objectName: "floorStairEmpty"
                             width: parent.width
                             height: visible ? 40 : 0
-                            visible: sheetRoot.stairList.length === 0
+                            visible: sheetRoot.stairOpen && sheetRoot.stairList.length === 0
                             verticalAlignment: Text.AlignVCenter
-                            text: "这一层还没有楼梯。点右上「＋ 加楼梯」。"
+                            text: "这一层还没有楼梯。点「＋ 加楼梯」。"
                             color: Theme.ink3
                             font.family: Theme.uiFont
                             font.pixelSize: 11
@@ -1119,6 +1173,7 @@ Window {
                                 id: stairRow
                                 objectName: "floorStairRow"
                                 required property var modelData
+                                visible: sheetRoot.stairOpen
                                 width: parent.width
                                 // 两行：第一行「方向 → 目标层 ✕」，第二行「本层坐标 / 出口坐标」
                                 height: 56

@@ -118,7 +118,7 @@ def test_add_item_from_pick_menu_carries_icon_and_effect(monkeypatch):
     monkeypatch.setattr(iteminfo, "save_icon_map", lambda *a, **k: None)
     controller, engine, window = _sheet()
 
-    helpers.show_tab(window, "item")
+    helpers.show_section(window, "item")
     helpers.click_item(window, helpers.find_item(window, "floorAddItem"))
     assert str(window.property("pickMode")) == "item"
     helpers.click_item(window, _pick_row(window, "红宝石"))
@@ -140,7 +140,7 @@ def test_item_icon_pick_changes_kind(monkeypatch):
         {"name": "红宝石", "effect": "攻击力 +1", "count": 1,
          "icon": "gem_red"}])
 
-    helpers.show_tab(window, "item")
+    helpers.show_section(window, "item")
     helpers.click_item(window, helpers.find_item(window, "floorItemIconPick"))
     assert int(window.property("pickReplaceIndex")) == 0
     helpers.click_item(window, _pick_row(window, "铁剑"))

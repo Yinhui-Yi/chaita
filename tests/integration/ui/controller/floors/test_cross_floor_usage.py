@@ -153,7 +153,6 @@ def test_marking_a_stair_in_the_sheet_then_walking_on_it_switches_the_floor():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True, "清单没打开"
-    helpers.show_tab(window, "stair")
 
     helpers.click_item(window, helpers.find_item(window, "floorAddStair"))
     helpers.APP.processEvents()
@@ -264,7 +263,6 @@ def test_a_stair_can_go_to_a_floor_that_was_never_read():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("0层") is not None) is True
-    helpers.show_tab(window, "stair")
     assert _type_target(window, controller, "0层", "2") == "2层", \
         "打 2 没拼出 2层"
 
@@ -287,10 +285,9 @@ def test_coordinates_carry_the_floor_number():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
     helpers.APP.processEvents()
 
-    here =  helpers.texts_of(helpers.find_item(window, "floorStairPos"))
+    here =   helpers.texts_of(helpers.find_item(window, "floorStairPos"))
     there = helpers.texts_of(helpers.find_item(window, "floorStairArrive"))
     assert "2层 2,4" in here, here
     assert "→3层 6,7" in there, there

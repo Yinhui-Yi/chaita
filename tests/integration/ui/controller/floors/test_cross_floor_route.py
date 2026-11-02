@@ -199,7 +199,6 @@ def test_pasting_a_coordinate_into_the_row_sets_the_position():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
     helpers.click_item(window, helpers.find_item(window, "floorAddStair"))
     helpers.APP.processEvents()
 
@@ -223,7 +222,6 @@ def test_pasting_a_coordinate_into_the_exit_field_sets_the_arrival():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
 
     row = helpers.find_all(window, "floorStairRow")[0]
     _paste(window, _inside(row, "floorStairArrive"), "6,7")
@@ -247,7 +245,6 @@ def test_confirming_the_target_field_keeps_the_floor():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
 
     row = helpers.find_all(window, "floorStairRow")[0]
     _open_and_enter(window, _inside(row, "floorStairTarget"))
@@ -273,7 +270,6 @@ def test_editing_a_pasted_coord_carries_the_floor():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
 
     row = helpers.find_all(window, "floorStairRow")[0]
     _paste(window, _inside(row, "floorStairArrive"), "3层 6,7")
@@ -295,7 +291,6 @@ def test_current_coord_field_also_shows_the_floor_when_editing():
     helpers.click_item(window, helpers.find_item(window, "mapSheet"))
     assert helpers.wait_for(
         lambda: window.floorSheetOf("2层") is not None) is True
-    helpers.show_tab(window, "stair")
 
     row = helpers.find_all(window, "floorStairRow")[0]
     editor = _open_editor(window, _inside(row, "floorStairPos"))
